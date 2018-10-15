@@ -14,6 +14,15 @@ contract NodeList {
   constructor() public {
   }
 
+  function viewNodeList() external view  returns (address[]) {
+    return nodeList;
+  }
+
+  function viewNodeDetails(address node) external view  returns (string declaredIp, uint256 position) {
+    declaredIp = nodeDetails[node].declaredIp;
+    position = nodeDetails[node].position;
+  }
+
   function listNode(string declaredIp) external {
     nodeList[nodeList.length] = msg.sender;
     nodeDetails[msg.sender] = Details({declaredIp: declaredIp, position: nodeList.length});

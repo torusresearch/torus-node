@@ -6,19 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
-
-	"github.com/micro/go-config"
-	"github.com/micro/go-config/source/file"
 )
-
-type Config struct {
-	MakeMasterOnError string `json:"makeMasterOnError"`
-	ClusterIp         string `json:"clusterip"`
-	MyPort            string `json:"myport"`
-	EthConnection     string `json:"ethconnection"`
-	EthPrivateKey     string `json:"ethprivatekey"`
-	NodeListAddress   string `json:"nodelistaddress`
-}
 
 /* The entry point for our System */
 func main() {
@@ -26,14 +14,7 @@ func main() {
 	// ethPrivateKey := flag.String("ethprivatekey", "af090175729a5437ff3fedb766a5c8dc8a4a783ed41a384b83cf4647f0c99824", "provide eth private key, defaults af090175729a5437ff3fedb766a5c8dc8a4a783ed41a384b83cf4647f0c99824")
 	flag.Parse()
 
-	/* Load Config */
-	config.Load(file.NewSource(
-		file.WithPath("./node/config.json"),
-	))
-	// retrieve map[string]interface{}
-	var conf Config
-	config.Scan(&conf)
-
+	conf := loadConfig()
 	list := setUpEth(conf)
 
 	/* Register Node */

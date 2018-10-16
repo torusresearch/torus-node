@@ -3,8 +3,8 @@ package main
 /* Al useful imports */
 import (
 	"fmt"
-	"log"
 	"net/rpc"
+	"time"
 
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
@@ -21,13 +21,18 @@ type Person struct {
 func setUpClient(nodeListStrings []string) {
 	// nodeListStruct make(NodeList[], 0)
 	// for index, element := range nodeListStrings {
-	rpcClient := jsonrpcclient.NewClient(nodeListStrings[0])
+	time.Sleep(1000 * time.Millisecond)
+	for {
+		rpcClient := jsonrpcclient.NewClient(nodeListStrings[0])
 
-	response, err := rpcClient.Call("Main.Echo", &Person{"John"})
-	if err != nil {
-		log.Fatal(err)
+		response, err := rpcClient.Call("Main.Echo", &Person{"John"})
+		if err != nil {
+			fmt.Println("couldnt connect")
+		}
+
+		fmt.Println("response: ", response)
+		fmt.Println(time.Now().UTC())
+		time.Sleep(1000 * time.Millisecond)
 	}
-
-	fmt.Println(response)
 	// }
 }

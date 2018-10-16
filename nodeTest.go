@@ -2,22 +2,13 @@ package main
 
 /* Al useful imports */
 import (
-	"crypto/ecdsa"
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 
 	"github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"
-
-	"github.com/ethereum/go-ethereum/common"
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
-
-	nodelist "./solidity/goContracts"
 )
 
 type Config struct {
@@ -27,16 +18,6 @@ type Config struct {
 	EthConnection     string `json:"ethconnection"`
 	EthPrivateKey     string `json:"ethprivatekey"`
 	NodeListAddress   string `json:"nodelistaddress`
-}
-
-/* Form public key using private key */
-func publicKeyFromPrivateKey(privateKey string) string {
-	privateKeyBytes, _ := hex.DecodeString(privateKey)
-	P1x, P1y := ethCrypto.S256().ScalarBaseMult(privateKeyBytes)
-	Phex := P1x.Text(16) + P1y.Text(16)
-	Pbyte, _ := hex.DecodeString(Phex)
-	pubKHex := hex.EncodeToString(ethCrypto.Keccak256(Pbyte))
-	return "0x" + pubKHex[len(pubKHex)-40:]
 }
 
 /* The entry point for our System */
@@ -49,45 +30,11 @@ func main() {
 	config.Load(file.NewSource(
 		file.WithPath("./node/config.json"),
 	))
-
 	// retrieve map[string]interface{}
 	var conf Config
 	config.Scan(&conf)
 
-	/* Connect to Ethereum */
-	client, err := ethclient.Dial(conf.EthConnection)
-	if err != nil {
-		fmt.Println("Could not connect to eth connection ", conf.EthConnection)
-		log.Fatal(err)
-	}
-
-	privateKeyECDSA, err := ethCrypto.HexToECDSA(string(conf.EthPrivateKey))
-	if err != nil {
-		log.Fatal(err)
-	}
-	nodePublicKey := privateKeyECDSA.Public()
-	nodePublicKeyECDSA, ok := nodePublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("error casting public key to ECDSA")
-	}
-	nodeAddress := ethCrypto.PubkeyToAddress(*nodePublicKeyECDSA)
-	nodeListAddress := common.HexToAddress(conf.NodeListAddress)
-
-	fmt.Println("We have an eth connection to ", conf.EthConnection)
-	fmt.Println("Node Private Key: ", conf.EthPrivateKey)
-	fmt.Println("Node Public Key: ", nodeAddress)
-
-	/*Creating contract instances */
-	nodeListInstance, err := nodelist.NewNodelist(nodeListAddress, client)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	/*Fetch Node List from contract address */
-	list, err := nodeListInstance.ViewNodeList(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	list := setUpEth(conf)
 
 	/* Register Node */
 	nodeIp, err := findExternalIP()
@@ -106,11 +53,10 @@ func main() {
 	} else {
 		fmt.Println("No existing nodes to connect to")
 	}
-
-	// setUpServer(string(conf.MyPort))
 	test := make([]string, 1)
 	test[0] = "http://localhost:" + string(conf.MyPort) + "/jrpc"
-	setUpClient(test)
+	go setUpClient(test)
+	setUpServer(string(conf.MyPort))
 
 }
 

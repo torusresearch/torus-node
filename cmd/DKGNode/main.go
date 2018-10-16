@@ -20,7 +20,7 @@ import (
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	nodelist "./solidity/goContracts"
+	nodelist "../../solidity/goContracts"
 )
 
 /* Information/Metadata about node */
@@ -74,7 +74,7 @@ func main() {
 
 	/* Load Config */
 	config.Load(file.NewSource(
-		file.WithPath("./config.json"),
+		file.WithPath("../../config/config.json"),
 	))
 
 	// retrieve map[string]interface{}

@@ -9,13 +9,17 @@ contract NodeList {
   }
 
   mapping (address => Details) public nodeDetails;
-  address[] nodeList;
+  address[] public nodeList;
 
   constructor() public {
   }
 
   function viewNodeList() external view  returns (address[]) {
     return nodeList;
+  }
+
+  function viewNodeListCount() external view  returns (uint256) {
+    return nodeList.length;
   }
 
   function viewNodeDetails(address node) external view  returns (string declaredIp, uint256 position) {

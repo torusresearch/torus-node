@@ -2,6 +2,8 @@ package main
 
 /* Al useful imports */
 import (
+	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,14 +11,16 @@ import (
 	"net"
 	"strconv"
 	"time"
-
-	"encoding/hex"
+	"errors"
 
 	"github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"
 
+	"github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	nodelist "./solidity/goContracts"
 )
 
 /* Information/Metadata about node */
@@ -39,6 +43,7 @@ type Config struct {
 	MyPort            string `json:"myport"`
 	EthConnection     string `json:"ethconnection"`
 	EthPrivateKey     string `json:"ethprivatekey"`
+	NodeListAddress   string `json:"nodelistaddress`
 }
 
 /* Just for pretty printing the node info */
@@ -64,10 +69,6 @@ func publicKeyFromPrivateKey(privateKey string) string {
 /* The entry point for our System */
 func main() {
 	/* Parse the provided parameters on command line */
-	// makeMasterOnError := flag.Bool("makeMasterOnError", false, "make this node master if unable to connect to the cluster ip provided.")
-	// clusterip := flag.String("clusterip", "127.0.0.1:8001", "ip address of any node to connnect")
-	// myport := flag.String("myport", "8001", "ip address to run this node on. default is 8001.")
-	// ethConnection := flag.String("ethconnection", "https://mainnet.infura.io", "defaults to an infura connection at https://mainnet.infura.io")
 	// ethPrivateKey := flag.String("ethprivatekey", "af090175729a5437ff3fedb766a5c8dc8a4a783ed41a384b83cf4647f0c99824", "provide eth private key, defaults af090175729a5437ff3fedb766a5c8dc8a4a783ed41a384b83cf4647f0c99824")
 	flag.Parse()
 
@@ -81,18 +82,59 @@ func main() {
 	config.Scan(&conf)
 
 	/* Connect to Ethereum */
-	_, err := ethclient.Dial(conf.EthConnection)
+	client, err := ethclient.Dial(conf.EthConnection)
 	if err != nil {
 		fmt.Println("Could not connect to eth connection ", conf.EthConnection)
 		log.Fatal(err)
 	}
-	ethPublicKey := publicKeyFromPrivateKey(string(conf.EthPrivateKey))
 
-	fmt.Println("We have a eth connection to ", conf.EthConnection)
+	privateKeyECDSA, err := ethCrypto.HexToECDSA(string(conf.EthPrivateKey))
+	if err != nil {
+		log.Fatal(err)
+	}
+	nodePublicKey := privateKeyECDSA.Public()
+	nodePublicKeyECDSA, ok := nodePublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("error casting public key to ECDSA")
+	}
+	nodeAddress := ethCrypto.PubkeyToAddress(*nodePublicKeyECDSA)
+	nodeListAddress := common.HexToAddress(conf.NodeListAddress)
+
+	fmt.Println("We have an eth connection to ", conf.EthConnection)
 	fmt.Println("Node Private Key: ", conf.EthPrivateKey)
-	fmt.Println("Node Public Key: ", ethPublicKey)
+	fmt.Println("Node Public Key: ", nodeAddress)
+
+	/*Creating contract instances */
+	nodeListInstance, err := nodelist.NewNodelist(nodeListAddress, client)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	/*Fetch Node List from contract address */
+	list, err := nodeListInstance.ViewNodeList(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	/* Register Node */
+	nodeIp, err := findExternalIP()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("Node IP Address: " + nodeIp + ":" + string(conf.MyPort))
+	// err = nodeListInstance.ListNode(nodeIp + ":" + string(conf.MyPort))
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	if len(list) != 0 {
+		fmt.Println("Connecting to other nodes: ", len(list), " nodes....")
+		
+	} else {
+		fmt.Println("No existing nodes to connect to")
+	}
+
+
 
 	/* Generate id for myself */
 	// rand.Seed(time.Now().UTC().UnixNano())
@@ -118,6 +160,86 @@ func main() {
 	// 	} else {
 	// 		fmt.Println("Quitting system. Set makeMasterOnError flag to make the node master.", myid)
 	// 	}
+}
+
+// func setNodeOnList(ipAddress, privateKey, instance, client) {
+// 	publicKey := privateKey.Public()
+// 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+// 	if !ok {
+// 			log.Fatal("error casting public key to ECDSA")
+// 	}
+
+// 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+// 	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+// 	if err != nil {
+// 			log.Fatal(err)
+// 	}
+
+// 	gasPrice, err := client.SuggestGasPrice(context.Background())
+// 	if err != nil {
+// 			log.Fatal(err)
+// 	}
+
+// 	auth := bind.NewKeyedTransactor(privateKey)
+// 	auth.Nonce = big.NewInt(int64(nonce))
+// 	auth.Value = big.NewInt(0)     // in wei
+// 	auth.GasLimit = uint64(300000) // in units
+// 	auth.GasPrice = gasPrice
+
+// 	address := common.HexToAddress("0x147B8eb97fD247D06C4006D269c90C1908Fb5D54")
+// 	instance, err := store.NewStore(address, client)
+// 	if err != nil {
+// 			log.Fatal(err)
+// 	}
+
+// 	key := [32]byte{}
+// 	value := [32]byte{}
+// 	copy(key[:], []byte("foo"))
+// 	copy(value[:], []byte("bar"))
+
+// 	tx, err := instance.ListNode(auth, key, value)
+// 	if err != nil {
+// 			log.Fatal(err)
+// 	}
+
+// 	fmt.Printf("tx sent: %s", tx.Hash().Hex()) // tx sent: 0x8d490e535678e9a24360e955d75b27ad307bdfb97a1dca51d0f3035dcee3e870
+// }
+
+func findExternalIP() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue // interface down
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // loopback interface
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue // not an ipv4 address
+			}
+			return ip.String(), nil
+		}
+	}
+	return "", errors.New("are you connected to the network?")
 }
 
 /*

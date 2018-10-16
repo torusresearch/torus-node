@@ -5,13 +5,13 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"strconv"
 	"time"
-	"errors"
 
 	"github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"
@@ -74,7 +74,7 @@ func main() {
 
 	/* Load Config */
 	config.Load(file.NewSource(
-		file.WithPath("../../config/config.json"),
+		file.WithPath("../../node/config.json"),
 	))
 
 	// retrieve map[string]interface{}
@@ -129,12 +129,10 @@ func main() {
 
 	if len(list) != 0 {
 		fmt.Println("Connecting to other nodes: ", len(list), " nodes....")
-		
+
 	} else {
 		fmt.Println("No existing nodes to connect to")
 	}
-
-
 
 	/* Generate id for myself */
 	// rand.Seed(time.Now().UTC().UnixNano())

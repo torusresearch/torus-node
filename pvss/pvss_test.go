@@ -55,8 +55,10 @@ var (
 	s              = secp256k1.S256()
 	fieldOrder     = fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
-	// curve point to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
+	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	sqRoot = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
+	G      = Point{x: s.Gx, y: s.Gy}
+	H      = hashToPoint(G.x.Bytes())
 )
 
 func Keccak256(data ...[]byte) []byte {
@@ -151,6 +153,7 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 	return shares
 }
 
+<<<<<<< HEAD
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
 func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
@@ -164,6 +167,8 @@ func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 	return commits
 }
 
+=======
+>>>>>>> ac1be1242b76d74c13ef75f8af45bb0512721fa6
 // NewDLEQProof computes a new NIZK dlog-equality proof for the scalar x with
 // respect to base points G and H. It therefore randomly selects a commitment v
 // and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.
@@ -173,15 +178,15 @@ func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
 	xG := Point{x: x, y: y}
-	x2, y2 := s.Add(&xG.x, &xG.y, &H.x, &H.y)
-	xH := Point{x: *x2, y: *y2}
+	x2, y2 := s.Add(xG.x, xG.y, H.x, H.y)
+	xH := Point{x: x2, y: y2}
 
 	// Commitment
 	v := randomBigInt()
 	x3, y3 := s.ScalarBaseMult(v.Bytes())
-	x4, y4 := s.Add(x3, y3, &H.x, &H.y)
-	vG := Point{x: *x3, y: *y3}
-	vH := Point{x: *x4, y: *y4}
+	x4, y4 := s.Add(x3, y3, H.x, H.y)
+	vG := Point{x: x3, y: y3}
+	vH := Point{x: x4, y: y4}
 
 	//Concat hashing bytes
 	cb := make([]byte, 0)
@@ -258,5 +263,5 @@ func TestPVSS(test *testing.T) {
 	secret := randomBigInt()
 	fmt.Println(len(nodeList))
 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	encShares(nodeList, *secret, 3, Point{*s.Gx, *s.Gy})
+	encShares(nodeList, *secret, 3, H)
 }

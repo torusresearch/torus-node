@@ -134,12 +134,20 @@ func polyEval(polynomial PrimaryPolynomial, x int) *big.Int { // get private sha
 	xi := new(big.Int).SetInt64(int64(x))
 	sum := new(big.Int) //additive identity of curve = 0??? TODO: CHECK PLS
 	fmt.Println("x", x)
-	for i := polynomial.threshold - 1; i >= 0; i-- {
-		fmt.Println("i: ", i)
-		sum.Mul(sum, xi)
-		sum.Add(sum, &polynomial.coeff[i])
+	// for i := polynomial.threshold - 1; i >= 0; i-- {
+	// 	fmt.Println("i: ", i)
+	// 	sum.Mul(sum, xi)
+	// 	sum.Add(sum, &polynomial.coeff[i])
+	// }
+	// sum.Mod(sum, fieldOrder)
+
+	for i := 1; i < polynomial.threshold; i++ {
+		tmp := new(big.Int).Mul(xi, &polynomial.coeff[0])
+		sum.Add(sum, tmp)
+		sum.Mod(sum, fieldOrder)
+		xi.Mul(xi, xi)
+		xi.Mod(xi, fieldOrder)
 	}
-	sum.Mod(sum, fieldOrder)
 	return sum
 }
 

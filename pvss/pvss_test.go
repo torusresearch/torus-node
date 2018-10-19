@@ -55,7 +55,7 @@ var (
 	s              = secp256k1.S256()
 	fieldOrder     = fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
-	// curve point to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
+	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	sqRoot = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
 	G      = Point{x: s.Gx, y: s.Gy}
 	H      = hashToPoint(G.x.Bytes())

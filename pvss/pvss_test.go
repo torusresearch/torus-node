@@ -134,13 +134,35 @@ func polyEval(polynomial PrimaryPolynomial, x int) *big.Int { // get private sha
 	xi := new(big.Int).SetInt64(int64(x))
 	sum := new(big.Int) //additive identity of curve = 0??? TODO: CHECK PLS
 	fmt.Println("x", x)
-	for i := polynomial.threshold - 1; i >= 0; i-- {
-		fmt.Println("i: ", i)
-		sum.Mul(sum, xi)
-		sum.Add(sum, &polynomial.coeff[i])
+	// for i := polynomial.threshold - 1; i >= 0; i-- {
+	// 	fmt.Println("i: ", i)
+	// 	sum.Mul(sum, xi)
+	// 	sum.Add(sum, &polynomial.coeff[i])
+	// }
+	// sum.Mod(sum, fieldOrder)
+	sum.Add(sum, &polynomial.coeff[0])
+
+	for i := 1; i < polynomial.threshold; i++ {
+		tmp := new(big.Int).Mul(xi, &polynomial.coeff[i])
+		sum.Add(sum, tmp)
+		sum.Mod(sum, fieldOrder)
+		xi.Mul(xi, xi)
+		xi.Mod(xi, fieldOrder)
+		fmt.Println(sum.Text(10))
 	}
-	sum.Mod(sum, fieldOrder)
 	return sum
+}
+
+func TestPolyEval(test *testing.T) {
+	coeff := make([]big.Int, 11)
+	coeff[0] = *big.NewInt(10) //assign secret as coeff of x^0
+	for i := 1; i < 11; i++ {  //randomly choose coeffs
+		coeff[i] = *big.NewInt(int64(i))
+	}
+	fmt.Println(coeff)
+	polynomial := PrimaryPolynomial{coeff, 11}
+	fmt.Println(polyEval(polynomial, 1))
+
 }
 
 func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
@@ -260,10 +282,10 @@ func TestRandom(test *testing.T) {
 
 }
 
-func TestPVSS(test *testing.T) {
-	nodeList := createRandomNodes(10)
-	secret := randomBigInt()
-	// fmt.Println(len(nodeList))
-	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	encShares(nodeList.Nodes, *secret, 3)
-}
+// func TestPVSS(test *testing.T) {
+// 	nodeList := createRandomNodes(10)
+// 	secret := randomBigInt()
+// 	// fmt.Println(len(nodeList))
+// 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
+// 	encShares(nodeList.Nodes, *secret, 3)
+// }

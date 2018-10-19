@@ -57,6 +57,8 @@ var (
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// curve point to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	sqRoot = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
+	G      = Point{x: s.Gx, y: s.Gy}
+	H      = hashToPoint(G.x.Bytes())
 )
 
 func Keccak256(data ...[]byte) []byte {
@@ -156,10 +158,10 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
-		tmpx, tmpy := s.ScalarBaseMult(polynomial[i].Bytes())
+		tmpx, tmpy := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		x, y := s.ScalarMult(tmpx, tmpy, H.Bytes())
 		commits[i] = Point{x: x, y: y}
-		tmpx, tmpy := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
+		tmpx, tmpy = s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		x, y := s.Add(tmpx, tmpy, &H.x, &H.y)
 		commits[i] = Point{x: *x, y: *y}
 	}

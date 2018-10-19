@@ -153,11 +153,10 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
+func getCommit(polynomial PrimaryPolynomial, threshold int) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
-		tmpx, tmpy := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
-		x, y := s.Add(tmpx, tmpy, &H.x, &H.y)
+		x, y := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		commits[i] = Point{x: *x, y: *y}
 	}
 	return commits
@@ -168,17 +167,17 @@ func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 // and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.
 // Besides the proof, this function also returns the encrypted base points xG
 // and xH.
-func createDlEQProof(secret big.Int, H Point) *DLEQProof {
+func createDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
 	xG := Point{x: *x, y: *y}
-	x2, y2 := s.Add(&xG.x, &xG.y, &H.x, &H.y)
+	x2, y2 := s.Add(&xG.x, &xG.y, &nodePubKey.x, &nodePubKey.y)
 	xH := Point{x: *x2, y: *y2}
 
 	// Commitment
 	v := randomBigInt()
 	x3, y3 := s.ScalarBaseMult(v.Bytes())
-	x4, y4 := s.Add(x3, y3, &H.x, &H.y)
+	x4, y4 := s.Add(x3, y3, &nodePubKey.x, &nodePubKey.y)
 	vG := Point{x: *x3, y: *y3}
 	vH := Point{x: *x4, y: *y4}
 
@@ -202,7 +201,9 @@ func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
 
-func encShares(nodes []Point, secret big.Int, threshold int, H Point) {
+// func batchCreateDLEQProof(nodeList, shares []PrimaryShares)
+
+func encShares(nodes []Point, secret big.Int, threshold int) {
 	n := len(nodes)
 	encryptedShares := make([]big.Int, n)
 	// Create secret sharing polynomial
@@ -217,7 +218,7 @@ func encShares(nodes []Point, secret big.Int, threshold int, H Point) {
 	shares := getShares(polynomial, n)
 
 	//committing Yi and proof
-	commits := getCommit(polynomial, threshold, H)
+	commits := getCommit(polynomial, threshold)
 
 	// Create NIZK discrete-logarithm equality proofs
 	fmt.Println(encryptedShares, shares, commits)

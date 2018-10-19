@@ -156,9 +156,7 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
-		tmpx, tmpy := s.ScalarBaseMult(polynomial[i].Bytes())
-		x, y := s.ScalarMult(tmpx, tmpy, H.Bytes())
-		commits[i] = Point{x: x, y: y}
+
 		tmpx, tmpy := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		x, y := s.Add(tmpx, tmpy, &H.x, &H.y)
 		commits[i] = Point{x: *x, y: *y}
@@ -171,32 +169,6 @@ func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 // and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.
 // Besides the proof, this function also returns the encrypted base points xG
 // and xH.
-// func NewDLEQProof(suite Suite, G kyber.Point, H kyber.Point, x kyber.Scalar) (proof *Proof, xG kyber.Point, xH kyber.Point, err error) {
-// 	// Encrypt base points with secret
-// 	xG = suite.Point().Mul(x, G)
-// 	xH = suite.Point().Mul(x, H)
-
-// 	// Commitment
-// 	v := suite.Scalar().Pick(suite.RandomStream())
-// 	vG := suite.Point().Mul(v, G)
-// 	vH := suite.Point().Mul(v, H)
-
-// 	// Challenge
-// 	h := suite.Hash()
-// 	xG.MarshalTo(h)
-// 	xH.MarshalTo(h)
-// 	vG.MarshalTo(h)
-// 	vH.MarshalTo(h)
-// 	cb := h.Sum(nil)
-// 	c := suite.Scalar().Pick(suite.XOF(cb))
-
-// 	// Response
-// 	r := suite.Scalar()
-// 	r.Mul(x, c).Sub(v, r)
-
-// 	return &Proof{c, r, vG, vH}, xG, xH, nil
-// }
-
 func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
@@ -230,6 +202,8 @@ func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
+
+func batchCreateDLEQProofs()
 
 func encShares(nodes []NodeList, secret big.Int, threshold int, H Point) {
 	n := len(nodes)

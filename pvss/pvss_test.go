@@ -171,13 +171,13 @@ func createDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
 	xG := Point{x: *x, y: *y}
-	x2, y2 := s.Add(&xG.x, &xG.y, &nodePubKey.x, &nodePubKey.y)
+	x2, y2 := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, secret.Bytes())
 	xH := Point{x: *x2, y: *y2}
 
 	// Commitment
 	v := randomBigInt()
 	x3, y3 := s.ScalarBaseMult(v.Bytes())
-	x4, y4 := s.Add(x3, y3, &nodePubKey.x, &nodePubKey.y)
+	x4, y4 := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, v.Bytes())
 	vG := Point{x: *x3, y: *y3}
 	vH := Point{x: *x4, y: *y4}
 

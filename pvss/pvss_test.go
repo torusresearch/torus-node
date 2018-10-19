@@ -15,8 +15,7 @@ import (
 )
 
 type NodeList struct {
-	Index int
-	Keys  ecdsa.PrivateKey
+	Nodes []Point
 }
 
 type PrimaryPolynomial struct {
@@ -117,11 +116,10 @@ func generateKeyPair() (pubkey, privkey []byte) {
 	return pubkey, privkey
 }
 
-func createRandomNodes(number int) []NodeList {
-	list := make([]NodeList, number)
+func createRandomNodes(number int) *NodeList {
+	list := new(NodeList)
 	for i := 0; i < number; i++ {
-		key, _ := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
-		list[i] = NodeList{Index: i, Keys: *key}
+		list.Nodes[i] = *hashToPoint(randomBigInt().Bytes())
 	}
 	return list
 }
@@ -204,9 +202,9 @@ func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
 
-func encShares(nodes []NodeList, secret big.Int, threshold int, H Point) {
+func encShares(nodes []Point, secret big.Int, threshold int, H Point) {
 	n := len(nodes)
-	encryptedShares := make([]big.Int, n) // TODO: use struct for shares
+	encryptedShares := make([]big.Int, n)
 	// Create secret sharing polynomial
 	coeff := make([]big.Int, threshold)
 	coeff[0] = secret                //assign secret as coeff of x^0
@@ -255,7 +253,7 @@ func TestRandom(test *testing.T) {
 func TestPVSS(test *testing.T) {
 	nodeList := createRandomNodes(10)
 	secret := randomBigInt()
-	fmt.Println(len(nodeList))
+	// fmt.Println(len(nodeList))
 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	encShares(nodeList, *secret, 3, *H)
+	encShares(nodeList.Nodes, *secret, 3, *H)
 }

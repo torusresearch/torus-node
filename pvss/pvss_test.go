@@ -175,8 +175,8 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial PrimaryPolynomial, threshold int) []Point {
-	commits := make([]Point, threshold)
+func getCommit(polynomial PrimaryPolynomial) []Point {
+	commits := make([]Point, polynomial.threshold)
 	for i := range commits {
 		x, y := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		commits[i] = Point{x: *x, y: *y}
@@ -190,6 +190,8 @@ func TestGetCommit(test *testing.T) {
 		dummyCoeff[i] = *new(big.Int).SetInt64(int64(i + 1))
 	}
 	dummyPolynomial := PrimaryPolynomial{dummyCoeff, len(dummyCoeff)}
+	testCommit := getCommit(dummyPolynomial)
+	assert.IsType(test, []Point, testCommit)
 
 }
 

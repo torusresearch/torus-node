@@ -27,6 +27,15 @@ type Point struct {
 	y big.Int
 }
 
+type DLEQProof struct {
+	c  big.Int
+	r  big.Int
+	vG Point
+	vH Point
+	xG Point
+	xH Point
+}
+
 func fromHex(s string) *big.Int {
 	r, ok := new(big.Int).SetString(s, 16)
 	if !ok {
@@ -51,12 +60,12 @@ func Keccak256(data ...[]byte) []byte {
 	return d.Sum(nil)
 }
 
-func hashToPoint([]byte) {
-	keccakHash := Keccak256([]byte)
-	x := new(big.Int)
-	x.SetBytes(keccakHash)
-	for !
-}
+// func hashToPoint([]byte) {
+// 	keccakHash := Keccak256([]byte)
+// 	x := new(big.Int)
+// 	x.SetBytes(keccakHash)
+// 	for !
+// }
 
 func generateKeyPair() (pubkey, privkey []byte) {
 	key, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
@@ -94,7 +103,7 @@ func polyEval(polynomial []big.Int, x int) big.Int { // get private share
 		sum.Mul(sum, xi)
 		sum.Add(sum, &polynomial[i])
 	}
-	sum = sum.Mod(fieldOrder)
+	sum.Mod(sum, fieldOrder)
 	return *sum
 }
 
@@ -112,7 +121,7 @@ func getCommit(polynomial []big.Int, threshold int, H Point) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
 		tmpx, tmpy := s.ScalarBaseMult(polynomial[i].Bytes())
-		x, y := s.Add(tmpx, tmpy, H.x, H.y)
+		x, y := s.Add(tmpx, tmpy, &H.x, &H.y)
 		commits[i] = Point{x: *x, y: *y}
 	}
 	return commits
@@ -149,7 +158,7 @@ func getCommit(polynomial []big.Int, threshold int, H Point) []Point {
 // 	return &Proof{c, r, vG, vH}, xG, xH, nil
 // }
 
-func createDlEQProof(secret big.Int, H Point) {
+func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
 	xG := Point{x: *x, y: *y}
@@ -165,11 +174,22 @@ func createDlEQProof(secret big.Int, H Point) {
 
 	//Concat hashing bytes
 	cb := make([]byte, 0)
-	for i, element := range [4]Point{xG, xH, vG, vH} {
+	for _, element := range [4]Point{xG, xH, vG, vH} {
 		cb = append(cb[:], element.x.Bytes()...)
 		cb = append(cb[:], element.y.Bytes()...)
 	}
 
+	//hash
+	hashed := Keccak256(cb)
+	c := new(big.Int).SetBytes(hashed)
+
+	//response
+	r := new(big.Int)
+	r.Mul(c, &secret)
+	r.Mod(r, fieldOrder)
+	r.Sub(v, r) //do we need to mod here?
+
+	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
 
 func encShares(nodes []NodeList, secret big.Int, threshold int, H Point) {

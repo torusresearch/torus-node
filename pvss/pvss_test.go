@@ -11,6 +11,7 @@ import (
 
 	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/stretchr/testify/assert"
 )
 
 type NodeList struct {
@@ -89,7 +90,7 @@ func TestHash(test *testing.T) {
 	res := hashToPoint([]byte("this is a random message"))
 	fmt.Println(res.x)
 	fmt.Println(res.y)
-	assertEqual(test, s.IsOnCurve(res.x, res.y), true)
+	assert.True(test, s.IsOnCurve(res.x, res.y))
 }
 
 func assertEqual(t *testing.T, a interface{}, b interface{}) {
@@ -199,7 +200,7 @@ func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
-	xG := Point{x: *x, y: *y}
+	xG := Point{x: x, y: y}
 	x2, y2 := s.Add(&xG.x, &xG.y, &H.x, &H.y)
 	xH := Point{x: *x2, y: *y2}
 

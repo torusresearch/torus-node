@@ -201,7 +201,16 @@ func createDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
 
-// func batchCreateDLEQProof(nodeList, shares []PrimaryShares)
+func batchCreateDLEQProof(nodes []Point, shares []PrimaryShares) []*DLEQProof {
+	if len(nodes) != len(shares) {
+		return nil
+	}
+	proofs := make([]*DLEQProof, len(nodes))
+	for i := range nodes {
+		proofs[i] = createDlEQProof(shares[i].Value, nodes[i])
+	}
+	return proofs
+}
 
 func encShares(nodes []Point, secret big.Int, threshold int) {
 	n := len(nodes)

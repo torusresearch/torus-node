@@ -34,6 +34,7 @@ func main() {
 	} else {
 		fmt.Println("No existing nodes to connect to")
 	}
+	
 	test := make([]string, 1)
 	test[0] = "http://localhost:" + string(conf.MyPort) + "/jrpc"
 	go setUpClient(test)

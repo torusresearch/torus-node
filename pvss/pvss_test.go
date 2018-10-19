@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/decred/dcrd/dcrec/secp256k1"
@@ -23,8 +24,8 @@ type PrimaryShares struct {
 }
 
 type Point struct {
-	x big.Int
-	y big.Int
+	x *big.Int
+	y *big.Int
 }
 
 func fromHex(s string) *big.Int {
@@ -40,7 +41,7 @@ var (
 	fieldOrder     = fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// curve point to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
-	sqRoot = fromHex("3fffffffffffffffffffffffffffffffaeabb739abd2280eeff497a3340d9050")
+	sqRoot = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
 )
 
 func Keccak256(data ...[]byte) []byte {
@@ -51,11 +52,38 @@ func Keccak256(data ...[]byte) []byte {
 	return d.Sum(nil)
 }
 
-func hashToPoint([]byte) {
-	keccakHash := Keccak256([]byte)
+func hashToPoint(data []byte) Point {
+	keccakHash := Keccak256(data)
 	x := new(big.Int)
 	x.SetBytes(keccakHash)
-	for !
+	for {
+		beta := new(big.Int)
+		beta.Exp(x, big.NewInt(3), fieldOrder)
+		beta.Add(beta, big.NewInt(7))
+		beta.Mod(beta, fieldOrder)
+		y := new(big.Int)
+		y.Exp(beta, sqRoot, fieldOrder)
+		if new(big.Int).Exp(y, big.NewInt(2), fieldOrder).Cmp(beta) == 0 {
+			return Point{x: x, y: y}
+		} else {
+			x.Add(x, big.NewInt(1))
+		}
+	}
+}
+
+func TestHash(test *testing.T) {
+	res := hashToPoint([]byte("this is a random message"))
+	fmt.Println(res.x)
+	fmt.Println(res.y)
+	assertEqual(test, s.IsOnCurve(res.x, res.y), true)
+}
+
+func assertEqual(t *testing.T, a interface{}, b interface{}) {
+	if a == b {
+		return
+	}
+	// debug.PrintStack()
+	t.Errorf("Received %v (type %v), expected %v (type %v)", a, reflect.TypeOf(a), b, reflect.TypeOf(b))
 }
 
 func generateKeyPair() (pubkey, privkey []byte) {
@@ -94,7 +122,7 @@ func polyEval(polynomial []big.Int, x int) big.Int { // get private share
 		sum.Mul(sum, xi)
 		sum.Add(sum, &polynomial[i])
 	}
-	sum = sum.Mod(fieldOrder)
+	sum.Mod(sum, fieldOrder)
 	return *sum
 }
 
@@ -113,7 +141,7 @@ func getCommit(polynomial []big.Int, threshold int, H big.Int) []Point {
 	for i := range commits {
 		tmpx, tmpy := s.ScalarBaseMult(polynomial[i].Bytes())
 		x, y := s.ScalarMult(tmpx, tmpy, H.Bytes())
-		commits[i] = Point{x: *x, y: *y}
+		commits[i] = Point{x: x, y: y}
 	}
 	return commits
 }
@@ -175,7 +203,7 @@ func TestRandom(test *testing.T) {
 
 }
 
-func TestPVSS(test *testing.T) {
-	nodeWallets := createRandomNodes(21)
-	fmt.Println(nodeWallets)
-}
+// func TestPVSS(test *testing.T) {
+// 	nodeWallets := createRandomNodes(21)
+// 	fmt.Println(nodeWallets)
+// }

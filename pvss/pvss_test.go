@@ -119,7 +119,7 @@ func generateKeyPair() (pubkey, privkey []byte) {
 func createRandomNodes(number int) *NodeList {
 	list := new(NodeList)
 	for i := 0; i < number; i++ {
-		list.Nodes[i] = *hashToPoint(randomBigInt().Bytes())
+		list.Nodes = append(list.Nodes, *hashToPoint(randomBigInt().Bytes()))
 	}
 	return list
 }
@@ -256,5 +256,5 @@ func TestPVSS(test *testing.T) {
 	secret := randomBigInt()
 	// fmt.Println(len(nodeList))
 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	encShares(nodeList.Nodes, *secret, 3, *H)
+	encShares(nodeList.Nodes, *secret, 3)
 }

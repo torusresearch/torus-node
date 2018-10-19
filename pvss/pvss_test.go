@@ -153,13 +153,11 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 	return shares
 }
 
-<<<<<<< HEAD
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
 func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
-
 		tmpx, tmpy := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		x, y := s.Add(tmpx, tmpy, &H.x, &H.y)
 		commits[i] = Point{x: *x, y: *y}
@@ -167,8 +165,6 @@ func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 	return commits
 }
 
-=======
->>>>>>> ac1be1242b76d74c13ef75f8af45bb0512721fa6
 // NewDLEQProof computes a new NIZK dlog-equality proof for the scalar x with
 // respect to base points G and H. It therefore randomly selects a commitment v
 // and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.

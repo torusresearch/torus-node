@@ -98,10 +98,14 @@ func getShares(polynomial []big.Int, n int) []big.Int {
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-// func commit(polynomial []big.Int, bX big.Int, bY big.Int, threshold int) []big.Int {
-// 	commits := make([]Point, threshold)
-
-// }
+func getCommit(polynomial []big.Int, threshold int) []Point {
+	commits := make([]Point, threshold)
+	for i := range commits {
+		x, y := s.ScalarBaseMult(polynomial[i].Bytes())
+		commits[i] = Point{x: *x, y: *y}
+	}
+	return commits
+}
 
 func encShares(nodes []NodeList, secret big.Int, threshold int) {
 	n := len(nodes)
@@ -116,9 +120,10 @@ func encShares(nodes []NodeList, secret big.Int, threshold int) {
 	// determine shares for polynomial
 	shares := getShares(polynomial, n)
 
-	fmt.Println(encryptedShares, shares)
 	//committing Yi and proof
+	commits := getCommit(polynomial, threshold)
 
+	fmt.Println(encryptedShares, shares, commits)
 }
 
 // Commit creates a public commitment polynomial for the given base point b or

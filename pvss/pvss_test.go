@@ -89,17 +89,71 @@ func getShares(polynomial []big.Int, n int) []big.Int {
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial []big.Int, threshold int, H big.Int) []Point {
+func getCommit(polynomial []big.Int, threshold int, H Point) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
 		tmpx, tmpy := s.ScalarBaseMult(polynomial[i].Bytes())
-		x, y := s.ScalarMult(tmpx, tmpy, H.Bytes())
+		x, y := s.Add(tmpx, tmpy, H.x, H.y)
 		commits[i] = Point{x: *x, y: *y}
 	}
 	return commits
 }
 
-func encShares(nodes []NodeList, secret big.Int, threshold int, H big.Int) {
+// NewDLEQProof computes a new NIZK dlog-equality proof for the scalar x with
+// respect to base points G and H. It therefore randomly selects a commitment v
+// and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.
+// Besides the proof, this function also returns the encrypted base points xG
+// and xH.
+// func NewDLEQProof(suite Suite, G kyber.Point, H kyber.Point, x kyber.Scalar) (proof *Proof, xG kyber.Point, xH kyber.Point, err error) {
+// 	// Encrypt base points with secret
+// 	xG = suite.Point().Mul(x, G)
+// 	xH = suite.Point().Mul(x, H)
+
+// 	// Commitment
+// 	v := suite.Scalar().Pick(suite.RandomStream())
+// 	vG := suite.Point().Mul(v, G)
+// 	vH := suite.Point().Mul(v, H)
+
+// 	// Challenge
+// 	h := suite.Hash()
+// 	xG.MarshalTo(h)
+// 	xH.MarshalTo(h)
+// 	vG.MarshalTo(h)
+// 	vH.MarshalTo(h)
+// 	cb := h.Sum(nil)
+// 	c := suite.Scalar().Pick(suite.XOF(cb))
+
+// 	// Response
+// 	r := suite.Scalar()
+// 	r.Mul(x, c).Sub(v, r)
+
+// 	return &Proof{c, r, vG, vH}, xG, xH, nil
+// }
+
+func createDlEQProof(secret big.Int, H Point) {
+	//Encrypt bbase points with secret
+	x, y := s.ScalarBaseMult(secret.Bytes())
+	xG := Point{x: *x, y: *y}
+	x2, y2 := s.Add(&xG.x, &xG.y, &H.x, &H.y)
+	xH := Point{x: *x2, y: *y2}
+
+	// Commitment
+	v := randomBigInt()
+	x3, y3 := s.ScalarBaseMult(v.Bytes())
+	x4, y4 := s.Add(x3, y3, &H.x, &H.y)
+	vG := Point{x: *x3, y: *y3}
+	vH := Point{x: *x4, y: *y4}
+
+	//Concat hashing bytes
+	cb := make([]byte, 0)
+	for i, element := range [4]Point{xG, xH, vG, vH} {
+		cb = append(cb[:], element.x.Bytes()...)
+		cb = append(cb[:], element.y.Bytes()...)
+	}
+
+}
+
+func encShares(nodes []NodeList, secret big.Int, threshold int, H Point) {
 	n := len(nodes)
 	encryptedShares := make([]big.Int, n) // TODO: structure for shares
 	// Create secret sharing polynomial
@@ -119,16 +173,6 @@ func encShares(nodes []NodeList, secret big.Int, threshold int, H big.Int) {
 	fmt.Println(encryptedShares, shares, commits)
 
 }
-
-// Commit creates a public commitment polynomial for the given base point b or
-// the standard base if b == nil.
-// func (p *PriPoly) Commit(b kyber.Point) *PubPoly {
-// 	commits := make([]kyber.Point, p.Threshold())
-// 	for i := range commits {
-// 		commits[i] = p.g.Point().Mul(p.coeffs[i], b)
-// 	}
-// 	return &PubPoly{p.g, b, commits}
-// }
 
 // DecryptShare first verifies the encrypted share against the encryption
 // consistency proof and, if valid, decrypts it and creates a decryption

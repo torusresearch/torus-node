@@ -69,15 +69,6 @@ func randomBigInt() *big.Int {
 }
 
 // Eval computes the private share v = p(i).
-// func (p *PriPoly) Eval(i int) *PriShare {
-// 	xi := p.g.Scalar().SetInt64(1 + int64(i))
-// 	v := p.g.Scalar().Zero()
-// 	for j := p.Threshold() - 1; j >= 0; j-- {
-// 		v.Mul(v, xi)
-// 		v.Add(v, p.coeffs[j])
-// 	}
-// 	return &PriShare{i, v}
-// }
 func polyEval(polynomial []big.Int, x int) big.Int { // get private share
 	xi := new(big.Int).SetInt64(int64(x))
 	sum := new(big.Int) //additive identity of curve = 0??? TODO: CHECK PLS
@@ -98,16 +89,17 @@ func getShares(polynomial []big.Int, n int) []big.Int {
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial []big.Int, threshold int) []Point {
+func getCommit(polynomial []big.Int, threshold int, H big.Int) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
-		x, y := s.ScalarBaseMult(polynomial[i].Bytes())
+		tmpx, tmpy := s.ScalarBaseMult(polynomial[i].Bytes())
+		x, y := s.ScalarMult(tmpx, tmpy, H.Bytes())
 		commits[i] = Point{x: *x, y: *y}
 	}
 	return commits
 }
 
-func encShares(nodes []NodeList, secret big.Int, threshold int) {
+func encShares(nodes []NodeList, secret big.Int, threshold int, H big.Int) {
 	n := len(nodes)
 	encryptedShares := make([]big.Int, n) // TODO: structure for shares
 	// Create secret sharing polynomial
@@ -117,13 +109,15 @@ func encShares(nodes []NodeList, secret big.Int, threshold int) {
 		polynomial[i] = *randomBigInt()
 	}
 
-	// determine shares for polynomial
+	// determine shares for polynomial with respect to basis H
 	shares := getShares(polynomial, n)
 
 	//committing Yi and proof
-	commits := getCommit(polynomial, threshold)
+	commits := getCommit(polynomial, threshold, H)
 
+	// Create NIZK discrete-logarithm equality proofs
 	fmt.Println(encryptedShares, shares, commits)
+
 }
 
 // Commit creates a public commitment polynomial for the given base point b or

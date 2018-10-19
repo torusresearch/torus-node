@@ -17,6 +17,11 @@ type NodeList struct {
 	Keys  ecdsa.PrivateKey
 }
 
+type PrimaryPolynomial struct {
+	coeff     []big.Int
+	threshold int
+}
+
 type PrimaryShares struct {
 	Index int
 	Value big.Int
@@ -96,18 +101,20 @@ func randomBigInt() *big.Int {
 }
 
 // Eval computes the private share v = p(i).
-func polyEval(polynomial []big.Int, x int) big.Int { // get private share
+func polyEval(polynomial PrimaryPolynomial, x int) big.Int { // get private share
 	xi := new(big.Int).SetInt64(int64(x))
 	sum := new(big.Int) //additive identity of curve = 0??? TODO: CHECK PLS
-	for i := x - 1; i >= 0; i-- {
+	fmt.Println("x", x)
+	for i := polynomial.threshold - 1; i >= 0; i-- {
+		fmt.Println("i: ", i)
 		sum.Mul(sum, xi)
-		sum.Add(sum, &polynomial[i])
+		sum.Add(sum, &polynomial.coeff[i])
 	}
 	sum.Mod(sum, fieldOrder)
 	return *sum
 }
 
-func getShares(polynomial []big.Int, n int) []big.Int {
+func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 	shares := make([]big.Int, n)
 	for i := range shares {
 		shares[i] = polyEval(polynomial, i+1)
@@ -117,10 +124,10 @@ func getShares(polynomial []big.Int, n int) []big.Int {
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial []big.Int, threshold int, H Point) []Point {
+func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 	commits := make([]Point, threshold)
 	for i := range commits {
-		tmpx, tmpy := s.ScalarBaseMult(polynomial[i].Bytes())
+		tmpx, tmpy := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		x, y := s.Add(tmpx, tmpy, &H.x, &H.y)
 		commits[i] = Point{x: *x, y: *y}
 	}
@@ -196,11 +203,12 @@ func encShares(nodes []NodeList, secret big.Int, threshold int, H Point) {
 	n := len(nodes)
 	encryptedShares := make([]big.Int, n) // TODO: use struct for shares
 	// Create secret sharing polynomial
-	polynomial := make([]big.Int, threshold)
-	polynomial[0] = secret           //assign secret as coeff of x^0
-	for i := 1; i < threshold; i++ { //randomly choose polynomials
-		polynomial[i] = *randomBigInt()
+	coeff := make([]big.Int, threshold)
+	coeff[0] = secret                //assign secret as coeff of x^0
+	for i := 1; i < threshold; i++ { //randomly choose coeffs
+		coeff[i] = *randomBigInt()
 	}
+	polynomial := PrimaryPolynomial{coeff, threshold}
 
 	// determine shares for polynomial with respect to basis H
 	shares := getShares(polynomial, n)
@@ -240,6 +248,9 @@ func TestRandom(test *testing.T) {
 }
 
 func TestPVSS(test *testing.T) {
-	nodeWallets := createRandomNodes(21)
-	fmt.Println(nodeWallets)
+	nodeList := createRandomNodes(10)
+	secret := randomBigInt()
+	fmt.Println(len(nodeList))
+	fmt.Println("ENCRYPTING SHARES ----------------------------------")
+	encShares(nodeList, *secret, 3, Point{*s.Gx, *s.Gy})
 }

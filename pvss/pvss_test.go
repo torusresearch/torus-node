@@ -30,8 +30,8 @@ type PrimaryShares struct {
 }
 
 type Point struct {
-	x *big.Int
-	y *big.Int
+	x big.Int
+	y big.Int
 }
 
 type DLEQProof struct {
@@ -57,7 +57,7 @@ var (
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	sqRoot = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
-	G      = Point{x: s.Gx, y: s.Gy}
+	G      = Point{x: *s.Gx, y: *s.Gy}
 	H      = hashToPoint(G.x.Bytes())
 )
 
@@ -81,7 +81,7 @@ func hashToPoint(data []byte) Point {
 		y := new(big.Int)
 		y.Exp(beta, sqRoot, fieldOrder)
 		if new(big.Int).Exp(y, big.NewInt(2), fieldOrder).Cmp(beta) == 0 {
-			return Point{x: x, y: y}
+			return Point{x: *x, y: *y}
 		} else {
 			x.Add(x, big.NewInt(1))
 		}
@@ -92,7 +92,7 @@ func TestHash(test *testing.T) {
 	res := hashToPoint([]byte("this is a random message"))
 	fmt.Println(res.x)
 	fmt.Println(res.y)
-	assert.True(test, s.IsOnCurve(res.x, res.y))
+	assert.True(test, s.IsOnCurve(&res.x, &res.y))
 }
 
 func assertEqual(t *testing.T, a interface{}, b interface{}) {
@@ -173,16 +173,16 @@ func getCommit(polynomial PrimaryPolynomial, threshold int, H Point) []Point {
 func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
-	xG := Point{x: x, y: y}
-	x2, y2 := s.Add(xG.x, xG.y, H.x, H.y)
-	xH := Point{x: x2, y: y2}
+	xG := Point{x: *x, y: *y}
+	x2, y2 := s.Add(&xG.x, &xG.y, &H.x, &H.y)
+	xH := Point{x: *x2, y: *y2}
 
 	// Commitment
 	v := randomBigInt()
 	x3, y3 := s.ScalarBaseMult(v.Bytes())
-	x4, y4 := s.Add(x3, y3, H.x, H.y)
-	vG := Point{x: x3, y: y3}
-	vH := Point{x: x4, y: y4}
+	x4, y4 := s.Add(x3, y3, &H.x, &H.y)
+	vG := Point{x: *x3, y: *y3}
+	vH := Point{x: *x4, y: *y4}
 
 	//Concat hashing bytes
 	cb := make([]byte, 0)
@@ -204,7 +204,7 @@ func createDlEQProof(secret big.Int, H Point) *DLEQProof {
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
 
-func batchCreateDLEQProofs()
+// func batchCreateDLEQProofs()
 
 func encShares(nodes []NodeList, secret big.Int, threshold int, H Point) {
 	n := len(nodes)

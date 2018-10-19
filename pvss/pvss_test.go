@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 )
 
 type NodeList struct {
@@ -38,7 +39,24 @@ var (
 	s              = secp256k1.S256()
 	fieldOrder     = fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+	// curve point to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
+	sqRoot = fromHex("3fffffffffffffffffffffffffffffffaeabb739abd2280eeff497a3340d9050")
 )
+
+func Keccak256(data ...[]byte) []byte {
+	d := sha3.NewKeccak256()
+	for _, b := range data {
+		d.Write(b)
+	}
+	return d.Sum(nil)
+}
+
+func hashToPoint([]byte) {
+	keccakHash := Keccak256([]byte)
+	x := new(big.Int)
+	x.SetBytes(keccakHash)
+	for !
+}
 
 func generateKeyPair() (pubkey, privkey []byte) {
 	key, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
@@ -76,6 +94,7 @@ func polyEval(polynomial []big.Int, x int) big.Int { // get private share
 		sum.Mul(sum, xi)
 		sum.Add(sum, &polynomial[i])
 	}
+	sum = sum.Mod(fieldOrder)
 	return *sum
 }
 
@@ -155,7 +174,7 @@ func createDlEQProof(secret big.Int, H Point) {
 
 func encShares(nodes []NodeList, secret big.Int, threshold int, H Point) {
 	n := len(nodes)
-	encryptedShares := make([]big.Int, n) // TODO: structure for shares
+	encryptedShares := make([]big.Int, n) // TODO: use struct for shares
 	// Create secret sharing polynomial
 	polynomial := make([]big.Int, threshold)
 	polynomial[0] = secret           //assign secret as coeff of x^0
@@ -197,7 +216,7 @@ func DecShare(encShareX big.Int, encShareY big.Int, consistencyProof big.Int, ke
 }
 
 func TestRandom(test *testing.T) {
-	fmt.Println("really?")
+
 }
 
 func TestPVSS(test *testing.T) {

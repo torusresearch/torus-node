@@ -135,10 +135,10 @@ func createRandomNodes(number int) *NodeList {
 	return list
 }
 
-func randomMedInt() *big.Int {
-	randomInt, _ := rand.Int(rand.Reader, fromHex("3fffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
-	return randomInt
-}
+// func randomMedInt() *big.Int {
+// 	randomInt, _ := rand.Int(rand.Reader, fromHex("3fffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
+// 	return randomInt
+// }
 
 func randomBigInt() *big.Int {
 	randomInt, _ := rand.Int(rand.Reader, fromHex("3ffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
@@ -160,9 +160,9 @@ func polyEval(polynomial PrimaryPolynomial, x int) *big.Int { // get private sha
 	for i := 1; i < polynomial.threshold; i++ {
 		tmp := new(big.Int).Mul(xi, &polynomial.coeff[i])
 		sum.Add(sum, tmp)
-		sum.Mod(sum, fieldOrder)
+		sum.Mod(sum, generatorOrder)
 		xi.Mul(xi, big.NewInt(int64(x)))
-		xi.Mod(xi, fieldOrder)
+		xi.Mod(xi, generatorOrder)
 	}
 	return sum
 }
@@ -338,7 +338,7 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	coeff := make([]big.Int, threshold)
 	coeff[0] = secret                //assign secret as coeff of x^0
 	for i := 1; i < threshold; i++ { //randomly choose coeffs
-		coeff[i] = *randomMedInt()
+		coeff[i] = *randomBigInt()
 	}
 	return &PrimaryPolynomial{coeff, threshold}
 }

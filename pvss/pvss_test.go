@@ -312,12 +312,14 @@ func getDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	//hash
 	hashed := Keccak256(cb)
 	c := new(big.Int).SetBytes(hashed)
+	c.Mod(c, generatorOrder)
 
 	//response
 	r := new(big.Int)
 	r.Mul(c, &secret)
-	r.Mod(r, fieldOrder)
+	r.Mod(r, generatorOrder)
 	r.Sub(v, r) //do we need to mod here?
+	r.Mod(r, generatorOrder)
 
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
@@ -369,7 +371,7 @@ func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs,
 // DecryptShare first verifies the encrypted share against the encryption
 // consistency proof and, if valid, decrypts it and creates a decryption
 // consistency proof.
-func DecShare(encShareX big.Int, encShareY big.Int, consistencyProof big.Int, key ecdsa.PrivateKey) big.Int {
+func decShare(encShareX big.Int, encShareY big.Int, consistencyProof big.Int, key ecdsa.PrivateKey) big.Int {
 	// if err := VerifyEncShare(suite, H, X, sH, encShare); err != nil {
 	// 	return nil, err
 	// }
@@ -388,8 +390,55 @@ func DecShare(encShareX big.Int, encShareY big.Int, consistencyProof big.Int, ke
 	return *i
 }
 
-func TestRandom(test *testing.T) {
+// VerifyEncShare checks that the encrypted share sX satisfies
+// log_{H}(sH) == log_{X}(sX) where sH is the public commitment computed by
+// evaluating the public commitment polynomial at the encrypted share's index i.
+// func verifyEncShare(suite Suite, H kyber.Point, X kyber.Point, sH kyber.Point, encShare *PubVerShare) error {
+// 	if err := encShare.P.Verify(suite, H, X, sH, encShare.S.V); err != nil {
+// 		return errorEncVerification
+// 	}
+// 	return nil
+// }
 
+// Verify examines the validity of the NIZK dlog-equality proof.
+// The proof is valid if the following two conditions hold:
+//   vG == rG + c(xG)
+//   vH == rH + c(xH)
+// func (p *Proof) Verify(suite Suite, G kyber.Point, H kyber.Point, xG kyber.Point, xH kyber.Point) error {
+// 	rG := suite.Point().Mul(p.R, G)
+// 	rH := suite.Point().Mul(p.R, H)
+// 	cxG := suite.Point().Mul(p.C, xG)
+// 	cxH := suite.Point().Mul(p.C, xH)
+// 	a := suite.Point().Add(rG, cxG)
+// 	b := suite.Point().Add(rH, cxH)
+// 	if !(p.VG.Equal(a) && p.VH.Equal(b)) {
+// 		return errorInvalidProof
+// 	}
+// 	return nil
+// }
+
+func verifyProof(proof DLEQProof, nodePubKey Point) bool {
+	rGx, rGy := s.ScalarBaseMult(proof.r.Bytes())
+	rHx, rHy := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, proof.r.Bytes())
+	cxGx, cxGy := s.ScalarMult(&proof.xG.x, &proof.xG.y, proof.c.Bytes())
+	cxHx, cxHy := s.ScalarMult(&proof.xH.x, &proof.xH.y, proof.c.Bytes())
+	ax, ay := s.Add(rGx, rGy, cxGx, cxGy)
+	bx, by := s.Add(rHx, rHy, cxHx, cxHy)
+	if !(proof.vG.x.Cmp(ax) == 0 && proof.vG.y.Cmp(ay) == 0 && proof.vH.x.Cmp(bx) == 0 && proof.vH.y.Cmp(by) == 0) {
+		return false
+	}
+	return true
+}
+
+func TestDLEQ(test *testing.T) {
+	nodeList := createRandomNodes(10)
+	secret := randomBigInt()
+	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
+	output, _ := encShares(nodeList.Nodes, *secret, 3)
+	for i := range output {
+		assert.True(test, verifyProof(output[i].Proof, output[i].NodePubKey))
+	}
+	assert.False(test, verifyProof(output[0].Proof, output[1].NodePubKey))
 }
 
 // func TestPVSS(test *testing.T) {

@@ -1,6 +1,7 @@
 package pvss
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -24,6 +25,15 @@ type PrimaryPolynomial struct {
 }
 
 type PrimaryShares struct {
+	Index int
+	Value big.Int
+}
+
+type PublicPolynomial {
+	
+}
+
+type PublicShares struct {
 	Index int
 	Value big.Int
 }
@@ -187,8 +197,9 @@ func TestGetCommit(test *testing.T) {
 	}
 	dummyPolynomial := PrimaryPolynomial{dummyCoeff, len(dummyCoeff)}
 	testCommit := getCommit(dummyPolynomial)
-	assert.IsType(test, []Point, testCommit)
-
+	buf := new(bytes.Buffer)
+	var num uint16 = 1234
+	realAnswer1 := s.ScalarBaseMult()
 }
 
 // NewDLEQProof computes a new NIZK dlog-equality proof for the scalar x with
@@ -196,7 +207,7 @@ func TestGetCommit(test *testing.T) {
 // and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.
 // Besides the proof, this function also returns the encrypted base points xG
 // and xH.
-func createDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
+func getDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	x, y := s.ScalarBaseMult(secret.Bytes())
 	xG := Point{x: *x, y: *y}
@@ -230,13 +241,13 @@ func createDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
 
-func batchCreateDLEQProof(nodes []Point, shares []PrimaryShares) []*DLEQProof {
+func batchGetDLEQProof(nodes []Point, shares []PrimaryShares) []*DLEQProof {
 	if len(nodes) != len(shares) {
 		return nil
 	}
 	proofs := make([]*DLEQProof, len(nodes))
 	for i := range nodes {
-		proofs[i] = createDlEQProof(shares[i].Value, nodes[i])
+		proofs[i] = getDlEQProof(shares[i].Value, nodes[i])
 	}
 	return proofs
 }
@@ -252,14 +263,20 @@ func encShares(nodes []Point, secret big.Int, threshold int) {
 	}
 	polynomial := PrimaryPolynomial{coeff, threshold}
 
-	// determine shares for polynomial with respect to basis H
+	// determine shares for polynomial with respect to basis point
 	shares := getShares(polynomial, n)
 
-	//committing Yi and proof
-	commits := getCommit(polynomial, threshold)
+	//committing to polynomial
+	pubPoly := getCommit(polynomial)
 
 	// Create NIZK discrete-logarithm equality proofs
-	fmt.Println(encryptedShares, shares, commits)
+	proofs := batchGetDLEQProof(nodes, shares)
+
+	for i := 0; i < n; i++ {
+		ps := PublicShare{Index: PrimaryShares[i].Index, Value: proofs[i].xH}
+		encryptedShares[i] = &PubVerShare{*ps, *proofs[i]}
+	}
+
 
 }
 

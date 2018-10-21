@@ -124,8 +124,13 @@ func createRandomNodes(number int) *NodeList {
 	return list
 }
 
+func randomMedInt() *big.Int {
+	randomInt, _ := rand.Int(rand.Reader, fromHex("3fffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
+	return randomInt
+}
+
 func randomBigInt() *big.Int {
-	randomInt, _ := rand.Int(rand.Reader, fieldOrder)
+	randomInt, _ := rand.Int(rand.Reader, fromHex("3ffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
 	return randomInt
 }
 
@@ -171,23 +176,101 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial PrimaryPolynomial, threshold int) []Point {
-	commits := make([]Point, threshold)
-	for i := range commits {
+func getCommit(polynomial PrimaryPolynomial) []Point {
+	commits := make([]Point, polynomial.threshold)
+	for i := 0; i < polynomial.threshold; i++ {
 		x, y := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		commits[i] = Point{x: *x, y: *y}
 	}
+	fmt.Println(commits[0].x.Text(16), commits[0].y.Text(16), "commit0")
+	fmt.Println(commits[1].x.Text(16), commits[1].y.Text(16), "commit1")
 	return commits
 }
 
-func TestGetCommit(test *testing.T) {
-	dummyCoeff := make([]big.Int, 3)
-	for i := 0; i < 3; i++ {
-		dummyCoeff[i] = *new(big.Int).SetInt64(int64(i + 1))
+func TestCommit(test *testing.T) {
+
+	// coeff := make([]big.Int, 2)
+	// coeff[0] = *big.NewInt(7) //assign secret as coeff of x^0
+	// coeff[1] = *big.NewInt(10)
+	// polynomial := PrimaryPolynomial{coeff, 2}
+
+	// polyCommit := getCommit(polynomial)
+
+	// share10 := polyEval(polynomial, 10)
+	// assert.Equal(test, share10.Text(10), "107")
+
+	// ten := *big.NewInt(10)
+
+	// sumx := &polyCommit[0].x
+	// sumy := &polyCommit[0].y
+
+	// tmpx, tmpy := s.ScalarMult(&polyCommit[1].x, &polyCommit[1].y, ten.Bytes())
+
+	// sumx, _ = s.Add(sumx, sumy, tmpx, tmpy)
+
+	// gmul107x, _ := s.ScalarBaseMult(big.NewInt(107).Bytes())
+	// assert.Equal(test, sumx.Text(16), gmul107x.Text(16))
+
+	secret := *randomBigInt()
+	polynomial := *generateRandomPolynomial(secret, 11)
+	polyCommit := getCommit(polynomial)
+
+	sumx := &polyCommit[0].x
+	sumy := &polyCommit[0].y
+
+	var tmpy *big.Int
+	var tmpx *big.Int
+
+	index := big.NewInt(int64(1))
+
+	for i := 1; i < len(polyCommit); i++ {
+		tmpx, tmpy = s.ScalarMult(&polyCommit[i].x, &polyCommit[i].y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes())
+		sumx, sumy = s.Add(tmpx, tmpy, sumx, sumy)
 	}
-	dummyPolynomial := PrimaryPolynomial{dummyCoeff, len(dummyCoeff)}
+
+	finalx, _ := s.ScalarBaseMult(polyEval(polynomial, 10).Bytes())
+
+	assert.Equal(test, sumx.Text(16), finalx.Text(16))
+	// sumx, sumy := s.Add(sumx, sumy, )
+
+	// secretx := polyCommit[0].x
+	// secrety := polyCommit[0].y
+
+	// assert.Equal(test, big.NewInt(int64(10)).Text(10), "10")
+
+	// onex, oney := s.ScalarMult(&polyCommit[1].x, &polyCommit[1].y, big.NewInt(int64(10)).Bytes())
+
+	// gshare10x, gshare10y := s.ScalarBaseMult(big.NewInt(int64(10)).Bytes())
+	// sumx, sumy := s.Add(onex, oney, &secretx, &secrety)
+	// fmt.Println(sumx.Text(16), sumy.Text(16), gshare10x.Text(16), gshare10y.Text(16))
+
+	// five := big.NewInt(int64(5))
+	// for i := 1; i < len(polyCommit); i++ {
+	// 	committedPoint := polyCommit[i]
+	// 	// eg. when i = 1, 342G
+	// 	fivepowi := new(big.Int)
+	// 	fivepowi.Exp(five, big.NewInt(int64(i)), fieldOrder)
+	// 	tmpx, tmpy := s.ScalarMult(&committedPoint.x, &committedPoint.y, fivepowi.Bytes())
+	// 	tmpx, tmpy = s.Add(&sumx, &sumy, tmpx, tmpy)
+	// 	sumx = *tmpx
+	// 	sumy = *tmpy
+	// }
+	// sum := Point{x: sumx, y: sumy}
+	// gshare5x, gshare5y := s.ScalarBaseMult(share5.Bytes())
+	// gshare := Point{x: *gshare5x, y: *gshare5y}
+	// assert.Equal(test, sum.x, gshare.x)
+	// assert.Equal(test, sum.y, gshare.y)
 
 }
+
+// func TestGetCommit(test *testing.T) {
+// 	dummyCoeff := make([]big.Int, 3)
+// 	for i := 0; i < 3; i++ {
+// 		dummyCoeff[i] = *new(big.Int).SetInt64(int64(i + 1))
+// 	}
+// 	dummyPolynomial := PrimaryPolynomial{dummyCoeff, len(dummyCoeff)}
+
+// }
 
 // NewDLEQProof computes a new NIZK dlog-equality proof for the scalar x with
 // respect to base points G and H. It therefore randomly selects a commitment v
@@ -239,22 +322,27 @@ func batchCreateDLEQProof(nodes []Point, shares []PrimaryShares) []*DLEQProof {
 	return proofs
 }
 
-func encShares(nodes []Point, secret big.Int, threshold int) {
-	n := len(nodes)
-	encryptedShares := make([]big.Int, n)
+func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial {
 	// Create secret sharing polynomial
 	coeff := make([]big.Int, threshold)
 	coeff[0] = secret                //assign secret as coeff of x^0
 	for i := 1; i < threshold; i++ { //randomly choose coeffs
 		coeff[i] = *randomBigInt()
 	}
-	polynomial := PrimaryPolynomial{coeff, threshold}
+	return &PrimaryPolynomial{coeff, threshold}
+}
+
+func encShares(nodes []Point, secret big.Int, threshold int) {
+	n := len(nodes)
+	encryptedShares := make([]big.Int, n)
+
+	polynomial := *generateRandomPolynomial(secret, threshold)
 
 	// determine shares for polynomial with respect to basis H
 	shares := getShares(polynomial, n)
 
 	//committing Yi and proof
-	commits := getCommit(polynomial, threshold)
+	commits := getCommit(polynomial)
 
 	// Create NIZK discrete-logarithm equality proofs
 	fmt.Println(encryptedShares, shares, commits)

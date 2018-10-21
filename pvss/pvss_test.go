@@ -343,7 +343,7 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	return &PrimaryPolynomial{coeff, threshold}
 }
 
-func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs, []Point) {
+func EncShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs, []Point) {
 	n := len(nodes)
 	encryptedShares := make([]EncShareOutputs, n)
 
@@ -392,10 +392,10 @@ func TestRandom(test *testing.T) {
 
 }
 
-// func TestPVSS(test *testing.T) {
-// 	nodeList := createRandomNodes(10)
-// 	secret := randomBigInt()
-// 	// fmt.Println(len(nodeList))
-// 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-// 	encShares(nodeList.Nodes, *secret, 3)
-// }
+func TestPVSS(test *testing.T) {
+	nodeList := createRandomNodes(21)
+	secret := randomBigInt()
+	fmt.Println("ENCRYPTING SHARES ----------------------------------")
+	EncShares(nodeList.Nodes, *secret, 11)
+
+}

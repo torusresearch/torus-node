@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -371,14 +372,15 @@ func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs,
 // DecryptShare first verifies the encrypted share against the encryption
 // consistency proof and, if valid, decrypts it and creates a decryption
 // consistency proof.
-func decShare(encShareX big.Int, encShareY big.Int, consistencyProof big.Int, key ecdsa.PrivateKey) big.Int {
-	// if err := VerifyEncShare(suite, H, X, sH, encShare); err != nil {
-	// 	return nil, err
-	// }
+func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
+	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
+		return nil, errors.New("share failed proof validation")
+	}
 	// G := suite.Point().Base()
 	// V := suite.Point().Mul(suite.Scalar().Inv(x), encShare.S.V) // decryption: x^{-1} * (xS)
-	modInv := new(big.Int)
-	modInv.ModInverse(generatorOrder, key.D)
+	invPrivKey := new(big.Int)
+	invPrivKey.ModInverse(nodePrivateKey, generatorOrder)
+	decryptedShare := s.ScalarMult(encShareOutputs.EncryptedShare.Value.x, encShareOutputs.EncryptedShare.Value.y, invPrivKey.Bytes())
 	// V := s.ScalarMult(encSharexX, encShareY, modInv.Bytes())
 	// ps := &share.PubShare{I: encShare.S.I, V: V}
 	// P, _, _, err := dleq.NewDLEQProof(suite, G, V, x)
@@ -386,8 +388,7 @@ func decShare(encShareX big.Int, encShareY big.Int, consistencyProof big.Int, ke
 	// 	return nil, err
 	// }
 	// return &PubVerShare{*ps, *P}, nil
-	i := new(big.Int)
-	return *i
+	return nil, nil
 }
 
 // VerifyEncShare checks that the encrypted share sX satisfies
@@ -404,19 +405,6 @@ func decShare(encShareX big.Int, encShareY big.Int, consistencyProof big.Int, ke
 // The proof is valid if the following two conditions hold:
 //   vG == rG + c(xG)
 //   vH == rH + c(xH)
-// func (p *Proof) Verify(suite Suite, G kyber.Point, H kyber.Point, xG kyber.Point, xH kyber.Point) error {
-// 	rG := suite.Point().Mul(p.R, G)
-// 	rH := suite.Point().Mul(p.R, H)
-// 	cxG := suite.Point().Mul(p.C, xG)
-// 	cxH := suite.Point().Mul(p.C, xH)
-// 	a := suite.Point().Add(rG, cxG)
-// 	b := suite.Point().Add(rH, cxH)
-// 	if !(p.VG.Equal(a) && p.VH.Equal(b)) {
-// 		return errorInvalidProof
-// 	}
-// 	return nil
-// }
-
 func verifyProof(proof DLEQProof, nodePubKey Point) bool {
 	rGx, rGy := s.ScalarBaseMult(proof.r.Bytes())
 	rHx, rHy := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, proof.r.Bytes())

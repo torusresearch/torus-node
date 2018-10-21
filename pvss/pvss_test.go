@@ -1,7 +1,6 @@
 package pvss
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -19,23 +18,25 @@ type NodeList struct {
 	Nodes []Point
 }
 
+type EncShareOutputs struct {
+	NodePubKey     Point
+	EncryptedShare PublicShare
+	Proof          DLEQProof
+}
+
 type PrimaryPolynomial struct {
 	coeff     []big.Int
 	threshold int
 }
 
-type PrimaryShares struct {
+type PrimaryShare struct {
 	Index int
 	Value big.Int
 }
 
-type PublicPolynomial {
-	
-}
-
-type PublicShares struct {
+type PublicShare struct {
 	Index int
-	Value big.Int
+	Value Point
 }
 
 type Point struct {
@@ -176,10 +177,10 @@ func TestPolyEval(test *testing.T) {
 	assert.Equal(test, polyEval(polynomial, 10).Text(10), "43217")
 }
 
-func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
-	shares := make([]big.Int, n)
+func getShares(polynomial PrimaryPolynomial, n int) []PrimaryShare {
+	shares := make([]PrimaryShare, n)
 	for i := range shares {
-		shares[i] = *polyEval(polynomial, i+1)
+		shares[i] = PrimaryShare{Index: n, Value: *polyEval(polynomial, i+1)}
 	}
 	return shares
 }
@@ -188,11 +189,7 @@ func getShares(polynomial PrimaryPolynomial, n int) []big.Int {
 // the standard base if b == nil.
 func getCommit(polynomial PrimaryPolynomial) []Point {
 	commits := make([]Point, polynomial.threshold)
-<<<<<<< HEAD
 	for i := range commits {
-=======
-	for i := 0; i < polynomial.threshold; i++ {
->>>>>>> 85330727e090dae6b14b0230a99f4470ce97d302
 		x, y := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
 		commits[i] = Point{x: *x, y: *y}
 	}
@@ -235,19 +232,12 @@ func TestCommit(test *testing.T) {
 	var tmpy *big.Int
 	var tmpx *big.Int
 
-	index := big.NewInt(int64(1))
+	index := big.NewInt(int64(10))
 
 	for i := 1; i < len(polyCommit); i++ {
 		tmpx, tmpy = s.ScalarMult(&polyCommit[i].x, &polyCommit[i].y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes())
 		sumx, sumy = s.Add(tmpx, tmpy, sumx, sumy)
 	}
-<<<<<<< HEAD
-	dummyPolynomial := PrimaryPolynomial{dummyCoeff, len(dummyCoeff)}
-	testCommit := getCommit(dummyPolynomial)
-	buf := new(bytes.Buffer)
-	var num uint16 = 1234
-	realAnswer1 := s.ScalarBaseMult()
-=======
 
 	finalx, _ := s.ScalarBaseMult(polyEval(polynomial, 10).Bytes())
 
@@ -282,7 +272,6 @@ func TestCommit(test *testing.T) {
 	// assert.Equal(test, sum.x, gshare.x)
 	// assert.Equal(test, sum.y, gshare.y)
 
->>>>>>> 85330727e090dae6b14b0230a99f4470ce97d302
 }
 
 // func TestGetCommit(test *testing.T) {
@@ -333,7 +322,7 @@ func getDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	return &DLEQProof{*c, *r, vG, vH, xG, xH}
 }
 
-func batchGetDLEQProof(nodes []Point, shares []PrimaryShares) []*DLEQProof {
+func batchGetDLEQProof(nodes []Point, shares []PrimaryShare) []*DLEQProof {
 	if len(nodes) != len(shares) {
 		return nil
 	}
@@ -349,37 +338,32 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	coeff := make([]big.Int, threshold)
 	coeff[0] = secret                //assign secret as coeff of x^0
 	for i := 1; i < threshold; i++ { //randomly choose coeffs
-		coeff[i] = *randomBigInt()
+		coeff[i] = *randomMedInt()
 	}
 	return &PrimaryPolynomial{coeff, threshold}
 }
 
-func encShares(nodes []Point, secret big.Int, threshold int) {
+func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs, []Point) {
 	n := len(nodes)
-	encryptedShares := make([]big.Int, n)
+	encryptedShares := make([]EncShareOutputs, n)
 
 	polynomial := *generateRandomPolynomial(secret, threshold)
 
 	// determine shares for polynomial with respect to basis point
 	shares := getShares(polynomial, n)
 
-<<<<<<< HEAD
 	//committing to polynomial
 	pubPoly := getCommit(polynomial)
-=======
-	//committing Yi and proof
-	commits := getCommit(polynomial)
->>>>>>> 85330727e090dae6b14b0230a99f4470ce97d302
 
 	// Create NIZK discrete-logarithm equality proofs
 	proofs := batchGetDLEQProof(nodes, shares)
 
 	for i := 0; i < n; i++ {
-		ps := PublicShare{Index: PrimaryShares[i].Index, Value: proofs[i].xH}
-		encryptedShares[i] = &PubVerShare{*ps, *proofs[i]}
+		ps := PublicShare{Index: i, Value: proofs[i].xH}
+		encryptedShares[i] = EncShareOutputs{nodes[i], ps, *proofs[i]}
 	}
 
-
+	return encryptedShares, pubPoly
 }
 
 // DecryptShare first verifies the encrypted share against the encryption

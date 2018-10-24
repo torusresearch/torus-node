@@ -1,10 +1,15 @@
 package pvss
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/base64"
+	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"reflect"
 	"testing"
@@ -22,6 +27,12 @@ type EncShareOutputs struct {
 	NodePubKey     Point
 	EncryptedShare PublicShare
 	Proof          DLEQProof
+}
+
+type Signcryption struct {
+	Ciphertext string
+	R          Point
+	Signature  big.Int
 }
 
 type PrimaryPolynomial struct {
@@ -341,7 +352,92 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	return &PrimaryPolynomial{coeff, threshold}
 }
 
-func EncShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs, []Point) {
+func AESencrypt(key []byte, message string) (encmess string, err error) {
+	plainText := []byte(message)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return
+	}
+
+	//IV needs to be unique, but doesn't have to be secure.
+	//It's common to put it at the beginning of the ciphertext.
+	cipherText := make([]byte, aes.BlockSize+len(plainText))
+	iv := cipherText[:aes.BlockSize]
+	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
+		return
+	}
+
+	stream := cipher.NewCFBEncrypter(block, iv)
+	stream.XORKeyStream(cipherText[aes.BlockSize:], plainText)
+
+	//returns to base64 encoded string
+	encmess = base64.URLEncoding.EncodeToString(cipherText)
+	return
+}
+
+func AESdecrypt(key []byte, securemess string) (decodedmess string, err error) {
+	cipherText, err := base64.URLEncoding.DecodeString(securemess)
+	if err != nil {
+		return
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return
+	}
+
+	if len(cipherText) < aes.BlockSize {
+		err = errors.New("Ciphertext block size is too short!")
+		return
+	}
+
+	//IV needs to be unique, but doesn't have to be secure.
+	//It's common to put it at the beginning of the ciphertext.
+	iv := cipherText[:aes.BlockSize]
+	cipherText = cipherText[aes.BlockSize:]
+
+	stream := cipher.NewCFBDecrypter(block, iv)
+	// XORKeyStream can work in-place if the two arguments are the same.
+	stream.XORKeyStream(cipherText, cipherText)
+
+	decodedmess = string(cipherText)
+	return
+}
+
+func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) *Signcryption, error {
+	// Commitment
+	r := randomBigInt()
+	rG := pt(s.ScalarBaseMult(r.Bytes()))
+	rU := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, r.Bytes()))
+
+	//encrypt with AES
+	ciphertext, err := AESencrypt(rU.x.Bytes(), share.String())
+	if err != nil {
+		return nil, err
+	}
+
+	//Concat hashing bytes
+	cb := share.Bytes()
+	cb = append(cb[:], rG.x.Bytes()...)
+
+	//hash h = H(M|r1)
+	hashed := Keccak256(cb)
+	h := new(big.Int).SetBytes(hashed)
+	h.Mod(h, generatorOrder)
+
+	s := new(big.Int)
+	temp := new(big.Int)
+	temp.Mul(h, r)
+	temp.Mod(temp, generatorOrder)
+	s.Sub(&privKey, temp)
+	s.Mod(s, generatorOrder)
+
+	return &Signcryption{ciphertext, rG, *s}, nil
+
+}
+
+func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]EncShareOutputs, []Point) {
 	n := len(nodes)
 	encryptedShares := make([]EncShareOutputs, n)
 
@@ -418,8 +514,9 @@ func verifyProof(proof DLEQProof, nodePubKey Point) bool {
 func TestDLEQ(test *testing.T) {
 	nodeList := createRandomNodes(10)
 	secret := randomBigInt()
+	privKey := randomBigInt()
 	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	output, _ := EncShares(nodeList.Nodes, *secret, 3)
+	output, _ := EncShares(nodeList.Nodes, *secret, 3, privKey)
 	for i := range output {
 		assert.True(test, verifyProof(output[i].Proof, output[i].NodePubKey))
 	}

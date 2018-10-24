@@ -214,7 +214,7 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 func AESencrypt(key []byte, plainText []byte) (c *[]byte, err error) {
 	//Following PKCS#7 described in RFC 5652 for padding key
 
-	key, err = pkcs7Pad(key, 32)
+	key, err = pkcs7.Pad(key, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func AESencrypt(key []byte, plainText []byte) (c *[]byte, err error) {
 func AESdecrypt(key []byte, cipherText []byte) (message *[]byte, err error) {
 	//Following PKCS#7 described in RFC 5652 for padding key
 
-	key, err = pkcs7Pad(key, 32)
+	key, err = pkcs7.Pad(key, 32)
 	if err != nil {
 		return nil, err
 	}

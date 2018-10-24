@@ -1,12 +1,9 @@
 package pvss
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 
 	"github.com/decred/dcrd/dcrec/secp256k1"
@@ -38,23 +35,9 @@ type PrimaryShare struct {
 	Value big.Int
 }
 
-type PublicShare struct {
-	Index int
-	Value Point
-}
-
 type Point struct {
 	x big.Int
 	y big.Int
-}
-
-type DLEQProof struct {
-	c  big.Int
-	r  big.Int
-	vG Point
-	vH Point
-	xG Point
-	xH Point
 }
 
 func fromHex(s string) *big.Int {
@@ -153,54 +136,6 @@ func getCommit(polynomial PrimaryPolynomial) []Point {
 	return commits
 }
 
-// NewDLEQProof computes a new NIZK dlog-equality proof for the scalar x with
-// respect to base points G and H. It therefore randomly selects a commitment v
-// and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.
-// Besides the proof, this function also returns the encrypted base points xG
-// and xH.
-func getDLEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
-	//Encrypt bbase points with secret
-	xG := pt(s.ScalarBaseMult(secret.Bytes()))
-	xH := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, secret.Bytes()))
-
-	// Commitment
-	v := randomBigInt()
-	vG := pt(s.ScalarBaseMult(v.Bytes()))
-	vH := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, v.Bytes()))
-
-	//Concat hashing bytes
-	cb := make([]byte, 0)
-	for _, element := range [4]Point{xG, xH, vG, vH} {
-		cb = append(cb[:], element.x.Bytes()...)
-		cb = append(cb[:], element.y.Bytes()...)
-	}
-
-	//hash
-	hashed := Keccak256(cb)
-	c := new(big.Int).SetBytes(hashed)
-	c.Mod(c, generatorOrder)
-
-	//response
-	r := new(big.Int)
-	r.Mul(c, &secret)
-	r.Mod(r, generatorOrder)
-	r.Sub(v, r) //do we need to mod here?
-	r.Mod(r, generatorOrder)
-
-	return &DLEQProof{*c, *r, vG, vH, xG, xH}
-}
-
-func batchGetDLEQProof(nodes []Point, shares []PrimaryShare) []*DLEQProof {
-	if len(nodes) != len(shares) {
-		return nil
-	}
-	proofs := make([]*DLEQProof, len(nodes))
-	for i := range nodes {
-		proofs[i] = getDLEQProof(shares[i].Value, nodes[i])
-	}
-	return proofs
-}
-
 func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial {
 	// Create secret sharing polynomial
 	coeff := make([]big.Int, threshold)
@@ -209,64 +144,6 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 		coeff[i] = *randomBigInt()
 	}
 	return &PrimaryPolynomial{coeff, threshold}
-}
-
-func AESencrypt(key []byte, plainText []byte) (c *[]byte, err error) {
-	//Following PKCS#7 described in RFC 5652 for padding key
-
-	key, err = pkcs7.Pad(key, 32)
-	if err != nil {
-		return nil, err
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	//IV needs to be unique, but doesn't have to be secure.
-	//It's common to put it at the beginning of the ciphertext.
-	cipherText := make([]byte, aes.BlockSize+len(plainText))
-	iv := cipherText[:aes.BlockSize]
-	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
-		return
-	}
-
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(cipherText[aes.BlockSize:], plainText)
-
-	return &cipherText, nil
-}
-
-func AESdecrypt(key []byte, cipherText []byte) (message *[]byte, err error) {
-	//Following PKCS#7 described in RFC 5652 for padding key
-
-	key, err = pkcs7.Pad(key, 32)
-	if err != nil {
-		return nil, err
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	if len(cipherText) < aes.BlockSize {
-		err = errors.New("Ciphertext block size is too short!")
-		return
-	}
-
-	//IV needs to be unique, but doesn't have to be secure.
-	//It's common to put it at the beginning of the ciphertext.
-	iv := cipherText[:aes.BlockSize]
-	cipherText = cipherText[aes.BlockSize:]
-
-	stream := cipher.NewCFBDecrypter(block, iv)
-	// XORKeyStream can work in-place if the two arguments are the same.
-	stream.XORKeyStream(cipherText, cipherText)
-
-	message = &cipherText
-	return message, nil
 }
 
 func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryption, error) {
@@ -360,45 +237,4 @@ func unsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePub
 	}
 
 	return M, nil
-}
-
-// DecryptShare first verifies the encrypted share against the encryption
-// consistency proof and, if valid, decrypts it and creates a decryption
-// consistency proof.
-// func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
-// 	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
-// 		return nil, errors.New("share failed proof validation")
-// 	}
-// 	// G := suite.Point().Base()
-// 	// V := suite.Point().Mul(suite.Scalar().Inv(x), encShare.S.V) // decryption: x^{-1} * (xS)
-// 	invPrivKey := new(big.Int)
-// 	invPrivKey.ModInverse(&nodePrivateKey, generatorOrder)
-// 	shareGx, shareGy := s.ScalarMult(&encShareOutputs.EncryptedShare.Value.x, &encShareOutputs.EncryptedShare.Value.y, invPrivKey.Bytes())
-// 	// g^ share
-// 	// ps := &share.PubShare{I: encShare.S.I, V: V}
-// 	// P, _, _, err := dleq.NewDLEQProof(suite, G, V, x)
-// 	shareG := Point{shareGx, shareGy}
-// 	proof := getDlEQProof(nodePrivateKey, shareG)
-// 	// if err != nil {
-// 	// 	return nil, err
-// 	// }
-// 	// return &PubVerShare{*ps, *P}, nil
-// 	return nil, nil
-// }
-
-// Verify examines the validity of the NIZK dlog-equality proof.
-// The proof is valid if the following two conditions hold:
-//   vG == rG + c(xG)
-//   vH == rH + c(xH)
-func verifyProof(proof DLEQProof, nodePubKey Point) bool {
-	rGx, rGy := s.ScalarBaseMult(proof.r.Bytes())
-	rHx, rHy := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, proof.r.Bytes())
-	cxGx, cxGy := s.ScalarMult(&proof.xG.x, &proof.xG.y, proof.c.Bytes())
-	cxHx, cxHy := s.ScalarMult(&proof.xH.x, &proof.xH.y, proof.c.Bytes())
-	ax, ay := s.Add(rGx, rGy, cxGx, cxGy)
-	bx, by := s.Add(rHx, rHy, cxHx, cxHy)
-	if !(proof.vG.x.Cmp(ax) == 0 && proof.vG.y.Cmp(ay) == 0 && proof.vH.x.Cmp(bx) == 0 && proof.vH.y.Cmp(by) == 0) {
-		return false
-	}
-	return true
 }

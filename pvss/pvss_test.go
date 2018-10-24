@@ -405,7 +405,7 @@ func AESdecrypt(key []byte, securemess string) (decodedmess string, err error) {
 	return
 }
 
-func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) *Signcryption, error {
+func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryption, error) {
 	// Commitment
 	r := randomBigInt()
 	rG := pt(s.ScalarBaseMult(r.Bytes()))
@@ -434,7 +434,6 @@ func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) *Signcrypt
 	s.Mod(s, generatorOrder)
 
 	return &Signcryption{ciphertext, rG, *s}, nil
-
 }
 
 func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]EncShareOutputs, []Point) {
@@ -460,6 +459,33 @@ func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([
 	return encryptedShares, pubPoly
 }
 
+func unsigncryptionShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*string, error) {
+	xR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, privKey.Bytes()))
+	M, err := AESdecrypt(xR.x.Bytes(), signcryption.Ciphertext)
+	if err != nil {
+		return nil, err
+	}
+
+	//Concat hashing bytes
+	cb := []byte(M)
+	cb = append(cb[:], signcryption.R.x.Bytes()...)
+
+	//hash h = H(M|r1)
+	hashed := Keccak256(cb)
+	h := new(big.Int).SetBytes(hashed)
+	h.Mod(h, generatorOrder)
+
+	//Verify signcryption
+	sG := pt(s.ScalarBaseMult(signcryption.Signature.Bytes()))
+	hR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, h.Bytes()))
+	testSendingNodePubKey := pt(s.Add(&sG.x, &sG.y, &hR.x, &hR.y))
+	if sendingNodePubKey.x.Cmp(&testSendingNodePubKey.x) != 0 {
+		return nil, errors.New("sending node PK does not register with signcryption")
+	}
+
+	return &M, nil
+}
+
 // DecryptShare first verifies the encrypted share against the encryption
 // consistency proof and, if valid, decrypts it and creates a decryption
 // consistency proof.
@@ -482,16 +508,6 @@ func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([
 // 	// }
 // 	// return &PubVerShare{*ps, *P}, nil
 // 	return nil, nil
-// }
-
-// VerifyEncShare checks that the encrypted share sX satisfies
-// log_{H}(sH) == log_{X}(sX) where sH is the public commitment computed by
-// evaluating the public commitment polynomial at the encrypted share's index i.
-// func verifyEncShare(suite Suite, H kyber.Point, X kyber.Point, sH kyber.Point, encShare *PubVerShare) error {
-// 	if err := encShare.P.Verify(suite, H, X, sH, encShare.S.V); err != nil {
-// 		return errorEncVerification
-// 	}
-// 	return nil
 // }
 
 // Verify examines the validity of the NIZK dlog-equality proof.

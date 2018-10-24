@@ -367,7 +367,6 @@ func EncShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs,
 // DecryptShare first verifies the encrypted share against the encryption
 // consistency proof and, if valid, decrypts it and creates a decryption
 // consistency proof.
-<<<<<<< HEAD
 // func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
 // 	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
 // 		return nil, errors.New("share failed proof validation")
@@ -388,27 +387,6 @@ func EncShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs,
 // 	// return &PubVerShare{*ps, *P}, nil
 // 	return nil, nil
 // }
-=======
-func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
-	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
-		return nil, errors.New("share failed proof validation")
-	}
-	// G := suite.Point().Base()
-	// V := suite.Point().Mul(suite.Scalar().Inv(x), encShare.S.V) // decryption: x^{-1} * (xS)
-	invPrivKey := new(big.Int)
-	invPrivKey.ModInverse(&nodePrivateKey, generatorOrder)
-	decryptedSharex, decryptedSharey := s.ScalarMult(&encShareOutputs.EncryptedShare.Value.x, &encShareOutputs.EncryptedShare.Value.y, invPrivKey.Bytes())
-	// V := s.ScalarMult(encSharexX, encShareY, modInv.Bytes())
-	fmt.Println(decryptedSharex, decryptedSharey)
-	// ps := &share.PubShare{I: encShare.S.I, V: V}
-	// P, _, _, err := dleq.NewDLEQProof(suite, G, V, x)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &PubVerShare{*ps, *P}, nil
-	return nil, nil
-}
->>>>>>> c3c33dfb3a0dcc0a68e5e31e18d2ebdda14d4661
 
 // VerifyEncShare checks that the encrypted share sX satisfies
 // log_{H}(sH) == log_{X}(sX) where sH is the public commitment computed by

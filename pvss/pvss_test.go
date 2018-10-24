@@ -1,17 +1,18 @@
 package pvss
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/decred/dcrd/dcrec/secp256k1"
@@ -30,7 +31,7 @@ type EncShareOutputs struct {
 }
 
 type Signcryption struct {
-	Ciphertext string
+	Ciphertext []byte
 	R          Point
 	Signature  big.Int
 }
@@ -352,8 +353,13 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	return &PrimaryPolynomial{coeff, threshold}
 }
 
-func AESencrypt(key []byte, message string) (encmess string, err error) {
-	plainText := []byte(message)
+func AESencrypt(key []byte, plainText []byte) (c *[]byte, err error) {
+	//Following PKCS#7 described in RFC 5652 for padding key
+
+	key, err = pkcs7Pad(key, 32)
+	if err != nil {
+		return nil, err
+	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -371,15 +377,15 @@ func AESencrypt(key []byte, message string) (encmess string, err error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(cipherText[aes.BlockSize:], plainText)
 
-	//returns to base64 encoded string
-	encmess = base64.URLEncoding.EncodeToString(cipherText)
-	return
+	return &cipherText, nil
 }
 
-func AESdecrypt(key []byte, securemess string) (decodedmess string, err error) {
-	cipherText, err := base64.URLEncoding.DecodeString(securemess)
+func AESdecrypt(key []byte, cipherText []byte) (message *[]byte, err error) {
+	//Following PKCS#7 described in RFC 5652 for padding key
+
+	key, err = pkcs7Pad(key, 32)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	block, err := aes.NewCipher(key)
@@ -401,8 +407,8 @@ func AESdecrypt(key []byte, securemess string) (decodedmess string, err error) {
 	// XORKeyStream can work in-place if the two arguments are the same.
 	stream.XORKeyStream(cipherText, cipherText)
 
-	decodedmess = string(cipherText)
-	return
+	message = &cipherText
+	return message, nil
 }
 
 func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryption, error) {
@@ -412,7 +418,7 @@ func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryp
 	rU := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, r.Bytes()))
 
 	//encrypt with AES
-	ciphertext, err := AESencrypt(rU.x.Bytes(), share.String())
+	ciphertext, err := AESencrypt(rU.x.Bytes(), share.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +439,7 @@ func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryp
 	s.Sub(&privKey, temp)
 	s.Mod(s, generatorOrder)
 
-	return &Signcryption{ciphertext, rG, *s}, nil
+	return &Signcryption{*ciphertext, rG, *s}, nil
 }
 
 func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]EncShareOutputs, []Point) {
@@ -459,7 +465,7 @@ func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([
 	return encryptedShares, pubPoly
 }
 
-func unsigncryptionShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*string, error) {
+func unsigncryptionShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*[]byte, error) {
 	xR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.x.Bytes(), signcryption.Ciphertext)
 	if err != nil {
@@ -467,7 +473,7 @@ func unsigncryptionShare(signcryption Signcryption, privKey big.Int, sendingNode
 	}
 
 	//Concat hashing bytes
-	cb := []byte(M)
+	cb := []byte(*M)
 	cb = append(cb[:], signcryption.R.x.Bytes()...)
 
 	//hash h = H(M|r1)
@@ -480,10 +486,13 @@ func unsigncryptionShare(signcryption Signcryption, privKey big.Int, sendingNode
 	hR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, h.Bytes()))
 	testSendingNodePubKey := pt(s.Add(&sG.x, &sG.y, &hR.x, &hR.y))
 	if sendingNodePubKey.x.Cmp(&testSendingNodePubKey.x) != 0 {
+		fmt.Println(sendingNodePubKey.x.Cmp(&testSendingNodePubKey.x))
+		fmt.Println(sendingNodePubKey)
+		fmt.Println(testSendingNodePubKey)
 		return nil, errors.New("sending node PK does not register with signcryption")
 	}
 
-	return &M, nil
+	return M, nil
 }
 
 // DecryptShare first verifies the encrypted share against the encryption
@@ -527,22 +536,108 @@ func verifyProof(proof DLEQProof, nodePubKey Point) bool {
 	return true
 }
 
-func TestDLEQ(test *testing.T) {
-	nodeList := createRandomNodes(10)
-	secret := randomBigInt()
-	privKey := randomBigInt()
-	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	output, _ := EncShares(nodeList.Nodes, *secret, 3, privKey)
-	for i := range output {
-		assert.True(test, verifyProof(output[i].Proof, output[i].NodePubKey))
+func TestAES(test *testing.T) {
+	key := randomBigInt().Bytes()
+	encryptMsg, err := AESencrypt(key, []byte("Hello World"))
+	if err != nil {
+		fmt.Println(err)
 	}
-	assert.False(test, verifyProof(output[0].Proof, output[1].NodePubKey))
+	msg, err := AESdecrypt(key, *encryptMsg)
+	if err != nil {
+		fmt.Println(err)
+	}
+	assert.True(test, strings.Compare(string("Hello World"), string(*msg)) == 0)
 }
 
-func TestPVSS(test *testing.T) {
-	nodeList := createRandomNodes(21)
-	secret := randomBigInt()
-	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	EncShares(nodeList.Nodes, *secret, 11)
+func TestSigncryption(test *testing.T) {
+	secretShare := randomBigInt()
+	privKeySender := randomBigInt()
+	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
+	privKeyReceiver := randomBigInt()
+	pubKeyReceiver := pt(s.ScalarBaseMult(privKeyReceiver.Bytes()))
+	signcryption, err := signcryptShare(pubKeyReceiver, *secretShare, *privKeySender)
+	if err != nil {
+		fmt.Println(err)
+	}
+	supposedShare, err := unsigncryptionShare(*signcryption, *privKeyReceiver, pubKeySender)
+	if err != nil {
+		fmt.Println(err)
+	}
+	assert.True(test, bytes.Compare(*supposedShare, secretShare.Bytes()) == 0)
+}
 
+// func TestDLEQ(test *testing.T) {
+// 	nodeList := createRandomNodes(10)
+// 	secret := randomBigInt()
+// 	privKey := randomBigInt()
+// 	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
+// 	output, _ := EncShares(nodeList.Nodes, *secret, 3, *privKey)
+// 	for i := range output {
+// 		assert.True(test, verifyProof(output[i].Proof, output[i].NodePubKey))
+// 	}
+// 	assert.False(test, verifyProof(output[0].Proof, output[1].NodePubKey))
+// }
+
+// func TestPVSS(test *testing.T) {
+// 	nodeList := createRandomNodes(21)
+// 	secret := randomBigInt()
+// 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
+// 	EncShares(nodeList.Nodes, *secret, 11)
+
+// }
+
+// PKCS7 padding.
+// PKCS7 errors.
+var (
+	// ErrInvalidBlockSize indicates hash blocksize <= 0.
+	ErrInvalidBlockSize = errors.New("invalid blocksize")
+
+	// ErrInvalidPKCS7Data indicates bad input to PKCS7 pad or unpad.
+	ErrInvalidPKCS7Data = errors.New("invalid PKCS7 data (empty or not padded)")
+
+	// ErrInvalidPKCS7Padding indicates PKCS7 unpad fails to bad input.
+	ErrInvalidPKCS7Padding = errors.New("invalid padding on input")
+)
+
+// pkcs7Pad right-pads the given byte slice with 1 to n bytes, where
+// n is the block size. The size of the result is x times n, where x
+// is at least 1.
+func pkcs7Pad(b []byte, blocksize int) ([]byte, error) {
+	if blocksize <= 0 {
+		return nil, ErrInvalidBlockSize
+	}
+	if b == nil || len(b) == 0 {
+		return nil, ErrInvalidPKCS7Data
+	}
+	n := blocksize - (len(b) - 1%blocksize) - 1
+	pb := make([]byte, len(b)+n)
+	copy(pb, b)
+	copy(pb[len(b):], bytes.Repeat([]byte{byte(n)}, n))
+	return pb, nil
+}
+
+// pkcs7Unpad validates and unpads data from the given bytes slice.
+// The returned value will be 1 to n bytes smaller depending on the
+// amount of padding, where n is the block size.
+func pkcs7Unpad(b []byte, blocksize int) ([]byte, error) {
+	if blocksize <= 0 {
+		return nil, ErrInvalidBlockSize
+	}
+	if b == nil || len(b) == 0 {
+		return nil, ErrInvalidPKCS7Data
+	}
+	if len(b)%blocksize != 0 {
+		return nil, ErrInvalidPKCS7Padding
+	}
+	c := b[len(b)-1]
+	n := int(c)
+	if n == 0 || n > len(b) {
+		return nil, ErrInvalidPKCS7Padding
+	}
+	for i := 0; i < n; i++ {
+		if b[len(b)-n+i] != c {
+			return nil, ErrInvalidPKCS7Padding
+		}
+	}
+	return b[:len(b)-n], nil
 }

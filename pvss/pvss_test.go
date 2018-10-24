@@ -10,6 +10,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func createRandomNodes(number int) (*NodeList, []big.Int) {
+	list := new(NodeList)
+	privateKeys := make([]big.Int, number)
+	for i := 0; i < number; i++ {
+		pkey := randomBigInt()
+		list.Nodes = append(list.Nodes, pt(s.ScalarBaseMult(pkey.Bytes())))
+		privateKeys[i] = *pkey
+	}
+	return list, privateKeys
+}
+
+// func randomMedInt() *big.Int {
+// 	randomInt, _ := rand.Int(rand.Reader, fromHex("3fffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
+// 	return randomInt
+// }
+
 func TestHash(test *testing.T) {
 	res := hashToPoint([]byte("this is a random message"))
 	assert.True(test, s.IsOnCurve(&res.x, &res.y))
@@ -121,7 +137,7 @@ func TestSigncryption(test *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	supposedShare, err := unsigncryptionShare(*signcryption, *privKeyReceiver, pubKeySender)
+	supposedShare, err := unsigncryptShare(*signcryption, *privKeyReceiver, pubKeySender)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -140,10 +156,24 @@ func TestSigncryption(test *testing.T) {
 // 	assert.False(test, verifyProof(output[0].Proof, output[1].NodePubKey))
 // }
 
-// func TestPVSS(test *testing.T) {
-// 	nodeList := createRandomNodes(21)
-// 	secret := randomBigInt()
-// 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-// 	EncShares(nodeList.Nodes, *secret, 11)
-
-// }
+func TestPVSS(test *testing.T) {
+	nodeList, privateKeys := createRandomNodes(20)
+	secret := randomBigInt()
+	privKeySender := randomBigInt()
+	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
+	fmt.Println("ENCRYPTING SHARES ----------------------------------")
+	errorsExist := false
+	signcryptedShares, _, err := encShares(nodeList.Nodes, *secret, 10, *privKeySender)
+	if err != nil {
+		fmt.Println(err)
+		errorsExist = true
+	}
+	for i := range signcryptedShares {
+		_, err := unsigncryptShare(signcryptedShares[i].SigncryptedShare, privateKeys[i], pubKeySender)
+		if err != nil {
+			fmt.Println(err)
+			errorsExist = true
+		}
+	}
+	assert.False(test, errorsExist)
+}

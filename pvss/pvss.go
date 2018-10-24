@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -20,10 +18,9 @@ type NodeList struct {
 	Nodes []Point
 }
 
-type EncShareOutputs struct {
-	NodePubKey     Point
-	EncryptedShare PublicShare
-	Proof          DLEQProof
+type SigncryptedOutput struct {
+	NodePubKey       Point
+	SigncryptedShare Signcryption
 }
 
 type Signcryption struct {
@@ -109,33 +106,6 @@ func hashToPoint(data []byte) *Point {
 		}
 	}
 }
-
-func generateKeyPair() (pubkey, privkey []byte) {
-	key, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-	pubkey = elliptic.Marshal(secp256k1.S256(), key.X, key.Y)
-
-	privkey = make([]byte, 32)
-	blob := key.D.Bytes()
-	copy(privkey[32-len(blob):], blob)
-
-	return pubkey, privkey
-}
-
-func createRandomNodes(number int) *NodeList {
-	list := new(NodeList)
-	for i := 0; i < number; i++ {
-		list.Nodes = append(list.Nodes, *hashToPoint(randomBigInt().Bytes()))
-	}
-	return list
-}
-
-// func randomMedInt() *big.Int {
-// 	randomInt, _ := rand.Int(rand.Reader, fromHex("3fffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
-// 	return randomInt
-// }
 
 func randomBigInt() *big.Int {
 	randomInt, _ := rand.Int(rand.Reader, fromHex("3ffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
@@ -331,9 +301,20 @@ func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryp
 	return &Signcryption{*ciphertext, rG, *s}, nil
 }
 
-func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]EncShareOutputs, []Point) {
+func batchSigncryptShare(nodeList []Point, shares []PrimaryShare, privKey big.Int) ([]*SigncryptedOutput, error) {
+	signcryptedShares := make([]*SigncryptedOutput, len(nodeList))
+	for i := range nodeList {
+		temp, err := signcryptShare(nodeList[i], shares[i].Value, privKey)
+		if err != nil {
+			return nil, err
+		}
+		signcryptedShares[i] = &SigncryptedOutput{nodeList[i], *temp}
+	}
+	return signcryptedShares, nil
+}
+
+func encShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]*SigncryptedOutput, *[]Point, error) {
 	n := len(nodes)
-	encryptedShares := make([]EncShareOutputs, n)
 
 	polynomial := *generateRandomPolynomial(secret, threshold)
 
@@ -344,17 +325,15 @@ func EncShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([
 	pubPoly := getCommit(polynomial)
 
 	// Create NIZK discrete-logarithm equality proofs
-	proofs := batchGetDLEQProof(nodes, shares)
-
-	for i := 0; i < n; i++ {
-		ps := PublicShare{Index: i, Value: proofs[i].xH}
-		encryptedShares[i] = EncShareOutputs{nodes[i], ps, *proofs[i]}
+	signcryptedShares, err := batchSigncryptShare(nodes, shares, privKey)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return encryptedShares, pubPoly
+	return signcryptedShares, &pubPoly, nil
 }
 
-func unsigncryptionShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*[]byte, error) {
+func unsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*[]byte, error) {
 	xR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.x.Bytes(), signcryption.Ciphertext)
 	if err != nil {

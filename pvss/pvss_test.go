@@ -61,6 +61,10 @@ func fromHex(s string) *big.Int {
 	return r
 }
 
+func pt(x, y *big.Int) Point {
+	return Point{x: *x, y: *y}
+}
+
 var (
 	s              = secp256k1.S256()
 	fieldOrder     = fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
@@ -190,11 +194,10 @@ func getShares(polynomial PrimaryPolynomial, n int) []PrimaryShare {
 func getCommit(polynomial PrimaryPolynomial) []Point {
 	commits := make([]Point, polynomial.threshold)
 	for i := range commits {
-		x, y := s.ScalarBaseMult(polynomial.coeff[i].Bytes())
-		commits[i] = Point{x: *x, y: *y}
+		commits[i] = pt(s.ScalarBaseMult(polynomial.coeff[i].Bytes()))
 	}
-	fmt.Println(commits[0].x.Text(16), commits[0].y.Text(16), "commit0")
-	fmt.Println(commits[1].x.Text(16), commits[1].y.Text(16), "commit1")
+	// fmt.Println(commits[0].x.Text(16), commits[0].y.Text(16), "commit0")
+	// fmt.Println(commits[1].x.Text(16), commits[1].y.Text(16), "commit1")
 	return commits
 }
 
@@ -226,22 +229,19 @@ func TestCommit(test *testing.T) {
 	polynomial := *generateRandomPolynomial(secret, 11)
 	polyCommit := getCommit(polynomial)
 
-	sumx := &polyCommit[0].x
-	sumy := &polyCommit[0].y
-
-	var tmpy *big.Int
-	var tmpx *big.Int
+	sum := Point{x: polyCommit[0].x, y: polyCommit[0].y}
+	var tmp Point
 
 	index := big.NewInt(int64(10))
 
 	for i := 1; i < len(polyCommit); i++ {
-		tmpx, tmpy = s.ScalarMult(&polyCommit[i].x, &polyCommit[i].y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes())
-		sumx, sumy = s.Add(tmpx, tmpy, sumx, sumy)
+		tmp = pt(s.ScalarMult(&polyCommit[i].x, &polyCommit[i].y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes()))
+		sum = pt(s.Add(&tmp.x, &tmp.y, &sum.x, &sum.y))
 	}
 
-	finalx, _ := s.ScalarBaseMult(polyEval(polynomial, 10).Bytes())
+	final := pt(s.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
 
-	assert.Equal(test, sumx.Text(16), finalx.Text(16))
+	assert.Equal(test, sum.x.Text(16), final.x.Text(16))
 	// sumx, sumy := s.Add(sumx, sumy, )
 
 	// secretx := polyCommit[0].x
@@ -288,19 +288,15 @@ func TestCommit(test *testing.T) {
 // and then computes the challenge c = H(xG,xH,vG,vH) and response r = v - cx.
 // Besides the proof, this function also returns the encrypted base points xG
 // and xH.
-func getDlEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
+func getDLEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	//Encrypt bbase points with secret
-	x, y := s.ScalarBaseMult(secret.Bytes())
-	xG := Point{x: *x, y: *y}
-	x2, y2 := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, secret.Bytes())
-	xH := Point{x: *x2, y: *y2}
+	xG := pt(s.ScalarBaseMult(secret.Bytes()))
+	xH := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, secret.Bytes()))
 
 	// Commitment
 	v := randomBigInt()
-	x3, y3 := s.ScalarBaseMult(v.Bytes())
-	x4, y4 := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, v.Bytes())
-	vG := Point{x: *x3, y: *y3}
-	vH := Point{x: *x4, y: *y4}
+	vG := pt(s.ScalarBaseMult(v.Bytes()))
+	vH := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, v.Bytes()))
 
 	//Concat hashing bytes
 	cb := make([]byte, 0)
@@ -330,7 +326,7 @@ func batchGetDLEQProof(nodes []Point, shares []PrimaryShare) []*DLEQProof {
 	}
 	proofs := make([]*DLEQProof, len(nodes))
 	for i := range nodes {
-		proofs[i] = getDlEQProof(shares[i].Value, nodes[i])
+		proofs[i] = getDLEQProof(shares[i].Value, nodes[i])
 	}
 	return proofs
 }
@@ -345,7 +341,7 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	return &PrimaryPolynomial{coeff, threshold}
 }
 
-func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs, []Point) {
+func EncShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs, []Point) {
 	n := len(nodes)
 	encryptedShares := make([]EncShareOutputs, n)
 
@@ -371,6 +367,7 @@ func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs,
 // DecryptShare first verifies the encrypted share against the encryption
 // consistency proof and, if valid, decrypts it and creates a decryption
 // consistency proof.
+<<<<<<< HEAD
 // func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
 // 	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
 // 		return nil, errors.New("share failed proof validation")
@@ -391,6 +388,27 @@ func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs,
 // 	// return &PubVerShare{*ps, *P}, nil
 // 	return nil, nil
 // }
+=======
+func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
+	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
+		return nil, errors.New("share failed proof validation")
+	}
+	// G := suite.Point().Base()
+	// V := suite.Point().Mul(suite.Scalar().Inv(x), encShare.S.V) // decryption: x^{-1} * (xS)
+	invPrivKey := new(big.Int)
+	invPrivKey.ModInverse(&nodePrivateKey, generatorOrder)
+	decryptedSharex, decryptedSharey := s.ScalarMult(&encShareOutputs.EncryptedShare.Value.x, &encShareOutputs.EncryptedShare.Value.y, invPrivKey.Bytes())
+	// V := s.ScalarMult(encSharexX, encShareY, modInv.Bytes())
+	fmt.Println(decryptedSharex, decryptedSharey)
+	// ps := &share.PubShare{I: encShare.S.I, V: V}
+	// P, _, _, err := dleq.NewDLEQProof(suite, G, V, x)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return &PubVerShare{*ps, *P}, nil
+	return nil, nil
+}
+>>>>>>> c3c33dfb3a0dcc0a68e5e31e18d2ebdda14d4661
 
 // VerifyEncShare checks that the encrypted share sX satisfies
 // log_{H}(sH) == log_{X}(sX) where sH is the public commitment computed by
@@ -423,17 +441,17 @@ func TestDLEQ(test *testing.T) {
 	nodeList := createRandomNodes(10)
 	secret := randomBigInt()
 	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
-	output, _ := encShares(nodeList.Nodes, *secret, 3)
+	output, _ := EncShares(nodeList.Nodes, *secret, 3)
 	for i := range output {
 		assert.True(test, verifyProof(output[i].Proof, output[i].NodePubKey))
 	}
 	assert.False(test, verifyProof(output[0].Proof, output[1].NodePubKey))
 }
 
-// func TestPVSS(test *testing.T) {
-// 	nodeList := createRandomNodes(10)
-// 	secret := randomBigInt()
-// 	// fmt.Println(len(nodeList))
-// 	fmt.Println("ENCRYPTING SHARES ----------------------------------")
-// 	encShares(nodeList.Nodes, *secret, 3)
-// }
+func TestPVSS(test *testing.T) {
+	nodeList := createRandomNodes(21)
+	secret := randomBigInt()
+	fmt.Println("ENCRYPTING SHARES ----------------------------------")
+	EncShares(nodeList.Nodes, *secret, 11)
+
+}

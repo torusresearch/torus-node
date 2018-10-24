@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -372,24 +371,26 @@ func encShares(nodes []Point, secret big.Int, threshold int) ([]EncShareOutputs,
 // DecryptShare first verifies the encrypted share against the encryption
 // consistency proof and, if valid, decrypts it and creates a decryption
 // consistency proof.
-func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
-	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
-		return nil, errors.New("share failed proof validation")
-	}
-	// G := suite.Point().Base()
-	// V := suite.Point().Mul(suite.Scalar().Inv(x), encShare.S.V) // decryption: x^{-1} * (xS)
-	invPrivKey := new(big.Int)
-	invPrivKey.ModInverse(nodePrivateKey, generatorOrder)
-	decryptedShare := s.ScalarMult(encShareOutputs.EncryptedShare.Value.x, encShareOutputs.EncryptedShare.Value.y, invPrivKey.Bytes())
-	// V := s.ScalarMult(encSharexX, encShareY, modInv.Bytes())
-	// ps := &share.PubShare{I: encShare.S.I, V: V}
-	// P, _, _, err := dleq.NewDLEQProof(suite, G, V, x)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &PubVerShare{*ps, *P}, nil
-	return nil, nil
-}
+// func decShare(encShareOutputs EncShareOutputs, nodePubKey Point, nodePrivateKey big.Int) (*big.Int, error) {
+// 	if err := verifyProof(encShareOutputs.Proof, nodePubKey); err != true {
+// 		return nil, errors.New("share failed proof validation")
+// 	}
+// 	// G := suite.Point().Base()
+// 	// V := suite.Point().Mul(suite.Scalar().Inv(x), encShare.S.V) // decryption: x^{-1} * (xS)
+// 	invPrivKey := new(big.Int)
+// 	invPrivKey.ModInverse(&nodePrivateKey, generatorOrder)
+// 	shareGx, shareGy := s.ScalarMult(&encShareOutputs.EncryptedShare.Value.x, &encShareOutputs.EncryptedShare.Value.y, invPrivKey.Bytes())
+// 	// g^ share
+// 	// ps := &share.PubShare{I: encShare.S.I, V: V}
+// 	// P, _, _, err := dleq.NewDLEQProof(suite, G, V, x)
+// 	shareG := Point{shareGx, shareGy}
+// 	proof := getDlEQProof(nodePrivateKey, shareG)
+// 	// if err != nil {
+// 	// 	return nil, err
+// 	// }
+// 	// return &PubVerShare{*ps, *P}, nil
+// 	return nil, nil
+// }
 
 // VerifyEncShare checks that the encrypted share sX satisfies
 // log_{H}(sH) == log_{X}(sX) where sH is the public commitment computed by

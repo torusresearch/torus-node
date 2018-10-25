@@ -10,8 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createRandomNodes(number int) (*NodeList, []big.Int) {
-	list := new(NodeList)
+type nodeList struct {
+	Nodes []Point
+}
+
+func createRandomNodes(number int) (*nodeList, []big.Int) {
+	list := new(nodeList)
 	privateKeys := make([]big.Int, number)
 	for i := 0; i < number; i++ {
 		pkey := randomBigInt()
@@ -137,7 +141,7 @@ func TestSigncryption(test *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	supposedShare, err := unsigncryptShare(*signcryption, *privKeyReceiver, pubKeySender)
+	supposedShare, err := UnsigncryptShare(*signcryption, *privKeyReceiver, pubKeySender)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -149,7 +153,7 @@ func TestSigncryption(test *testing.T) {
 // 	secret := randomBigInt()
 // 	privKey := randomBigInt()
 // 	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
-// 	output, _ := EncShares(nodeList.Nodes, *secret, 3, *privKey)
+// 	output, _ := CreateAndPrepareShares(nodeList.Nodes, *secret, 3, *privKey)
 // 	for i := range output {
 // 		assert.True(test, verifyProof(output[i].Proof, output[i].NodePubKey))
 // 	}
@@ -161,19 +165,118 @@ func TestPVSS(test *testing.T) {
 	secret := randomBigInt()
 	privKeySender := randomBigInt()
 	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
-	fmt.Println("ENCRYPTING SHARES ----------------------------------")
+
 	errorsExist := false
-	signcryptedShares, _, err := encShares(nodeList.Nodes, *secret, 10, *privKeySender)
+	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 10, *privKeySender)
 	if err != nil {
 		fmt.Println(err)
 		errorsExist = true
 	}
 	for i := range signcryptedShares {
-		_, err := unsigncryptShare(signcryptedShares[i].SigncryptedShare, privateKeys[i], pubKeySender)
+		_, err := UnsigncryptShare(signcryptedShares[i].SigncryptedShare, privateKeys[i], pubKeySender)
 		if err != nil {
 			fmt.Println(err)
 			errorsExist = true
 		}
 	}
 	assert.False(test, errorsExist)
+}
+
+// func TestLarangeInterpolationNormalNumbers(test *testing.T) {
+// 	// polyCoeff := make([]big.Int, 3)
+// 	// polyCoeff[0] = *new(big.Int).SetInt64(int64(0))
+// 	// polyCoeff[1] = *new(big.Int).SetInt64(int64(1))
+// 	// polyCoeff[2] = *new(big.Int).SetInt64(int64(1))
+// 	// poly := PrimaryPolynomial{polyCoeff, 3}
+// 	shares := make([]PrimaryShare, 3)
+// 	shares[0] = PrimaryShare{1, *new(big.Int).SetInt64(int64(2))}
+// 	shares[1] = PrimaryShare{2, *new(big.Int).SetInt64(int64(6))}
+// 	shares[2] = PrimaryShare{3, *new(big.Int).SetInt64(int64(12))}
+// 	// shares[3] = PrimaryShare{4, *new(big.Int).SetInt64(int64(20))}
+// 	testX := Lagrange(shares)
+// 	// fmt.Println(testX)
+// 	assert.True(test, testX.Cmp(new(big.Int).SetInt64(int64(0))) == 0)
+// }
+
+func TestLagrangeInterpolation(test *testing.T) {
+	nodeList, privateKeys := createRandomNodes(20)
+	secret := randomBigInt()
+	privKeySender := randomBigInt()
+	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
+
+	errorsExist := false
+	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 11, *privKeySender)
+	if err != nil {
+		fmt.Println(err)
+		errorsExist = true
+	}
+	decryptedShares := make([]PrimaryShare, 11)
+	for i := range decryptedShares {
+		share, err := UnsigncryptShare(signcryptedShares[i].SigncryptedShare, privateKeys[i], pubKeySender)
+		if err != nil {
+			fmt.Println(err)
+			errorsExist = true
+		}
+		decryptedShares[i] = PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
+	}
+	lagrange := LagrangeElliptic(decryptedShares)
+
+	assert.True(test, secret.Cmp(lagrange) == 0)
+	assert.False(test, errorsExist)
+}
+
+func TestPedersons(test *testing.T) {
+	nodeList, privateKeys := createRandomNodes(21)
+	secrets := make([]big.Int, len(nodeList.Nodes))
+	errorsExist := false
+	allSigncryptedShares := make([][]*SigncryptedOutput, len(nodeList.Nodes))
+	allPubPoly := make([][]Point, len(nodeList.Nodes))
+	for i := range nodeList.Nodes {
+		signcryptedShares, pubPoly, err := CreateAndPrepareShares(nodeList.Nodes, secrets[i], 11, privateKeys[i])
+		allSigncryptedShares[i] = signcryptedShares
+		allPubPoly[i] = *pubPoly
+		if err != nil {
+			fmt.Println(err)
+			errorsExist = true
+		}
+	}
+	allDecryptedShares := make([][]big.Int, len(nodeList.Nodes))
+	for i := range nodeList.Nodes {
+		arrDecryptShares := make([]big.Int, len(nodeList.Nodes))
+		for j := range nodeList.Nodes {
+			decryptedShare, err := UnsigncryptShare(allSigncryptedShares[j][i].SigncryptedShare, privateKeys[i], nodeList.Nodes[j])
+			temp := new(big.Int).SetBytes(*decryptedShare)
+			if err != nil {
+				fmt.Println(err)
+				errorsExist = true
+			}
+			arrDecryptShares[j] = *temp
+		}
+		allDecryptedShares[i] = arrDecryptShares
+	}
+	//form si, points on the polynomial f(z) = r + a1z + a2z^2....
+	allSi := make([]PrimaryShare, len(nodeList.Nodes))
+	for i := range nodeList.Nodes {
+		sum := new(big.Int)
+		for j := range nodeList.Nodes {
+			sum.Add(sum, &allDecryptedShares[i][j])
+		}
+		sum.Mod(sum, generatorOrder)
+		allSi[i] = PrimaryShare{i + 1, *sum}
+	}
+
+	//form r (and other components) to test
+	r := new(big.Int)
+	for i := range nodeList.Nodes {
+		r.Add(r, &secrets[i])
+	}
+	r.Mod(r, generatorOrder)
+	// rY := pt(s.ScalarBaseMult(r.Bytes()))
+
+	testr := LagrangeElliptic(allSi[:11])
+
+	assert.True(test, testr.Cmp(r) == 0)
+
+	assert.False(test, errorsExist)
+
 }

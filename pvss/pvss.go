@@ -10,12 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 )
 
-type NodeList struct {
-	Nodes []Point
-}
-
 type SigncryptedOutput struct {
 	NodePubKey       Point
+	NodeIndex        int
 	SigncryptedShare Signcryption
 }
 
@@ -119,7 +116,7 @@ func polyEval(polynomial PrimaryPolynomial, x int) *big.Int { // get private sha
 func getShares(polynomial PrimaryPolynomial, n int) []PrimaryShare {
 	shares := make([]PrimaryShare, n)
 	for i := range shares {
-		shares[i] = PrimaryShare{Index: n, Value: *polyEval(polynomial, i+1)}
+		shares[i] = PrimaryShare{Index: n + 1, Value: *polyEval(polynomial, i+1)}
 	}
 	return shares
 }
@@ -184,12 +181,12 @@ func batchSigncryptShare(nodeList []Point, shares []PrimaryShare, privKey big.In
 		if err != nil {
 			return nil, err
 		}
-		signcryptedShares[i] = &SigncryptedOutput{nodeList[i], *temp}
+		signcryptedShares[i] = &SigncryptedOutput{nodeList[i], shares[i].Index, *temp}
 	}
 	return signcryptedShares, nil
 }
 
-func encShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]*SigncryptedOutput, *[]Point, error) {
+func CreateAndPrepareShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]*SigncryptedOutput, *[]Point, error) {
 	n := len(nodes)
 
 	polynomial := *generateRandomPolynomial(secret, threshold)
@@ -209,7 +206,7 @@ func encShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([
 	return signcryptedShares, &pubPoly, nil
 }
 
-func unsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*[]byte, error) {
+func UnsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*[]byte, error) {
 	xR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.x.Bytes(), signcryption.Ciphertext)
 	if err != nil {
@@ -237,4 +234,67 @@ func unsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePub
 	}
 
 	return M, nil
+}
+
+// func lagrangeNormal(shares []PrimaryShare) *big.Int {
+// 	secret := new(big.Int)
+// 	for _, share := range shares {
+// 		//when x =0
+// 		delta := new(big.Int).SetInt64(int64(1))
+// 		upper := new(big.Int).SetInt64(int64(1))
+// 		lower := new(big.Int).SetInt64(int64(1))
+// 		for j := range shares {
+// 			if shares[j].Index != share.Index {
+// 				upper.Mul(upper, new(big.Int).SetInt64(int64(shares[j].Index)))
+// 				upper.Neg(upper)
+
+// 				tempLower := new(big.Int).SetInt64(int64(share.Index))
+// 				tempLower.Sub(tempLower, new(big.Int).SetInt64(int64(shares[j].Index)))
+
+// 				lower.Mul(lower, tempLower)
+// 			}
+// 		}
+// 		delta.Div(upper, lower)
+// 		delta.Mul(&share.Value, delta)
+// 		secret.Add(secret, delta)
+// 	}
+// 	// secret.Mod(secret, generatorOrder)
+// 	return secret
+// }
+
+func LagrangeElliptic(shares []PrimaryShare) *big.Int {
+	secret := new(big.Int)
+	for _, share := range shares {
+		//when x =0
+		delta := new(big.Int).SetInt64(int64(1))
+		upper := new(big.Int).SetInt64(int64(1))
+		lower := new(big.Int).SetInt64(int64(1))
+		for j := range shares {
+			if shares[j].Index != share.Index {
+				upper.Mul(upper, new(big.Int).SetInt64(int64(shares[j].Index)))
+				upper.Mod(upper, generatorOrder)
+				upper.Neg(upper)
+
+				tempLower := new(big.Int).SetInt64(int64(share.Index))
+				tempLower.Sub(tempLower, new(big.Int).SetInt64(int64(shares[j].Index)))
+				tempLower.Mod(tempLower, generatorOrder)
+
+				lower.Mul(lower, tempLower)
+				lower.Mod(lower, generatorOrder)
+			}
+		}
+		//elliptic devision
+		inv := new(big.Int)
+		inv.ModInverse(lower, generatorOrder)
+		delta.Mul(upper, inv)
+		delta.Mod(delta, generatorOrder)
+
+		delta.Mul(&share.Value, delta)
+		delta.Mod(delta, generatorOrder)
+
+		secret.Add(secret, delta)
+	}
+	secret.Mod(secret, generatorOrder)
+	// secret.Mod(secret, generatorOrder)
+	return secret
 }

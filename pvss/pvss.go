@@ -86,7 +86,7 @@ func hashToPoint(data []byte) *Point {
 	}
 }
 
-func randomBigInt() *big.Int {
+func RandomBigInt() *big.Int {
 	randomInt, _ := rand.Int(rand.Reader, fromHex("3ffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
 	return randomInt
 }
@@ -138,14 +138,14 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	coeff := make([]big.Int, threshold)
 	coeff[0] = secret                //assign secret as coeff of x^0
 	for i := 1; i < threshold; i++ { //randomly choose coeffs
-		coeff[i] = *randomBigInt()
+		coeff[i] = *RandomBigInt()
 	}
 	return &PrimaryPolynomial{coeff, threshold}
 }
 
 func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryption, error) {
 	// Commitment
-	r := randomBigInt()
+	r := RandomBigInt()
 	rG := pt(s.ScalarBaseMult(r.Bytes()))
 	rU := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
 

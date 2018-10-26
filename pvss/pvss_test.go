@@ -18,7 +18,7 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 	list := new(nodeList)
 	privateKeys := make([]big.Int, number)
 	for i := 0; i < number; i++ {
-		pkey := randomBigInt()
+		pkey := RandomBigInt()
 		list.Nodes = append(list.Nodes, pt(s.ScalarBaseMult(pkey.Bytes())))
 		privateKeys[i] = *pkey
 	}
@@ -69,7 +69,7 @@ func TestCommit(test *testing.T) {
 	// gmul107x, _ := s.ScalarBaseMult(big.NewInt(107).Bytes())
 	// assert.Equal(test, sumx.Text(16), gmul107x.Text(16))
 
-	secret := *randomBigInt()
+	secret := *RandomBigInt()
 	polynomial := *generateRandomPolynomial(secret, 11)
 	polyCommit := getCommit(polynomial)
 
@@ -119,7 +119,7 @@ func TestCommit(test *testing.T) {
 }
 
 func TestAES(test *testing.T) {
-	key := randomBigInt().Bytes()
+	key := RandomBigInt().Bytes()
 	encryptMsg, err := AESencrypt(key, []byte("Hello World"))
 	if err != nil {
 		fmt.Println(err)
@@ -132,10 +132,10 @@ func TestAES(test *testing.T) {
 }
 
 func TestSigncryption(test *testing.T) {
-	secretShare := randomBigInt()
-	privKeySender := randomBigInt()
+	secretShare := RandomBigInt()
+	privKeySender := RandomBigInt()
 	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
-	privKeyReceiver := randomBigInt()
+	privKeyReceiver := RandomBigInt()
 	pubKeyReceiver := pt(s.ScalarBaseMult(privKeyReceiver.Bytes()))
 	signcryption, err := signcryptShare(pubKeyReceiver, *secretShare, *privKeySender)
 	if err != nil {
@@ -150,8 +150,8 @@ func TestSigncryption(test *testing.T) {
 
 // func TestDLEQ(test *testing.T) {
 // 	nodeList := createRandomNodes(10)
-// 	secret := randomBigInt()
-// 	privKey := randomBigInt()
+// 	secret := RandomBigInt()
+// 	privKey := RandomBigInt()
 // 	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
 // 	output, _ := CreateAndPrepareShares(nodeList.Nodes, *secret, 3, *privKey)
 // 	for i := range output {
@@ -162,8 +162,8 @@ func TestSigncryption(test *testing.T) {
 
 func TestPVSS(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(20)
-	secret := randomBigInt()
-	privKeySender := randomBigInt()
+	secret := RandomBigInt()
+	privKeySender := RandomBigInt()
 	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false
@@ -200,8 +200,8 @@ func TestPVSS(test *testing.T) {
 
 func TestLagrangeInterpolation(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(20)
-	secret := randomBigInt()
-	privKeySender := randomBigInt()
+	secret := RandomBigInt()
+	privKeySender := RandomBigInt()
 	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false

@@ -70,7 +70,11 @@ func keyGenerationPhase(ethSuite *EthSuite) {
 				}
 			}
 
-			if triggerSecretSharing > 5 {
+			if triggerSecretSharing > 4 {
+				nodes := make([]pvss.Point, triggerSecretSharing)
+				for i := 0; i < triggerSecretSharing; i++ {
+					nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
+				}
 				pvss.CreateAndPrepareShares()
 			}
 

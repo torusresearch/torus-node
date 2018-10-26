@@ -27,7 +27,7 @@ func getDLEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	xH := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, secret.Bytes()))
 
 	// Commitment
-	v := randomBigInt()
+	v := RandomBigInt()
 	vG := pt(s.ScalarBaseMult(v.Bytes()))
 	vH := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, v.Bytes()))
 

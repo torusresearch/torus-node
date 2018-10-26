@@ -24,15 +24,15 @@ type (
 )
 
 func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	fmt.Println("Ping called")
 
 	var p PingParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
+	fmt.Println("Ping called from " + p.Message)
 
 	return PingResult{
-		Message: "Hello, " + p.Message + "I am " + h.ethSuite.NodeAddress.Hex(),
+		Message: h.ethSuite.NodeAddress.Hex(),
 	}, nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/YZhenY/DKGNode/pvss"
 	"github.com/ethereum/go-ethereum/common"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
@@ -50,27 +51,39 @@ func keyGenerationPhase(ethSuite *EthSuite) {
 	nodeList := make([]*NodeReference, 10)
 
 	for {
-
 		/*Fetch Node List from contract address */
 		ethList, err := ethSuite.NodeListInstance.ViewNodeList(nil)
 		if err != nil {
 			fmt.Println(err)
 		}
 		if len(ethList) > 0 {
-			fmt.Println("Connecting to other nodes")
+			fmt.Println("Connecting to other nodes ------------------")
+			triggerSecretSharing := 0
 			for i := range ethList {
-				nodeList[i], err = connectToJSONRPCNode(ethSuite, ethList[i])
-				if err != nil {
-					fmt.Println(err)
+				if nodeList[i] == nil {
+					nodeList[i], err = connectToJSONRPCNode(ethSuite, ethList[i])
+					if err != nil {
+						fmt.Println(err)
+					}
+				} else {
+					triggerSecretSharing++
 				}
 			}
 
+			if triggerSecretSharing > 5 {
+				pvss.CreateAndPrepareShares()
+			}
+
 		} else {
-			fmt.Println("Not enough nodes in node ethList")
+			fmt.Println("No nodes in list/could not get from eth")
 			fmt.Println(ethList)
 		}
 		time.Sleep(5000 * time.Millisecond)
 	}
+}
+
+func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *pvss.Point {
+	return &pvss.Point{*ecdsaPt.X, *ecdsaPt.Y}
 }
 
 func connectToJSONRPCNode(ethSuite *EthSuite, nodeAddress common.Address) (*NodeReference, error) {

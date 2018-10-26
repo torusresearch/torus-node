@@ -32,7 +32,7 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 
 func TestHash(test *testing.T) {
 	res := hashToPoint([]byte("this is a random message"))
-	assert.True(test, s.IsOnCurve(&res.x, &res.y))
+	assert.True(test, s.IsOnCurve(&res.X, &res.Y))
 }
 
 func TestPolyEval(test *testing.T) {
@@ -59,10 +59,10 @@ func TestCommit(test *testing.T) {
 
 	// ten := *big.NewInt(10)
 
-	// sumx := &polyCommit[0].x
-	// sumy := &polyCommit[0].y
+	// sumx := &polyCommit[0].X
+	// sumy := &polyCommit[0].Y
 
-	// tmpx, tmpy := s.ScalarMult(&polyCommit[1].x, &polyCommit[1].y, ten.Bytes())
+	// tmpx, tmpy := s.ScalarMult(&polyCommit[1].X, &polyCommit[1].Y, ten.Bytes())
 
 	// sumx, _ = s.Add(sumx, sumy, tmpx, tmpy)
 
@@ -73,27 +73,27 @@ func TestCommit(test *testing.T) {
 	polynomial := *generateRandomPolynomial(secret, 11)
 	polyCommit := getCommit(polynomial)
 
-	sum := Point{x: polyCommit[0].x, y: polyCommit[0].y}
+	sum := Point{X: polyCommit[0].X, Y: polyCommit[0].Y}
 	var tmp Point
 
 	index := big.NewInt(int64(10))
 
 	for i := 1; i < len(polyCommit); i++ {
-		tmp = pt(s.ScalarMult(&polyCommit[i].x, &polyCommit[i].y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes()))
-		sum = pt(s.Add(&tmp.x, &tmp.y, &sum.x, &sum.y))
+		tmp = pt(s.ScalarMult(&polyCommit[i].X, &polyCommit[i].Y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes()))
+		sum = pt(s.Add(&tmp.X, &tmp.Y, &sum.X, &sum.Y))
 	}
 
 	final := pt(s.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
 
-	assert.Equal(test, sum.x.Text(16), final.x.Text(16))
+	assert.Equal(test, sum.X.Text(16), final.X.Text(16))
 	// sumx, sumy := s.Add(sumx, sumy, )
 
-	// secretx := polyCommit[0].x
-	// secrety := polyCommit[0].y
+	// secretx := polyCommit[0].X
+	// secrety := polyCommit[0].Y
 
 	// assert.Equal(test, big.NewInt(int64(10)).Text(10), "10")
 
-	// onex, oney := s.ScalarMult(&polyCommit[1].x, &polyCommit[1].y, big.NewInt(int64(10)).Bytes())
+	// onex, oney := s.ScalarMult(&polyCommit[1].X, &polyCommit[1].Y, big.NewInt(int64(10)).Bytes())
 
 	// gshare10x, gshare10y := s.ScalarBaseMult(big.NewInt(int64(10)).Bytes())
 	// sumx, sumy := s.Add(onex, oney, &secretx, &secrety)
@@ -105,16 +105,16 @@ func TestCommit(test *testing.T) {
 	// 	// eg. when i = 1, 342G
 	// 	fivepowi := new(big.Int)
 	// 	fivepowi.Exp(five, big.NewInt(int64(i)), fieldOrder)
-	// 	tmpx, tmpy := s.ScalarMult(&committedPoint.x, &committedPoint.y, fivepowi.Bytes())
+	// 	tmpx, tmpy := s.ScalarMult(&committedPoint.X, &committedPoint.Y, fivepowi.Bytes())
 	// 	tmpx, tmpy = s.Add(&sumx, &sumy, tmpx, tmpy)
 	// 	sumx = *tmpx
 	// 	sumy = *tmpy
 	// }
-	// sum := Point{x: sumx, y: sumy}
+	// sum := Point{X: sumx, Y: sumy}
 	// gshare5x, gshare5y := s.ScalarBaseMult(share5.Bytes())
-	// gshare := Point{x: *gshare5x, y: *gshare5y}
-	// assert.Equal(test, sum.x, gshare.x)
-	// assert.Equal(test, sum.y, gshare.y)
+	// gshare := Point{X: *gshare5x, Y: *gshare5y}
+	// assert.Equal(test, sum.X, gshare.X)
+	// assert.Equal(test, sum.Y, gshare.Y)
 
 }
 

@@ -24,18 +24,18 @@ type DLEQProof struct {
 func getDLEQProof(secret big.Int, nodePubKey Point) *DLEQProof {
 	//Encrypt bbase points with secret
 	xG := pt(s.ScalarBaseMult(secret.Bytes()))
-	xH := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, secret.Bytes()))
+	xH := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, secret.Bytes()))
 
 	// Commitment
 	v := randomBigInt()
 	vG := pt(s.ScalarBaseMult(v.Bytes()))
-	vH := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, v.Bytes()))
+	vH := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, v.Bytes()))
 
 	//Concat hashing bytes
 	cb := make([]byte, 0)
 	for _, element := range [4]Point{xG, xH, vG, vH} {
-		cb = append(cb[:], element.x.Bytes()...)
-		cb = append(cb[:], element.y.Bytes()...)
+		cb = append(cb[:], element.X.Bytes()...)
+		cb = append(cb[:], element.Y.Bytes()...)
 	}
 
 	//hash
@@ -70,12 +70,12 @@ func batchGetDLEQProof(nodes []Point, shares []PrimaryShare) []*DLEQProof {
 //   vH == rH + c(xH)
 func verifyProof(proof DLEQProof, nodePubKey Point) bool {
 	rGx, rGy := s.ScalarBaseMult(proof.r.Bytes())
-	rHx, rHy := s.ScalarMult(&nodePubKey.x, &nodePubKey.y, proof.r.Bytes())
-	cxGx, cxGy := s.ScalarMult(&proof.xG.x, &proof.xG.y, proof.c.Bytes())
-	cxHx, cxHy := s.ScalarMult(&proof.xH.x, &proof.xH.y, proof.c.Bytes())
+	rHx, rHy := s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, proof.r.Bytes())
+	cxGx, cxGy := s.ScalarMult(&proof.xG.X, &proof.xG.Y, proof.c.Bytes())
+	cxHx, cxHy := s.ScalarMult(&proof.xH.X, &proof.xH.Y, proof.c.Bytes())
 	ax, ay := s.Add(rGx, rGy, cxGx, cxGy)
 	bx, by := s.Add(rHx, rHy, cxHx, cxHy)
-	if !(proof.vG.x.Cmp(ax) == 0 && proof.vG.y.Cmp(ay) == 0 && proof.vH.x.Cmp(bx) == 0 && proof.vH.y.Cmp(by) == 0) {
+	if !(proof.vG.X.Cmp(ax) == 0 && proof.vG.Y.Cmp(ay) == 0 && proof.vH.X.Cmp(bx) == 0 && proof.vH.Y.Cmp(by) == 0) {
 		return false
 	}
 	return true
@@ -92,7 +92,7 @@ func verifyProof(proof DLEQProof, nodePubKey Point) bool {
 // 	// V := suite.Point().Mul(suite.Scalar().Inv(x), encShare.S.V) // decryption: x^{-1} * (xS)
 // 	invPrivKey := new(big.Int)
 // 	invPrivKey.ModInverse(&nodePrivateKey, generatorOrder)
-// 	shareGx, shareGy := s.ScalarMult(&encShareOutputs.EncryptedShare.Value.x, &encShareOutputs.EncryptedShare.Value.y, invPrivKey.Bytes())
+// 	shareGx, shareGy := s.ScalarMult(&encShareOutputs.EncryptedShare.Value.X, &encShareOutputs.EncryptedShare.Value.Y, invPrivKey.Bytes())
 // 	// g^ share
 // 	// ps := &share.PubShare{I: encShare.S.I, V: V}
 // 	// P, _, _, err := dleq.NewDLEQProof(suite, G, V, x)

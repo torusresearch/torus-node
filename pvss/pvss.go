@@ -33,8 +33,8 @@ type PrimaryShare struct {
 }
 
 type Point struct {
-	x big.Int
-	y big.Int
+	X big.Int
+	Y big.Int
 }
 
 func fromHex(s string) *big.Int {
@@ -46,7 +46,7 @@ func fromHex(s string) *big.Int {
 }
 
 func pt(x, y *big.Int) Point {
-	return Point{x: *x, y: *y}
+	return Point{X: *x, Y: *y}
 }
 
 var (
@@ -55,8 +55,8 @@ var (
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	sqRoot = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
-	G      = Point{x: *s.Gx, y: *s.Gy}
-	H      = hashToPoint(G.x.Bytes())
+	G      = Point{X: *s.Gx, Y: *s.Gy}
+	H      = hashToPoint(G.X.Bytes())
 )
 
 func Keccak256(data ...[]byte) []byte {
@@ -79,7 +79,7 @@ func hashToPoint(data []byte) *Point {
 		y := new(big.Int)
 		y.Exp(beta, sqRoot, fieldOrder)
 		if new(big.Int).Exp(y, big.NewInt(2), fieldOrder).Cmp(beta) == 0 {
-			return &Point{x: *x, y: *y}
+			return &Point{X: *x, Y: *y}
 		} else {
 			x.Add(x, big.NewInt(1))
 		}
@@ -128,8 +128,8 @@ func getCommit(polynomial PrimaryPolynomial) []Point {
 	for i := range commits {
 		commits[i] = pt(s.ScalarBaseMult(polynomial.coeff[i].Bytes()))
 	}
-	// fmt.Println(commits[0].x.Text(16), commits[0].y.Text(16), "commit0")
-	// fmt.Println(commits[1].x.Text(16), commits[1].y.Text(16), "commit1")
+	// fmt.Println(commits[0].X.Text(16), commits[0].Y.Text(16), "commit0")
+	// fmt.Println(commits[1].X.Text(16), commits[1].Y.Text(16), "commit1")
 	return commits
 }
 
@@ -147,17 +147,17 @@ func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryp
 	// Commitment
 	r := randomBigInt()
 	rG := pt(s.ScalarBaseMult(r.Bytes()))
-	rU := pt(s.ScalarMult(&nodePubKey.x, &nodePubKey.y, r.Bytes()))
+	rU := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
 
 	//encrypt with AES
-	ciphertext, err := AESencrypt(rU.x.Bytes(), share.Bytes())
+	ciphertext, err := AESencrypt(rU.X.Bytes(), share.Bytes())
 	if err != nil {
 		return nil, err
 	}
 
 	//Concat hashing bytes
 	cb := share.Bytes()
-	cb = append(cb[:], rG.x.Bytes()...)
+	cb = append(cb[:], rG.X.Bytes()...)
 
 	//hash h = H(M|r1)
 	hashed := Keccak256(cb)
@@ -207,15 +207,15 @@ func CreateAndPrepareShares(nodes []Point, secret big.Int, threshold int, privKe
 }
 
 func UnsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*[]byte, error) {
-	xR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, privKey.Bytes()))
-	M, err := AESdecrypt(xR.x.Bytes(), signcryption.Ciphertext)
+	xR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
+	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
 		return nil, err
 	}
 
 	//Concat hashing bytes
 	cb := []byte(*M)
-	cb = append(cb[:], signcryption.R.x.Bytes()...)
+	cb = append(cb[:], signcryption.R.X.Bytes()...)
 
 	//hash h = H(M|r1)
 	hashed := Keccak256(cb)
@@ -224,10 +224,10 @@ func UnsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePub
 
 	//Verify signcryption
 	sG := pt(s.ScalarBaseMult(signcryption.Signature.Bytes()))
-	hR := pt(s.ScalarMult(&signcryption.R.x, &signcryption.R.y, h.Bytes()))
-	testSendingNodePubKey := pt(s.Add(&sG.x, &sG.y, &hR.x, &hR.y))
-	if sendingNodePubKey.x.Cmp(&testSendingNodePubKey.x) != 0 {
-		fmt.Println(sendingNodePubKey.x.Cmp(&testSendingNodePubKey.x))
+	hR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
+	testSendingNodePubKey := pt(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
+	if sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X) != 0 {
+		fmt.Println(sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X))
 		fmt.Println(sendingNodePubKey)
 		fmt.Println(testSendingNodePubKey)
 		return nil, errors.New("sending node PK does not register with signcryption")

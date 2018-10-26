@@ -15,10 +15,10 @@ type Config struct {
 	NodeListAddress   string `json:"nodelistaddress`
 }
 
-func loadConfig() Config {
+func loadConfig(path string) Config {
 	/* Load Config */
 	config.Load(file.NewSource(
-		file.WithPath("./node/config.json"),
+		file.WithPath(path),
 	))
 	// retrieve map[string]interface{}
 	var conf Config

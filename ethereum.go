@@ -2,17 +2,30 @@ package main
 
 /* Al useful imports */
 import (
+	"context"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"log"
+	"math/big"
 
+	"github.com/YZhenY/DKGNode/solidity/goContracts"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-
-	nodelist "./solidity/goContracts"
 )
+
+type EthSuite struct {
+	NodePublicKey    *ecdsa.PublicKey
+	NodeAddress      *common.Address
+	NodePrivateKey   *ecdsa.PrivateKey
+	Client           *ethclient.Client
+	NodeListInstance *nodelist.Nodelist
+	secp             elliptic.Curve
+}
 
 /* Form public key using private key */
 func publicKeyFromPrivateKey(privateKey string) string {
@@ -24,24 +37,23 @@ func publicKeyFromPrivateKey(privateKey string) string {
 	return "0x" + pubKHex[len(pubKHex)-40:]
 }
 
-func setUpEth(conf Config) []common.Address {
+func setUpEth(conf Config) (*EthSuite, error) {
 	/* Connect to Ethereum */
 	client, err := ethclient.Dial(conf.EthConnection)
 	if err != nil {
-		fmt.Println("Could not connect to eth connection ", conf.EthConnection)
-		log.Fatal(err)
+		return nil, errors.New("Could not connect to eth connection " + conf.EthConnection)
 	}
 
 	privateKeyECDSA, err := ethCrypto.HexToECDSA(string(conf.EthPrivateKey))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	nodePublicKey := privateKeyECDSA.Public()
-	nodePublicKeyECDSA, ok := nodePublicKey.(*ecdsa.PublicKey)
+	nodePublicKeyEC, ok := nodePublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		log.Fatal("error casting public key to ECDSA")
+		return nil, errors.New("error casting to Public Key")
 	}
-	nodeAddress := ethCrypto.PubkeyToAddress(*nodePublicKeyECDSA)
+	nodeAddress := ethCrypto.PubkeyToAddress(*nodePublicKeyEC)
 	nodeListAddress := common.HexToAddress(conf.NodeListAddress)
 
 	fmt.Println("We have an eth connection to ", conf.EthConnection)
@@ -51,14 +63,32 @@ func setUpEth(conf Config) []common.Address {
 	/*Creating contract instances */
 	nodeListInstance, err := nodelist.NewNodelist(nodeListAddress, client)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	/*Fetch Node List from contract address */
-	list, err := nodeListInstance.ViewNodeList(nil)
+	return &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, nodeListInstance, ethCrypto.S256()}, nil
+}
+
+func (suite EthSuite) registerNode(declaredIP string) (*types.Transaction, error) {
+	nonce, err := suite.Client.PendingNonceAt(context.Background(), ethCrypto.PubkeyToAddress(*suite.NodePublicKey))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	return list
+	gasPrice, err := suite.Client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	auth := bind.NewKeyedTransactor(suite.NodePrivateKey)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(0)      // in wei
+	auth.GasLimit = uint64(4700000) // in units
+	auth.GasPrice = gasPrice
+
+	tx, err := suite.NodeListInstance.ListNode(auth, declaredIP, suite.NodePublicKey.X, suite.NodePublicKey.Y)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }

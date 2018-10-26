@@ -12,31 +12,33 @@ import (
 )
 
 type (
-	EchoHandler struct{}
-	EchoParams  struct {
-		Name string `json:"name"`
+	PingHandler struct {
+		ethSuite EthSuite
 	}
-	EchoResult struct {
+	PingParams struct {
+		Message string `json:"message"`
+	}
+	PingResult struct {
 		Message string `json:"message"`
 	}
 )
 
-func (h EchoHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	fmt.Println("Echo called")
+func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+	fmt.Println("Ping called")
 
-	var p EchoParams
+	var p PingParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
 
-	return EchoResult{
-		Message: "Hello, " + p.Name,
+	return PingResult{
+		Message: "Hello, " + p.Message + "I am " + h.ethSuite.NodeAddress.Hex(),
 	}, nil
 }
 
-func setUpServer(port string) {
+func setUpServer(ethSuite EthSuite, port string) {
 	mr := jsonrpc.NewMethodRepository()
-	if err := mr.RegisterMethod("Main.Echo", EchoHandler{}, EchoParams{}, EchoResult{}); err != nil {
+	if err := mr.RegisterMethod("Ping", PingHandler{ethSuite}, PingParams{}, PingResult{}); err != nil {
 		log.Fatalln(err)
 	}
 

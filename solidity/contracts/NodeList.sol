@@ -6,6 +6,8 @@ contract NodeList {
   struct Details {
     string declaredIp;
     uint256 position;
+    uint256 pubKx;
+    uint256 pubKy;
   }
 
   mapping (address => Details) public nodeDetails;
@@ -13,6 +15,7 @@ contract NodeList {
 
   constructor() public {
   }
+
 
   function viewNodeList() external view  returns (address[]) {
     return nodeList;
@@ -27,9 +30,9 @@ contract NodeList {
     position = nodeDetails[node].position;
   }
 
-  function listNode(string declaredIp) external {
-    nodeList[nodeList.length] = msg.sender;
-    nodeDetails[msg.sender] = Details({declaredIp: declaredIp, position: nodeList.length});
+  function listNode(string declaredIp, uint256 pubKx, uint256 pubKy) external {
+    nodeList.push(msg.sender);
+    nodeDetails[msg.sender] = Details({declaredIp: declaredIp, position: nodeList.length, pubKx: pubKx, pubKy: pubKy});
     emit NodeListed(msg.sender, nodeList.length);
   }
 }

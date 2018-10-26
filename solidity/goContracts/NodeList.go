@@ -28,7 +28,7 @@ var (
 )
 
 // NodelistABI is the input ABI used to generate the binding from.
-const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"}]"
+const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"}]"
 
 // Nodelist is an auto generated Go binding around an Ethereum contract.
 type Nodelist struct {
@@ -174,14 +174,18 @@ func (_Nodelist *NodelistTransactorRaw) Transact(opts *bind.TransactOpts, method
 
 // NodeDetails is a free data retrieval call binding the contract method 0x859da85f.
 //
-// Solidity: function nodeDetails( address) constant returns(declaredIp string, position uint256)
+// Solidity: function nodeDetails( address) constant returns(declaredIp string, position uint256, pubKx uint256, pubKy uint256)
 func (_Nodelist *NodelistCaller) NodeDetails(opts *bind.CallOpts, arg0 common.Address) (struct {
 	DeclaredIp string
 	Position   *big.Int
+	PubKx      *big.Int
+	PubKy      *big.Int
 }, error) {
 	ret := new(struct {
 		DeclaredIp string
 		Position   *big.Int
+		PubKx      *big.Int
+		PubKy      *big.Int
 	})
 	out := ret
 	err := _Nodelist.contract.Call(opts, out, "nodeDetails", arg0)
@@ -190,20 +194,24 @@ func (_Nodelist *NodelistCaller) NodeDetails(opts *bind.CallOpts, arg0 common.Ad
 
 // NodeDetails is a free data retrieval call binding the contract method 0x859da85f.
 //
-// Solidity: function nodeDetails( address) constant returns(declaredIp string, position uint256)
+// Solidity: function nodeDetails( address) constant returns(declaredIp string, position uint256, pubKx uint256, pubKy uint256)
 func (_Nodelist *NodelistSession) NodeDetails(arg0 common.Address) (struct {
 	DeclaredIp string
 	Position   *big.Int
+	PubKx      *big.Int
+	PubKy      *big.Int
 }, error) {
 	return _Nodelist.Contract.NodeDetails(&_Nodelist.CallOpts, arg0)
 }
 
 // NodeDetails is a free data retrieval call binding the contract method 0x859da85f.
 //
-// Solidity: function nodeDetails( address) constant returns(declaredIp string, position uint256)
+// Solidity: function nodeDetails( address) constant returns(declaredIp string, position uint256, pubKx uint256, pubKy uint256)
 func (_Nodelist *NodelistCallerSession) NodeDetails(arg0 common.Address) (struct {
 	DeclaredIp string
 	Position   *big.Int
+	PubKx      *big.Int
+	PubKy      *big.Int
 }, error) {
 	return _Nodelist.Contract.NodeDetails(&_Nodelist.CallOpts, arg0)
 }
@@ -322,25 +330,25 @@ func (_Nodelist *NodelistCallerSession) ViewNodeListCount() (*big.Int, error) {
 	return _Nodelist.Contract.ViewNodeListCount(&_Nodelist.CallOpts)
 }
 
-// ListNode is a paid mutator transaction binding the contract method 0xed6f79ab.
+// ListNode is a paid mutator transaction binding the contract method 0x06ca9890.
 //
-// Solidity: function listNode(declaredIp string) returns()
-func (_Nodelist *NodelistTransactor) ListNode(opts *bind.TransactOpts, declaredIp string) (*types.Transaction, error) {
-	return _Nodelist.contract.Transact(opts, "listNode", declaredIp)
+// Solidity: function listNode(declaredIp string, pubKx uint256, pubKy uint256) returns()
+func (_Nodelist *NodelistTransactor) ListNode(opts *bind.TransactOpts, declaredIp string, pubKx *big.Int, pubKy *big.Int) (*types.Transaction, error) {
+	return _Nodelist.contract.Transact(opts, "listNode", declaredIp, pubKx, pubKy)
 }
 
-// ListNode is a paid mutator transaction binding the contract method 0xed6f79ab.
+// ListNode is a paid mutator transaction binding the contract method 0x06ca9890.
 //
-// Solidity: function listNode(declaredIp string) returns()
-func (_Nodelist *NodelistSession) ListNode(declaredIp string) (*types.Transaction, error) {
-	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, declaredIp)
+// Solidity: function listNode(declaredIp string, pubKx uint256, pubKy uint256) returns()
+func (_Nodelist *NodelistSession) ListNode(declaredIp string, pubKx *big.Int, pubKy *big.Int) (*types.Transaction, error) {
+	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, declaredIp, pubKx, pubKy)
 }
 
-// ListNode is a paid mutator transaction binding the contract method 0xed6f79ab.
+// ListNode is a paid mutator transaction binding the contract method 0x06ca9890.
 //
-// Solidity: function listNode(declaredIp string) returns()
-func (_Nodelist *NodelistTransactorSession) ListNode(declaredIp string) (*types.Transaction, error) {
-	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, declaredIp)
+// Solidity: function listNode(declaredIp string, pubKx uint256, pubKy uint256) returns()
+func (_Nodelist *NodelistTransactorSession) ListNode(declaredIp string, pubKx *big.Int, pubKy *big.Int) (*types.Transaction, error) {
+	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, declaredIp, pubKx, pubKy)
 }
 
 // NodelistNodeListedIterator is returned from FilterNodeListed and is used to iterate over the raw logs and unpacked data for NodeListed events raised by the Nodelist contract.

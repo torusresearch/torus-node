@@ -37,36 +37,36 @@ func publicKeyFromPrivateKey(privateKey string) string {
 	return "0x" + pubKHex[len(pubKHex)-40:]
 }
 
-func setUpEth(conf Config) (*EthSuite, error) {
+func setUpEth(suite *Suite) error {
 	/* Connect to Ethereum */
-	client, err := ethclient.Dial(conf.EthConnection)
+	client, err := ethclient.Dial(suite.Config.EthConnection)
 	if err != nil {
-		return nil, errors.New("Could not connect to eth connection " + conf.EthConnection)
+		return errors.New("Could not connect to eth connection " + suite.Config.EthConnection)
 	}
 
-	privateKeyECDSA, err := ethCrypto.HexToECDSA(string(conf.EthPrivateKey))
+	privateKeyECDSA, err := ethCrypto.HexToECDSA(string(suite.Config.EthPrivateKey))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	nodePublicKey := privateKeyECDSA.Public()
 	nodePublicKeyEC, ok := nodePublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, errors.New("error casting to Public Key")
+		return errors.New("error casting to Public Key")
 	}
 	nodeAddress := ethCrypto.PubkeyToAddress(*nodePublicKeyEC)
-	nodeListAddress := common.HexToAddress(conf.NodeListAddress)
+	nodeListAddress := common.HexToAddress(suite.Config.NodeListAddress)
 
-	fmt.Println("We have an eth connection to ", conf.EthConnection)
-	fmt.Println("Node Private Key: ", conf.EthPrivateKey)
+	fmt.Println("We have an eth connection to ", suite.Config.EthConnection)
+	fmt.Println("Node Private Key: ", suite.Config.EthPrivateKey)
 	fmt.Println("Node Public Key: ", nodeAddress.Hex())
 
 	/*Creating contract instances */
 	nodeListInstance, err := nodelist.NewNodelist(nodeListAddress, client)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, nodeListInstance, ethCrypto.S256()}, nil
+	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, nodeListInstance, ethCrypto.S256()}
+	return nil
 }
 
 func (suite EthSuite) registerNode(declaredIP string) (*types.Transaction, error) {

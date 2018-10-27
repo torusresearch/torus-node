@@ -19,31 +19,30 @@ func main() {
 	configPath := flag.String("configPath", "./node/config.json", "provide path to config file, defaults ./node/config.json")
 	flag.Parse()
 
+	//Main suite of functions used in node
 	suite := Suite{}
 
-	conf := loadConfig(*configPath)
-	suite.Config = &conf
-	ethSuite, err := setUpEth(conf)
+	loadConfig(&suite, *configPath)
+	err := setUpEth(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}
-	suite.EthSuite = ethSuite
 
 	/* Register Node */
-	nodeIp, err := findExternalIP()
+	nodeIP, err := findExternalIP()
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("Node IP Address: " + nodeIp + ":" + string(conf.MyPort))
-	_, err = ethSuite.registerNode(nodeIp + ":" + string(conf.MyPort))
+	fmt.Println("Node IP Address: " + nodeIP + ":" + string(suite.Config.MyPort))
+	_, err = suite.EthSuite.registerNode(nodeIP + ":" + string(suite.Config.MyPort))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	test := make([]string, 1)
-	test[0] = "http://localhost:" + string(conf.MyPort) + "/jrpc"
+	test[0] = "http://localhost:" + string(suite.Config.MyPort) + "/jrpc"
 	// go setUpClient(test)
-	go keyGenerationPhase(ethSuite)
-	setUpServer(*ethSuite, string(conf.MyPort))
+	go keyGenerationPhase(&suite)
+	setUpServer(*suite.EthSuite, string(suite.Config.MyPort))
 
 }

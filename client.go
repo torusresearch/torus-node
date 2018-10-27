@@ -68,13 +68,13 @@ func setUpClient(nodeListStrings []string) {
 	// }
 }
 
-func keyGenerationPhase(ethSuite *EthSuite) {
+func keyGenerationPhase(suite *Suite) {
 	time.Sleep(1000 * time.Millisecond)
 	nodeList := make([]*NodeReference, 99)
 
 	for {
 		/*Fetch Node List from contract address */
-		ethList, err := ethSuite.NodeListInstance.ViewNodeList(nil)
+		ethList, err := suite.EthSuite.NodeListInstance.ViewNodeList(nil)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -83,7 +83,7 @@ func keyGenerationPhase(ethSuite *EthSuite) {
 			triggerSecretSharing := 0
 			for i := range ethList {
 				if nodeList[i] == nil {
-					nodeList[i], err = connectToJSONRPCNode(ethSuite, ethList[i])
+					nodeList[i], err = connectToJSONRPCNode(suite.EthSuite, ethList[i])
 					if err != nil {
 						fmt.Println(err)
 					}
@@ -98,7 +98,7 @@ func keyGenerationPhase(ethSuite *EthSuite) {
 					nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
 				}
 				secret := pvss.RandomBigInt()
-				signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, 3, *ethSuite.NodePrivateKey.D)
+				signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, 3, *suite.EthSuite.NodePrivateKey.D)
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -107,7 +107,7 @@ func keyGenerationPhase(ethSuite *EthSuite) {
 
 				//send shares to nodes
 				fmt.Println("Sending shares -----------")
-				errArr := sendSharesToNodes(*ethSuite, signcryptedOut, nodeList)
+				errArr := sendSharesToNodes(*suite.EthSuite, signcryptedOut, nodeList)
 				if errArr != nil {
 					fmt.Println("errors sending shares")
 					fmt.Println(errArr)
@@ -128,7 +128,7 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedO
 	for i := range signcryptedOutput {
 		//sanity checks
 		if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[i].PublicKey.X) == 0 {
-			response, err := nodeList[i].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
+			_, err := nodeList[i].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
 				ethSuite.NodeAddress.Hex(),
 				ethSuite.NodePublicKey.X.Text(16),
 				ethSuite.NodePublicKey.Y.Text(16),

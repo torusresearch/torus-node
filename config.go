@@ -15,7 +15,7 @@ type Config struct {
 	NodeListAddress   string `json:"nodelistaddress`
 }
 
-func loadConfig(path string) Config {
+func loadConfig(suite *Suite, path string) {
 	/* Load Config */
 	config.Load(file.NewSource(
 		file.WithPath(path),
@@ -23,5 +23,6 @@ func loadConfig(path string) Config {
 	// retrieve map[string]interface{}
 	var conf Config
 	config.Scan(&conf)
-	return conf
+
+	suite.Config = &conf
 }

@@ -21,6 +21,9 @@ type (
 	PingResult struct {
 		Message string `json:"message"`
 	}
+	SigncryptedHandler struct {
+		ethSuite EthSuite
+	}
 )
 
 func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
@@ -36,9 +39,24 @@ func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage
 	}, nil
 }
 
+func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+
+	var p SigncryptedMessage
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+
+	return PingResult{
+		Message: h.ethSuite.NodeAddress.Hex(),
+	}, nil
+}
+
 func setUpServer(ethSuite EthSuite, port string) {
 	mr := jsonrpc.NewMethodRepository()
 	if err := mr.RegisterMethod("Ping", PingHandler{ethSuite}, PingParams{}, PingResult{}); err != nil {
+		log.Fatalln(err)
+	}
+	if err := mr.RegisterMethod("KeyGeneration.ShareCollection", SigncryptedHandler{ethSuite}, SigncryptedMessage{}, PingResult{}); err != nil {
 		log.Fatalln(err)
 	}
 

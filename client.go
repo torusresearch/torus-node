@@ -3,6 +3,7 @@ package main
 /* Al useful imports */
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -27,6 +28,27 @@ type Message struct {
 	Message string `json:"message"`
 }
 
+// type SigncryptedOutput struct {
+// 	NodePubKey       Point
+// 	NodeIndex        int
+// 	SigncryptedShare Signcryption
+// }
+// type Signcryption struct {
+// 	Ciphertext []byte
+// 	R          Point
+// 	Signature  big.Int
+// }
+
+type SigncryptedMessage struct {
+	FromAddress string `json:fromaddress`
+	FromPubKeyX string `json:frompubkeyx`
+	FromPubKeyY string `json:frompubkeyy`
+	Ciphertext  string `json:ciphertext`
+	RX          string `json:rx`
+	RY          string `json:ry`
+	Signature   string `json:signature`
+}
+
 func setUpClient(nodeListStrings []string) {
 	// nodeListStruct make(NodeReference[], 0)
 	// for index, element := range nodeListStrings {
@@ -48,7 +70,7 @@ func setUpClient(nodeListStrings []string) {
 
 func keyGenerationPhase(ethSuite *EthSuite) {
 	time.Sleep(1000 * time.Millisecond)
-	nodeList := make([]*NodeReference, 10)
+	nodeList := make([]*NodeReference, 99)
 
 	for {
 		/*Fetch Node List from contract address */
@@ -75,15 +97,58 @@ func keyGenerationPhase(ethSuite *EthSuite) {
 				for i := 0; i < triggerSecretSharing; i++ {
 					nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
 				}
-				pvss.CreateAndPrepareShares()
-			}
+				secret := pvss.RandomBigInt()
+				signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, 3, *ethSuite.NodePrivateKey.D)
+				if err != nil {
+					fmt.Println(err)
+				}
+				//commit pubpoly
+				// - publish on ethereum
 
+				//send shares to nodes
+				fmt.Println("Sending shares -----------")
+				errArr := sendSharesToNodes(*ethSuite, signcryptedOut, nodeList)
+				if errArr != nil {
+					fmt.Println("errors sending shares")
+					fmt.Println(errArr)
+				}
+				//gather shares, decrypt and verify with pubpoly
+
+			}
 		} else {
 			fmt.Println("No nodes in list/could not get from eth")
 			fmt.Println(ethList)
 		}
 		time.Sleep(5000 * time.Millisecond)
 	}
+}
+
+func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedOutput, nodeList []*NodeReference) *[]error {
+	errorSlice := make([]error, len(signcryptedOutput))
+	for i := range signcryptedOutput {
+		//sanity checks
+		if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[i].PublicKey.X) == 0 {
+			response, err := nodeList[i].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
+				ethSuite.NodeAddress.Hex(),
+				ethSuite.NodePublicKey.X.Text(16),
+				ethSuite.NodePublicKey.Y.Text(16),
+				string(signcryptedOutput[i].SigncryptedShare.Ciphertext[:]),
+				signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
+				signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
+				signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
+			})
+			if err != nil {
+				errorSlice = append(errorSlice, err)
+			}
+
+		} else {
+			errorSlice = append(errorSlice, errors.New("signcryption and node list does not match at "+string(i)))
+		}
+	}
+	if errorSlice[0] == nil {
+		return nil
+	}
+	return &errorSlice
 }
 
 func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *pvss.Point {

@@ -7,17 +7,27 @@ import (
 	"log"
 )
 
+type Suite struct {
+	EthSuite   *EthSuite
+	CacheSuite *CacheSuite
+	Config     *Config
+}
+
 /* The entry point for our System */
 func main() {
 	/* Parse the provided parameters on command line */
 	configPath := flag.String("configPath", "./node/config.json", "provide path to config file, defaults ./node/config.json")
 	flag.Parse()
 
+	suite := Suite{}
+
 	conf := loadConfig(*configPath)
+	suite.Config = &conf
 	ethSuite, err := setUpEth(conf)
 	if err != nil {
 		log.Fatal(err)
 	}
+	suite.EthSuite = ethSuite
 
 	/* Register Node */
 	nodeIp, err := findExternalIP()

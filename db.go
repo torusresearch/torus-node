@@ -16,4 +16,5 @@ func setUpCache(suite *Suite) {
 	c := cache.New(cache.NoExpiration, 10*time.Minute)
 	cacheSuite := CacheSuite{c}
 	suite.CacheSuite = &cacheSuite
+
 }

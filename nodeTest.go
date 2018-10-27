@@ -43,6 +43,6 @@ func main() {
 	test[0] = "http://localhost:" + string(suite.Config.MyPort) + "/jrpc"
 	// go setUpClient(test)
 	go keyGenerationPhase(&suite)
-	setUpServer(*suite.EthSuite, string(suite.Config.MyPort))
+	setUpServer(&suite, string(suite.Config.MyPort))
 
 }

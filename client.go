@@ -3,6 +3,7 @@ package main
 /* Al useful imports */
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -112,12 +113,16 @@ func keyGenerationPhase(suite *Suite) {
 					fmt.Println("errors sending shares")
 					fmt.Println(errArr)
 				}
-				//gather shares, decrypt and verify with pubpoly
+				//decrypt done in server.js
 
+				//gather shares, decrypt and verify with pubpoly
+				// - check if shares are here
+				// for i := range nodeList {
+				// 	signcryptedShare := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex())
+				// }
 			}
 		} else {
 			fmt.Println("No nodes in list/could not get from eth")
-			fmt.Println(ethList)
 		}
 		time.Sleep(5000 * time.Millisecond)
 	}
@@ -125,6 +130,8 @@ func keyGenerationPhase(suite *Suite) {
 
 func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedOutput, nodeList []*NodeReference) *[]error {
 	errorSlice := make([]error, len(signcryptedOutput))
+	// fmt.Println("GIVEN SIGNCRYPTION")
+	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
 	for i := range signcryptedOutput {
 		//sanity checks
 		if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[i].PublicKey.X) == 0 {
@@ -132,7 +139,7 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedO
 				ethSuite.NodeAddress.Hex(),
 				ethSuite.NodePublicKey.X.Text(16),
 				ethSuite.NodePublicKey.Y.Text(16),
-				string(signcryptedOutput[i].SigncryptedShare.Ciphertext[:]),
+				hex.EncodeToString(signcryptedOutput[i].SigncryptedShare.Ciphertext),
 				signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
 				signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
 				signcryptedOutput[i].SigncryptedShare.Signature.Text(16),

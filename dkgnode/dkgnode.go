@@ -1,8 +1,7 @@
-package main
+package dkgnode
 
 /* Al useful imports */
 import (
-	"flag"
 	"fmt"
 	"log"
 )
@@ -14,16 +13,13 @@ type Suite struct {
 }
 
 /* The entry point for our System */
-func main() {
-	/* Parse the provided parameters on command line */
-	configPath := flag.String("configPath", "./node/config.json", "provide path to config file, defaults ./node/config.json")
-	flag.Parse()
+func New(configPath string) {
 
 	//Main suite of functions used in node
 	suite := Suite{}
 
-	loadConfig(&suite, *configPath)
-	err := setUpEth(&suite)
+	loadConfig(&suite, configPath)
+	err := SetUpEth(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}

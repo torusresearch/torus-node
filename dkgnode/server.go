@@ -1,4 +1,4 @@
-package main
+package dkgnode
 
 /* Al useful imports */
 import (

@@ -2,12 +2,15 @@ package main
 
 /* Al useful imports */
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math/big"
-	"time"
 
+	"github.com/YZhenY/DKGNode/pvss"
+	"github.com/YZhenY/DKGNode/solidity/goContracts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	config "github.com/micro/go-config"
+	"github.com/micro/go-config/source/file"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
@@ -15,7 +18,7 @@ type NodeReference struct {
 	Address    *common.Address
 	JSONClient jsonrpcclient.RPCClient
 	Index      *big.Int
-	PublicKey  *ecdsa.PublicKey
+	PublicKey  *pvss.Point
 }
 
 type Person struct {
@@ -23,9 +26,6 @@ type Person struct {
 }
 
 type (
-	PingHandler struct {
-		ethSuite *EthSuite
-	}
 	PingParams struct {
 		Message string `json:"message"`
 	}
@@ -34,18 +34,6 @@ type (
 	}
 	Message struct {
 		Message string `json:"message"`
-	}
-	SigncryptedHandler struct {
-		suite *Suite
-	}
-	ShareLog struct {
-		Timestamp          time.Time
-		LogNumber          int
-		ShareIndex         int
-		UnsigncryptedShare []byte
-	}
-	ShareRequestHandler struct {
-		suite *Suite
 	}
 	ShareRequestParams struct {
 		Index int    `json:"index"`
@@ -57,32 +45,190 @@ type (
 	}
 )
 
-type NodeReference struct {
-	Address    *common.Address
-	JSONClient jsonrpcclient.RPCClient
-	Index      *big.Int
-	PublicKey  *ecdsa.PublicKey
+type Config struct {
+	EthConnection   string `json:"ethconnection"`
+	EthPrivateKey   string `json:"ethprivatekey"`
+	NodeListAddress string `json:"nodelistaddress`
 }
 
-func setUpClient(nodeListStrings []string) {
-	// nodeListStruct make(NodeReference[], 0)
-	// for index, element := range nodeListStrings {
-	time.Sleep(1000 * time.Millisecond)
-	for {
-		rpcClient := jsonrpcclient.NewClient(nodeListStrings[0])
+// func setUpClient(nodeListStrings []string) {
+// 	// nodeListStruct make(NodeReference[], 0)
+// 	// for index, element := range nodeListStrings {
+// 	time.Sleep(1000 * time.Millisecond)
+// 	for {
+// 		rpcClient := jsonrpcclient.NewClient(nodeListStrings[0])
 
-		response, err := rpcClient.Call("Main.Echo", &Person{"John"})
-		if err != nil {
-			fmt.Println("couldnt connect")
-		}
+// 		response, err := rpcClient.Call("Main.Echo", &Person{"John"})
+// 		if err != nil {
+// 			fmt.Println("couldnt connect")
+// 		}
 
-		fmt.Println("response: ", response)
-		fmt.Println(time.Now().UTC())
-		time.Sleep(1000 * time.Millisecond)
-	}
-	// }
-}
+// 		fmt.Println("response: ", response)
+// 		fmt.Println(time.Now().UTC())
+// 		time.Sleep(1000 * time.Millisecond)
+// 	}
+// 	// }
+// }
 
 func main() {
 
+	shareIndex := 0
+	authToken := "tokentoken"
+	config := loadConfig("./config.json")
+
+	/* Connect to Ethereum */
+	client, err := ethclient.Dial(config.EthConnection)
+	if err != nil {
+		fmt.Println("Could not connect to eth connection " + config.EthConnection)
+	}
+
+	/*Creating contract instances */
+	nodeListInstance, err := nodelist.NewNodelist(common.HexToAddress(config.NodeListAddress), client)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	list, err := nodeListInstance.ViewNodeList(nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	nodeList := make([]*NodeReference, len(list))
+	for i := range list {
+		nodeList[i], err = connectToJSONRPCNode(nodeListInstance, list[i])
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	//get shares
+	shareList := make([]pvss.PrimaryShare, len(nodeList))
+	for i := range nodeList {
+		response, err := nodeList[i].JSONClient.Call("ShareRequest", &ShareRequestParams{shareIndex, authToken})
+		if err != nil {
+			fmt.Println("ERROR CALLING")
+			fmt.Println(err)
+		}
+		fmt.Println(response)
+		var tmpShare ShareRequestResult
+		err = response.GetObject(&tmpShare)
+		if err != nil {
+			fmt.Println("ERROR CASTING")
+			fmt.Println(err)
+		}
+		shareVal, ok := new(big.Int).SetString(tmpShare.HexShare, 16)
+		if !ok {
+			fmt.Println("Couldnt parse hex share from ", nodeList[i].Address.Hex())
+		}
+		shareList[i] = pvss.PrimaryShare{tmpShare.Index, *shareVal}
+	}
+
+	fmt.Println("FINAL PRIVATE KEY: ")
+	// final := pvss.LagrangeElliptic(shareList[:3])
+	// fmt.Println("1-3: ", final.Text(16))
+	// final = pvss.LagrangeElliptic(shareList[1:4])
+	// fmt.Println("2-4: ", final.Text(16))
+	// final = pvss.LagrangeElliptic(shareList[2:5])
+	// fmt.Println("3-5: ", final.Text(16))
+	temppp := make([]pvss.PrimaryShare, 1)
+	temppp[0] = shareList[0]
+	equal := true
+	final := pvss.LagrangeElliptic(append(append(temppp, shareList[1]), shareList[2]))
+	fmt.Println("123: ", final.Text(16))
+	testFinal := final
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[1]), shareList[3]))
+	fmt.Println("124: ", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[1]), shareList[4]))
+	fmt.Println("125", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[3]))
+	fmt.Println("134", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[4]))
+	fmt.Println("135", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[3]), shareList[4]))
+	fmt.Println("145", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	temppp[0] = shareList[1]
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[3]))
+	fmt.Println("234", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[4]))
+	fmt.Println("235", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[3]), shareList[4]))
+	fmt.Println("245", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+	temppp[0] = shareList[2]
+	final = pvss.LagrangeElliptic(append(append(temppp, shareList[3]), shareList[4]))
+	fmt.Println("345", final.Text(16))
+	if testFinal.Cmp(final) != 0 {
+		equal = false
+	}
+
+	fmt.Println("TEST R")
+	testShares := new(big.Int)
+	val, _ := new(big.Int).SetString("32c8d23f805f0c7f224f30b5cd07574df574e0b96fc73db9906d1d2cb75a31a9", 16)
+	testShares.Add(testShares, val)
+	testShares.Mod(testShares, pvss.GeneratorOrder)
+	val, _ = new(big.Int).SetString("55731cd8c0f2c35a72b8e75d606c278d138f0a8b68f512d083f112f8a8c174ec", 16)
+	testShares.Add(testShares, val)
+	testShares.Mod(testShares, pvss.GeneratorOrder)
+	val, _ = new(big.Int).SetString("6e0a9234cc75faf707a696c633bc31b5af6d98ecd24828cd1bef86118d38b59b", 16)
+	testShares.Add(testShares, val)
+	testShares.Mod(testShares, pvss.GeneratorOrder)
+	val, _ = new(big.Int).SetString("b97ce77d7551e93afafdfc86699f01ebede565398a48ac09c132fdc1fc010735", 16)
+	testShares.Add(testShares, val)
+	testShares.Mod(testShares, pvss.GeneratorOrder)
+	val, _ = new(big.Int).SetString("729b1afacbd4d4673911c6ed5a85f6f92b68a5733471241eeca69be3c6cc0138", 16)
+	testShares.Add(testShares, val)
+	testShares.Mod(testShares, pvss.GeneratorOrder)
+	fmt.Println(testShares.Text(16))
+}
+
+func loadConfig(path string) *Config {
+	/* Load Config */
+	config.Load(file.NewSource(
+		file.WithPath(path),
+	))
+	// retrieve map[string]interface{}
+	var conf Config
+	config.Scan(&conf)
+
+	return &conf
+}
+
+func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress common.Address) (*NodeReference, error) {
+	details, err := nodeListInstance.NodeDetails(nil, nodeAddress)
+	if err != nil {
+		return nil, err
+	}
+	rpcClient := jsonrpcclient.NewClient("http://" + details.DeclaredIp + "/jrpc")
+
+	//TODO: possibble replace with signature?
+	response, err := rpcClient.Call("Ping", &Message{"HEYO"})
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(response)
+
+	return &NodeReference{&nodeAddress, rpcClient, details.Position, &pvss.Point{*details.PubKx, *details.PubKy}}, nil
 }

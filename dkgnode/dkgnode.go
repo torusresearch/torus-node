@@ -41,5 +41,4 @@ func New(configPath string) {
 	// go setUpClient(test)
 	go keyGenerationPhase(&suite)
 	setUpServer(&suite, string(suite.Config.MyPort))
-
 }

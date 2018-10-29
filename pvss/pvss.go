@@ -88,7 +88,7 @@ func hashToPoint(data []byte) *Point {
 }
 
 func RandomBigInt() *big.Int {
-	randomInt, _ := rand.Int(rand.Reader, fromHex("3ffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
+	randomInt, _ := rand.Int(rand.Reader, GeneratorOrder)
 	return randomInt
 }
 

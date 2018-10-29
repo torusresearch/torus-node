@@ -4,7 +4,6 @@ package dkgnode
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -82,13 +81,18 @@ func keyGenerationPhase(suite *Suite) {
 		}
 		if len(ethList) > 0 {
 			fmt.Println("Connecting to other nodes ------------------")
+			// fmt.Println("ETH LIST: ")
 			triggerSecretSharing := 0
 			for i := range ethList {
-				if nodeList[i] == nil {
-					nodeList[i], err = connectToJSONRPCNode(suite.EthSuite, ethList[i])
-					if err != nil {
-						fmt.Println(err)
-					}
+				// fmt.Println(ethList[i].Hex())
+
+				temp, err := connectToJSONRPCNode(suite.EthSuite, ethList[i])
+				if err != nil {
+					fmt.Println(err)
+				}
+				// fmt.Println("ERROR HERE", int(temp.Index.Int64()))
+				if nodeList[int(temp.Index.Int64())-1] == nil {
+					nodeList[int(temp.Index.Int64())-1] = temp
 				} else {
 					triggerSecretSharing++
 				}
@@ -101,6 +105,7 @@ func keyGenerationPhase(suite *Suite) {
 					nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
 				}
 				secret := pvss.RandomBigInt()
+				fmt.Println("Node "+suite.EthSuite.NodeAddress.Hex(), " Secret: ", secret.Text(16))
 				signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, 3, *suite.EthSuite.NodePrivateKey.D)
 				if err != nil {
 					fmt.Println(err)
@@ -119,7 +124,7 @@ func keyGenerationPhase(suite *Suite) {
 				}
 				//decrypt done in server.js
 
-				time.Sleep(3000 * time.Millisecond) //TODO: Remove and handle errors
+				time.Sleep(5000 * time.Millisecond) //TODO: Remove and handle errors
 				//gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
 				unsigncryptedShares := make([]*big.Int, 0)
@@ -128,6 +133,8 @@ func keyGenerationPhase(suite *Suite) {
 					if found {
 						var shareMapping = data.(map[int]ShareLog)
 						if val, ok := shareMapping[shareIndex]; ok {
+							// fmt.Println("DRAWING SHARE FROM CACHE | ", suite.EthSuite.NodeAddress.Hex(), "=>", nodeList[i].Address.Hex())
+							// fmt.Println(val.UnsigncryptedShare)
 							unsigncryptedShares = append(unsigncryptedShares, new(big.Int).SetBytes(val.UnsigncryptedShare))
 						}
 					}
@@ -149,7 +156,9 @@ func keyGenerationPhase(suite *Suite) {
 				si := pvss.PrimaryShare{nodeIndex, *tempSi}
 				fmt.Println("STORED Si: ", shareIndex)
 				siMapping[shareIndex] = si
+				break
 			}
+			suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 		} else {
 			fmt.Println("No nodes in list/could not get from eth")
 		}
@@ -162,24 +171,23 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedO
 	// fmt.Println("GIVEN SIGNCRYPTION")
 	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
 	for i := range signcryptedOutput {
-		//sanity checks
-		if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[i].PublicKey.X) == 0 {
-			_, err := nodeList[i].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
-				ethSuite.NodeAddress.Hex(),
-				ethSuite.NodePublicKey.X.Text(16),
-				ethSuite.NodePublicKey.Y.Text(16),
-				hex.EncodeToString(signcryptedOutput[i].SigncryptedShare.Ciphertext),
-				signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
-				signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
-				signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
-				shareIndex,
-			})
-			if err != nil {
-				errorSlice = append(errorSlice, err)
+		for j := range signcryptedOutput {
+			//sanity checks
+			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
+				_, err := nodeList[j].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
+					ethSuite.NodeAddress.Hex(),
+					ethSuite.NodePublicKey.X.Text(16),
+					ethSuite.NodePublicKey.Y.Text(16),
+					hex.EncodeToString(signcryptedOutput[i].SigncryptedShare.Ciphertext),
+					signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
+					signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
+					signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
+					shareIndex,
+				})
+				if err != nil {
+					errorSlice = append(errorSlice, err)
+				}
 			}
-
-		} else {
-			errorSlice = append(errorSlice, errors.New("signcryption and node list does not match at "+string(i)))
 		}
 	}
 	if errorSlice[0] == nil {
@@ -197,6 +205,7 @@ func connectToJSONRPCNode(ethSuite *EthSuite, nodeAddress common.Address) (*Node
 	if err != nil {
 		return nil, err
 	}
+	// fmt.Println(nodeAddress.Hex(), "DETAILS: ", details)
 	rpcClient := jsonrpcclient.NewClient("http://" + details.DeclaredIp + "/jrpc")
 
 	//TODO: possibble replace with signature?

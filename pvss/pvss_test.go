@@ -276,7 +276,6 @@ func TestPedersons(test *testing.T) {
 	testr := LagrangeElliptic(allSi[:11])
 
 	assert.True(test, testr.Cmp(r) == 0)
-
 	assert.False(test, errorsExist)
 
 }

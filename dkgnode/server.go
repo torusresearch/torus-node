@@ -131,6 +131,8 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	} else {
 		newMapping := make(map[int]ShareLog)
 		newMapping[p.ShareIndex] = newShareLog
+		// fmt.Println("CACHING SHARE FROM | ", h.suite.EthSuite.NodeAddress.Hex(), "=>", p.FromAddress)
+		// fmt.Println(newShareLog)
 		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", newMapping, cache.NoExpiration)
 	}
 
@@ -154,6 +156,8 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, jsonrpc.ErrInvalidParams()
 	}
 	tmpInt := siMapping[p.Index].Value
+	fmt.Println("Share requested")
+	fmt.Println("SHARE: ", tmpInt.Text(16))
 
 	return ShareRequestResult{
 		Index:    siMapping[p.Index].Index,
@@ -168,6 +172,9 @@ func setUpServer(suite *Suite, port string) {
 		log.Fatalln(err)
 	}
 	if err := mr.RegisterMethod("KeyGeneration.ShareCollection", SigncryptedHandler{suite}, SigncryptedMessage{}, PingResult{}); err != nil {
+		log.Fatalln(err)
+	}
+	if err := mr.RegisterMethod("ShareRequest", ShareRequestHandler{suite}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
 		log.Fatalln(err)
 	}
 

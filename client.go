@@ -48,6 +48,7 @@ type SigncryptedMessage struct {
 	RX          string `json:rx`
 	RY          string `json:ry`
 	Signature   string `json:signature`
+	ShareIndex  int    `json:shareindex`
 }
 
 func setUpClient(nodeListStrings []string) {
@@ -72,7 +73,7 @@ func setUpClient(nodeListStrings []string) {
 func keyGenerationPhase(suite *Suite) {
 	time.Sleep(1000 * time.Millisecond)
 	nodeList := make([]*NodeReference, 99)
-
+	var siMapping map[int]pvss.PrimaryShare
 	for {
 		/*Fetch Node List from contract address */
 		ethList, err := suite.EthSuite.NodeListInstance.ViewNodeList(nil)
@@ -95,6 +96,7 @@ func keyGenerationPhase(suite *Suite) {
 
 			if triggerSecretSharing > 4 {
 				nodes := make([]pvss.Point, triggerSecretSharing)
+
 				for i := 0; i < triggerSecretSharing; i++ {
 					nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
 				}
@@ -108,18 +110,44 @@ func keyGenerationPhase(suite *Suite) {
 
 				//send shares to nodes
 				fmt.Println("Sending shares -----------")
-				errArr := sendSharesToNodes(*suite.EthSuite, signcryptedOut, nodeList)
+				shareIndex := 0
+				//TODO: CHANGE SHARE INDEX
+				errArr := sendSharesToNodes(*suite.EthSuite, signcryptedOut, nodeList, shareIndex)
 				if errArr != nil {
 					fmt.Println("errors sending shares")
 					fmt.Println(errArr)
 				}
 				//decrypt done in server.js
 
+				time.Sleep(3000 * time.Millisecond) //TODO: Remove and handle errors
 				//gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
-				// for i := range nodeList {
-				// 	signcryptedShare := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex())
-				// }
+				unsigncryptedShares := make([]*big.Int, 0)
+				for i := 0; i < 5; i++ {
+					data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING")
+					if found {
+						var shareMapping = data.(map[int]ShareLog)
+						if val, ok := shareMapping[shareIndex]; ok {
+							unsigncryptedShares = append(unsigncryptedShares, new(big.Int).SetBytes(val.UnsigncryptedShare))
+						}
+					}
+				}
+				//- TODO:need to verify
+
+				//form Si
+				tempSi := new(big.Int)
+				for i := range unsigncryptedShares {
+					tempSi.Add(tempSi, unsigncryptedShares[i])
+				}
+				tempSi.Mod(tempSi, pvss.GeneratorOrder)
+				var nodeIndex int
+				for i := range nodeList {
+					if nodeList[i].Address.Hex() == suite.EthSuite.NodeAddress.Hex() {
+						nodeIndex = int(nodeList[i].Index.Int64())
+					}
+				}
+				si := pvss.PrimaryShare{nodeIndex, *tempSi}
+				siMapping[shareIndex] = si
 			}
 		} else {
 			fmt.Println("No nodes in list/could not get from eth")
@@ -128,7 +156,7 @@ func keyGenerationPhase(suite *Suite) {
 	}
 }
 
-func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedOutput, nodeList []*NodeReference) *[]error {
+func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
 	errorSlice := make([]error, len(signcryptedOutput))
 	// fmt.Println("GIVEN SIGNCRYPTION")
 	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
@@ -143,6 +171,7 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedO
 				signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
 				signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
 				signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
+				shareIndex,
 			})
 			if err != nil {
 				errorSlice = append(errorSlice, err)

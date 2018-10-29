@@ -27,6 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	setUpCache(&suite)
 
 	/* Register Node */
 	nodeIP, err := findExternalIP()

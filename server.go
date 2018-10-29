@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"time"
 
 	"github.com/YZhenY/DKGNode/pvss"
 	"github.com/intel-go/fastjson"
@@ -27,6 +28,12 @@ type (
 	}
 	SigncryptedHandler struct {
 		suite *Suite
+	}
+	ShareLog struct {
+		Timestamp          time.Time
+		LogNumber          int
+		ShareIndex         int
+		UnsigncryptedShare []byte
 	}
 )
 
@@ -70,6 +77,7 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	if parsed == false {
 		return nil, jsonrpc.ErrParse()
 	}
+
 	tmpCiphertext, err := hex.DecodeString(p.Ciphertext)
 	if err != nil {
 		return nil, jsonrpc.ErrParse()
@@ -90,7 +98,30 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	}
 
 	fmt.Println("Saved share from ", p.FromAddress)
-	h.suite.CacheSuite.CacheInstance.Set(p.FromAddress, unsigncryptedShare, cache.NoExpiration)
+	savedLog, found := h.suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")
+	newShareLog := ShareLog{time.Now().UTC(), 0, p.ShareIndex, *unsigncryptedShare}
+	if found {
+		var tempLog = savedLog.([]ShareLog)
+		//TODO: possibly change to pointer
+		newShareLog = ShareLog{time.Now().UTC(), len(tempLog), p.ShareIndex, *unsigncryptedShare}
+		tempLog = append(tempLog, newShareLog)
+		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", tempLog, cache.NoExpiration)
+	} else {
+		newLog := make([]ShareLog, 1)
+		newLog[0] = newShareLog
+		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", newLog, cache.NoExpiration)
+	}
+
+	savedMapping, found := h.suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_MAPPING")
+	if found {
+		var tmpMapping = savedMapping.(map[int]ShareLog)
+		tmpMapping[p.ShareIndex] = newShareLog
+		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", tmpMapping, cache.NoExpiration)
+	} else {
+		newMapping := make(map[int]ShareLog)
+		newMapping[p.ShareIndex] = newShareLog
+		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", newMapping, cache.NoExpiration)
+	}
 
 	return PingResult{
 		Message: h.suite.EthSuite.NodeAddress.Hex(),

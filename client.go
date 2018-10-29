@@ -73,7 +73,7 @@ func setUpClient(nodeListStrings []string) {
 func keyGenerationPhase(suite *Suite) {
 	time.Sleep(1000 * time.Millisecond)
 	nodeList := make([]*NodeReference, 99)
-	var siMapping map[int]pvss.PrimaryShare
+	siMapping := make(map[int]pvss.PrimaryShare)
 	for {
 		/*Fetch Node List from contract address */
 		ethList, err := suite.EthSuite.NodeListInstance.ViewNodeList(nil)
@@ -141,12 +141,13 @@ func keyGenerationPhase(suite *Suite) {
 				}
 				tempSi.Mod(tempSi, pvss.GeneratorOrder)
 				var nodeIndex int
-				for i := range nodeList {
+				for i := range unsigncryptedShares {
 					if nodeList[i].Address.Hex() == suite.EthSuite.NodeAddress.Hex() {
 						nodeIndex = int(nodeList[i].Index.Int64())
 					}
 				}
 				si := pvss.PrimaryShare{nodeIndex, *tempSi}
+				fmt.Println("STORED Si: ", shareIndex)
 				siMapping[shareIndex] = si
 			}
 		} else {

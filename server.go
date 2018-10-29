@@ -35,6 +35,17 @@ type (
 		ShareIndex         int
 		UnsigncryptedShare []byte
 	}
+	ShareRequestHandler struct {
+		suite *Suite
+	}
+	ShareRequestParams struct {
+		Index int    `json:"index"`
+		Token string `json:"token"`
+	}
+	ShareRequestResult struct {
+		Index    int    `json:"index"`
+		HexShare string `json:"hexshare"`
+	}
 )
 
 func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
@@ -43,7 +54,7 @@ func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
-	fmt.Println("Ping called from " + p.Message)
+	// fmt.Println("Ping called from " + p.Message)
 
 	return PingResult{
 		Message: h.ethSuite.NodeAddress.Hex(),
@@ -126,6 +137,29 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	return PingResult{
 		Message: h.suite.EthSuite.NodeAddress.Hex(),
 	}, nil
+}
+
+func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+	var p ShareRequestParams
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+
+	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
+	if !found {
+		return nil, jsonrpc.ErrInternal()
+	}
+	siMapping := tmpSi.(map[int]pvss.PrimaryShare)
+	if _, ok := siMapping[p.Index]; !ok {
+		return nil, jsonrpc.ErrInvalidParams()
+	}
+	tmpInt := siMapping[p.Index].Value
+
+	return ShareRequestResult{
+		Index:    siMapping[p.Index].Index,
+		HexShare: tmpInt.Text(16),
+	}, nil
+
 }
 
 func setUpServer(suite *Suite, port string) {

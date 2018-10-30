@@ -1,5 +1,5 @@
 {
-  "ethconnection": "http://localhost:8545",
+  "ethconnection": "https://ropsten.infura.io/v3/1cd8ab320edc46dd81f09a048dca1e50",
   "ethprivatekey": "29909a750dc6abc3e3c83de9c6da9d6faf9fde4eebb61fa21221415557de5a0b",
-  "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811"
+  "nodelistaddress": "0xcb6f1a72fb8a8cab86f29c4c1f45d33d739d955b"
 }

@@ -54,7 +54,9 @@ type (
 		Id string `json:"id"`
 	}
 	SecretAssignResult struct {
-		ShareIndex int `json:"id"`
+		ShareIndex int    `json:"id"`
+		PubShareX  string `json:pubshare`
+		PubShareY  string `json:pubshare`
 	}
 )
 
@@ -221,11 +223,17 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	siMAPPING := tmpSiMAPPING.(map[int]pvss.PrimaryShare)
 	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 	secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
-	if _, ok := secretAssignment[p.Id]; ok {
-		return nil, jsonrpc.ErrInvalidRequest()
+	if val, ok := secretAssignment[p.Id]; ok {
+		pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(val.Secret.Bytes())
+		return SecretAssignResult{
+			ShareIndex: val.ShareIndex,
+			PubShareX:  pubShareX.Text(16),
+			PubShareY:  pubShareY.Text(16),
+		}, nil
 	}
 	temp := siMAPPING[lastAssigned].Value
 	secretAssignment[p.Id] = SecretAssignment{secretMapping[lastAssigned].Secret, lastAssigned, &temp}
+	pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[lastAssigned].Secret.Bytes())
 	secretMapping[lastAssigned] = SecretStore{secretMapping[lastAssigned].Secret, true}
 	h.suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
 	h.suite.CacheSuite.CacheInstance.Set("LAST_ASSIGNED", lastAssigned+1, -1)
@@ -233,6 +241,8 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 	return SecretAssignResult{
 		ShareIndex: lastAssigned,
+		PubShareX:  pubShareX.Text(16),
+		PubShareY:  pubShareY.Text(16),
 	}, nil
 }
 

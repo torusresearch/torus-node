@@ -28,17 +28,6 @@ type Message struct {
 	Message string `json:"message"`
 }
 
-// type SigncryptedOutput struct {
-// 	NodePubKey       Point
-// 	NodeIndex        int
-// 	SigncryptedShare Signcryption
-// }
-// type Signcryption struct {
-// 	Ciphertext []byte
-// 	R          Point
-// 	Signature  big.Int
-// }
-
 type SigncryptedMessage struct {
 	FromAddress string `json:fromaddress`
 	FromPubKeyX string `json:frompubkeyx`
@@ -99,66 +88,70 @@ func keyGenerationPhase(suite *Suite) {
 			}
 
 			if triggerSecretSharing > 4 {
-				nodes := make([]pvss.Point, triggerSecretSharing)
-
-				for i := 0; i < triggerSecretSharing; i++ {
-					nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
-				}
-				secret := pvss.RandomBigInt()
-				fmt.Println("Node "+suite.EthSuite.NodeAddress.Hex(), " Secret: ", secret.Text(16))
-				signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, 3, *suite.EthSuite.NodePrivateKey.D)
-				if err != nil {
-					fmt.Println(err)
-				}
-				//commit pubpoly
-				// - publish on ethereum
-
-				//send shares to nodes
 				fmt.Println("Sending shares -----------")
-				shareIndex := 0
-				//TODO: CHANGE SHARE INDEX
-				errArr := sendSharesToNodes(*suite.EthSuite, signcryptedOut, nodeList, shareIndex)
-				if errArr != nil {
-					fmt.Println("errors sending shares")
-					fmt.Println(errArr)
+				numberOfShares := 1000
+				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
+					nodes := make([]pvss.Point, triggerSecretSharing)
+
+					for i := 0; i < triggerSecretSharing; i++ {
+						nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
+					}
+					secret := pvss.RandomBigInt()
+					// fmt.Println("Node "+suite.EthSuite.NodeAddress.Hex(), " Secret: ", secret.Text(16))
+					signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, 3, *suite.EthSuite.NodePrivateKey.D)
+					if err != nil {
+						fmt.Println(err)
+					}
+					//commit pubpoly
+					// - publish on ethereum
+
+					//send shares to nodes
+					//TODO: CHANGE SHARE INDEX
+					errArr := sendSharesToNodes(*suite.EthSuite, signcryptedOut, nodeList, shareIndex)
+					if errArr != nil {
+						fmt.Println("errors sending shares")
+						fmt.Println(errArr)
+					}
 				}
 				//decrypt done in server.js
 
-				time.Sleep(5000 * time.Millisecond) //TODO: Remove and handle errors
+				time.Sleep(8000 * time.Millisecond) //TODO: Remove and handle errors
 				//gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
-				unsigncryptedShares := make([]*big.Int, 0)
-				for i := 0; i < 5; i++ {
-					data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING")
-					if found {
-						var shareMapping = data.(map[int]ShareLog)
-						if val, ok := shareMapping[shareIndex]; ok {
-							// fmt.Println("DRAWING SHARE FROM CACHE | ", suite.EthSuite.NodeAddress.Hex(), "=>", nodeList[i].Address.Hex())
-							// fmt.Println(val.UnsigncryptedShare)
-							unsigncryptedShares = append(unsigncryptedShares, new(big.Int).SetBytes(val.UnsigncryptedShare))
+				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
+					unsigncryptedShares := make([]*big.Int, 0)
+					for i := 0; i < 5; i++ {
+						data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING")
+						if found {
+							var shareMapping = data.(map[int]ShareLog)
+							if val, ok := shareMapping[shareIndex]; ok {
+								// fmt.Println("DRAWING SHARE FROM CACHE | ", suite.EthSuite.NodeAddress.Hex(), "=>", nodeList[i].Address.Hex())
+								// fmt.Println(val.UnsigncryptedShare)
+								unsigncryptedShares = append(unsigncryptedShares, new(big.Int).SetBytes(val.UnsigncryptedShare))
+							}
 						}
 					}
-				}
-				//- TODO:need to verify
+					//- TODO:need to verify
 
-				//form Si
-				tempSi := new(big.Int)
-				for i := range unsigncryptedShares {
-					tempSi.Add(tempSi, unsigncryptedShares[i])
-				}
-				tempSi.Mod(tempSi, pvss.GeneratorOrder)
-				var nodeIndex int
-				for i := range unsigncryptedShares {
-					if nodeList[i].Address.Hex() == suite.EthSuite.NodeAddress.Hex() {
-						nodeIndex = int(nodeList[i].Index.Int64())
+					//form Si
+					tempSi := new(big.Int)
+					for i := range unsigncryptedShares {
+						tempSi.Add(tempSi, unsigncryptedShares[i])
 					}
+					tempSi.Mod(tempSi, pvss.GeneratorOrder)
+					var nodeIndex int
+					for i := range unsigncryptedShares {
+						if nodeList[i].Address.Hex() == suite.EthSuite.NodeAddress.Hex() {
+							nodeIndex = int(nodeList[i].Index.Int64())
+						}
+					}
+					si := pvss.PrimaryShare{nodeIndex, *tempSi}
+					fmt.Println("STORED Si: ", shareIndex)
+					siMapping[shareIndex] = si
 				}
-				si := pvss.PrimaryShare{nodeIndex, *tempSi}
-				fmt.Println("STORED Si: ", shareIndex)
-				siMapping[shareIndex] = si
+				suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 				break
 			}
-			suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 		} else {
 			fmt.Println("No nodes in list/could not get from eth")
 		}

@@ -46,6 +46,15 @@ type (
 		Index    int    `json:"index"`
 		HexShare string `json:"hexshare"`
 	}
+	SecretAssignHandler struct {
+		suite *Suite
+	}
+	SecretAssignParams struct {
+		Id string `json:"id"`
+	}
+	SecretAssignResult struct {
+		ShareIndex int `json:"id"`
+	}
 )
 
 func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
@@ -163,7 +172,45 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		Index:    siMapping[p.Index].Index,
 		HexShare: tmpInt.Text(16),
 	}, nil
+}
 
+func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+
+	var p SecretAssignParams
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+	// fmt.Println("SecretAssign called from " + p.Message)
+	tmpSecretAssignment, found := h.suite.CacheSuite.CacheInstance.Get("Secret_ASSIGNMENT")
+	if !found {
+		return nil, jsonrpc.ErrInternal()
+	}
+	tmpSi_MAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
+	if !found {
+		return nil, jsonrpc.ErrInternal()
+	}
+	tmpSecret_MAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
+	if !found {
+		return nil, jsonrpc.ErrInternal()
+	}
+	si_MAPPING := tmpSi_MAPPING.(map[int]pvss.PrimaryShare)
+	secretMapping := tmpSecret_MAPPING.(map[int]SecretStore)
+	secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
+	tmpAssigned, found := h.suite.CacheSuite.CacheInstance.Get("LAST_ASSIGNED")
+	if !found {
+		return nil, jsonrpc.ErrInternal()
+	}
+	lastAssigned := tmpAssigned.(int)
+	temp := si_MAPPING[lastAssigned].Value
+	secretAssignment[p.Id] = SecretAssignment{secretMapping[lastAssigned].Secret, lastAssigned, &temp}
+	secretMapping[lastAssigned] = SecretStore{secretMapping[lastAssigned].Secret, true}
+	h.suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
+	h.suite.CacheSuite.CacheInstance.Set("LAST_ASSIGNED", lastAssigned+1, -1)
+	h.suite.CacheSuite.CacheInstance.Set("Secret_ASSIGNMENT", secretAssignment, -1)
+
+	return SecretAssignResult{
+		ShareIndex: lastAssigned,
+	}, nil
 }
 
 func setUpServer(suite *Suite, port string) {

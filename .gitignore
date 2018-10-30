@@ -4,3 +4,4 @@
 /.vscode
 package-lock.json
 .DS_Store
+/cmd/DKGNode/cache.json

@@ -4,7 +4,9 @@ package dkgnode
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"time"
 
@@ -26,6 +28,17 @@ type Person struct {
 
 type Message struct {
 	Message string `json:"message"`
+}
+
+type SecretStore struct {
+	Secret   *big.Int
+	Assigned bool
+}
+
+type SecretAssignment struct {
+	Secret     *big.Int
+	ShareIndex int
+	Share      *big.Int
 }
 
 type SigncryptedMessage struct {
@@ -90,6 +103,7 @@ func keyGenerationPhase(suite *Suite) {
 			if triggerSecretSharing > 4 {
 				fmt.Println("Sending shares -----------")
 				numberOfShares := 1000
+				secretMapping := make(map[int]SecretStore)
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
 					nodes := make([]pvss.Point, triggerSecretSharing)
 
@@ -112,6 +126,7 @@ func keyGenerationPhase(suite *Suite) {
 						fmt.Println("errors sending shares")
 						fmt.Println(errArr)
 					}
+					secretMapping[shareIndex] = SecretStore{secret, false}
 				}
 				//decrypt done in server.js
 
@@ -150,6 +165,17 @@ func keyGenerationPhase(suite *Suite) {
 					siMapping[shareIndex] = si
 				}
 				suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
+				suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
+				//save cache
+				cacheItems := suite.CacheSuite.CacheInstance.Items()
+				cacheJSON, err := json.Marshal(cacheItems)
+				if err != nil {
+					fmt.Println(err)
+				}
+				err = ioutil.WriteFile("cache.json", cacheJSON, 0644)
+				if err != nil {
+					fmt.Println(err)
+				}
 				break
 			}
 		} else {

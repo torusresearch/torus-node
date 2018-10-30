@@ -17,4 +17,7 @@ func setUpCache(suite *Suite) {
 	cacheSuite := CacheSuite{c}
 	suite.CacheSuite = &cacheSuite
 
+	secretAssignment := make(map[string]SecretAssignment)
+	suite.CacheSuite.CacheInstance.Set("Secret_ASSIGNMENT", secretAssignment, -1)
+	suite.CacheSuite.CacheInstance.Set("LAST_ASSIGNED", 0, -1)
 }

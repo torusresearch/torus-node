@@ -41,6 +41,7 @@ type (
 	ShareRequestParams struct {
 		Index int    `json:"index"`
 		Token string `json:"token"`
+		Id    string `json:"id"`
 	}
 	ShareRequestResult struct {
 		Index    int    `json:"index"`
@@ -150,28 +151,47 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	}, nil
 }
 
+//checks id for assignment and then teh auth token for verification
 func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 	var p ShareRequestParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
+	if p.Token == "blublu" {
+		tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
+		if !found {
+			return nil, jsonrpc.ErrInternal()
+		}
+		siMapping := tmpSi.(map[int]pvss.PrimaryShare)
+		if _, ok := siMapping[p.Index]; !ok {
+			return nil, jsonrpc.ErrInvalidParams()
+		}
+		tmpInt := siMapping[p.Index].Value
+		fmt.Println("Share requested")
+		fmt.Println("SHARE: ", tmpInt.Text(16))
 
-	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
-	if !found {
-		return nil, jsonrpc.ErrInternal()
-	}
-	siMapping := tmpSi.(map[int]pvss.PrimaryShare)
-	if _, ok := siMapping[p.Index]; !ok {
-		return nil, jsonrpc.ErrInvalidParams()
-	}
-	tmpInt := siMapping[p.Index].Value
-	fmt.Println("Share requested")
-	fmt.Println("SHARE: ", tmpInt.Text(16))
+		return ShareRequestResult{
+			Index:    siMapping[p.Index].Index,
+			HexShare: tmpInt.Text(16),
+		}, nil
+	} else {
+		tmpSecretAssignment, found := h.suite.CacheSuite.CacheInstance.Get("Secret_ASSIGNMENT")
+		if !found {
+			return nil, jsonrpc.ErrInternal()
+		}
+		secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
 
-	return ShareRequestResult{
-		Index:    siMapping[p.Index].Index,
-		HexShare: tmpInt.Text(16),
-	}, nil
+		//TODO: check token here
+
+		if val, ok := secretAssignment[p.Id]; ok {
+			return ShareRequestResult{
+				Index:    val.ShareIndex,
+				HexShare: val.Share.Text(16),
+			}, nil
+		} else {
+			return nil, jsonrpc.ErrInvalidParams()
+		}
+	}
 }
 
 func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
@@ -185,23 +205,26 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	if !found {
 		return nil, jsonrpc.ErrInternal()
 	}
-	tmpSi_MAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
+	tmpSiMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
 	if !found {
 		return nil, jsonrpc.ErrInternal()
 	}
-	tmpSecret_MAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
+	tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
 	if !found {
 		return nil, jsonrpc.ErrInternal()
 	}
-	si_MAPPING := tmpSi_MAPPING.(map[int]pvss.PrimaryShare)
-	secretMapping := tmpSecret_MAPPING.(map[int]SecretStore)
-	secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
 	tmpAssigned, found := h.suite.CacheSuite.CacheInstance.Get("LAST_ASSIGNED")
 	if !found {
 		return nil, jsonrpc.ErrInternal()
 	}
 	lastAssigned := tmpAssigned.(int)
-	temp := si_MAPPING[lastAssigned].Value
+	siMAPPING := tmpSiMAPPING.(map[int]pvss.PrimaryShare)
+	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
+	secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
+	if _, ok := secretAssignment[p.Id]; ok {
+		return nil, jsonrpc.ErrInvalidRequest()
+	}
+	temp := siMAPPING[lastAssigned].Value
 	secretAssignment[p.Id] = SecretAssignment{secretMapping[lastAssigned].Secret, lastAssigned, &temp}
 	secretMapping[lastAssigned] = SecretStore{secretMapping[lastAssigned].Secret, true}
 	h.suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)

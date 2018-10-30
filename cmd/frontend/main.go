@@ -38,6 +38,7 @@ type (
 	ShareRequestParams struct {
 		Index int    `json:"index"`
 		Token string `json:"token"`
+		Id    string `json:"id"`
 	}
 	ShareRequestResult struct {
 		Index    int    `json:"index"`
@@ -72,7 +73,7 @@ type Config struct {
 
 func main() {
 
-	authToken := "tokentoken"
+	authToken := "blublu"
 	config := loadConfig("./config.json")
 
 	/* Connect to Ethereum */
@@ -106,7 +107,7 @@ func main() {
 		//get shares
 		shareList := make([]pvss.PrimaryShare, len(nodeList))
 		for i := range nodeList {
-			response, err := nodeList[i].JSONClient.Call("ShareRequest", &ShareRequestParams{shareIndex, authToken})
+			response, err := nodeList[i].JSONClient.Call("ShareRequest", &ShareRequestParams{shareIndex, authToken, "zheeen"})
 			if err != nil {
 				fmt.Println("ERROR CALLING")
 				fmt.Println(err)

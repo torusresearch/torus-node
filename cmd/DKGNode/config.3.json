@@ -4,6 +4,6 @@
   "myport": "443",
   "ethconnection": "https://ropsten.infura.io/v3/1cd8ab320edc46dd81f09a048dca1e50",
   "ethprivatekey": "798c8d2e1f1f3de5ffa27350f481384385be06e21833c6c5988279e86fdf93c4",
-  "nodelistaddress": "0x368d8f21f499748eec3dc064bcd59ce29c5fa6da",
+  "nodelistaddress": "0x9f9ad2793c0072d79acd43b7b26fb6aeb30d2c77",
   "hostname": "dkg4.tetrator.us"
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
+	"github.com/rs/cors"
 )
 
 type (
@@ -265,12 +266,16 @@ func setUpServer(suite *Suite, port string) {
 		log.Fatalln(err)
 	}
 
-	http.Handle("/jrpc", mr)
-	http.HandleFunc("/jrpc/debug", mr.ServeDebug)
-	fmt.Println(port)
+	mux := http.NewServeMux()
+	mux.Handle("/jrpc", mr)
+	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	// fmt.Println(port)
+	handler := cors.Default().Handler(mux)
 	if err := http.ListenAndServeTLS(":443",
 		"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
-		"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem", nil); err != nil {
+		"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem",
+		handler,
+	); err != nil {
 		log.Fatalln(err)
 	}
 	// if err := http.ListenAndServe(":"+port, http.DefaultServeMux); err != nil {

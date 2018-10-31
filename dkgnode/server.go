@@ -159,16 +159,17 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
+	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
+	if !found {
+		return nil, jsonrpc.ErrInternal()
+	}
+	siMapping := tmpSi.(map[int]pvss.PrimaryShare)
+	if _, ok := siMapping[p.Index]; !ok {
+		return nil, jsonrpc.ErrInvalidParams()
+	}
+	tmpInt := siMapping[p.Index].Value
 	if p.IDToken == "blublu" {
-		tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
-		if !found {
-			return nil, jsonrpc.ErrInternal()
-		}
-		siMapping := tmpSi.(map[int]pvss.PrimaryShare)
-		if _, ok := siMapping[p.Index]; !ok {
-			return nil, jsonrpc.ErrInvalidParams()
-		}
-		tmpInt := siMapping[p.Index].Value
+
 		fmt.Println("Share requested")
 		fmt.Println("SHARE: ", tmpInt.Text(16))
 
@@ -190,7 +191,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 		if val, ok := secretAssignment[p.Email]; ok {
 			return ShareRequestResult{
-				Index:    val.ShareIndex,
+				Index:    siMapping[p.Index].Index,
 				HexShare: val.Share.Text(16),
 			}, nil
 		} else {

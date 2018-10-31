@@ -3,7 +3,6 @@ package dkgnode
 /* Al useful imports */
 import (
 	"context"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -15,7 +14,6 @@ import (
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 type (
@@ -263,25 +261,13 @@ func setUpServer(suite *Suite, port string) {
 		log.Fatalln(err)
 	}
 
-	certManager := autocert.Manager{
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(suite.Config.HostName), //Your domain here
-		Cache:      autocert.DirCache("certs"),                    //Folder for storing certificates
-	}
-
-	server := &http.Server{
-		Addr: ":https",
-		TLSConfig: &tls.Config{
-			GetCertificate: certManager.GetCertificate,
-		},
-	}
-
 	http.Handle("/jrpc", mr)
 	http.HandleFunc("/jrpc/debug", mr.ServeDebug)
 	fmt.Println(port)
-	// if err := http.ListenAndServe(":"+port, http.DefaultServeMux); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
-	log.Fatal(server.ListenAndServeTLS("", "")) //Key and cert are coming from Let's Encrypt
+	go http.ListenAndServeTLS(":443", "/etc/letsencrypt/live/www.yourdomain.com/fullchain.pem", "/etc/letsencrypt/live/www.yourdomain.com/privkey.pem", nil)
+	if err := http.ListenAndServe(":"+port, http.DefaultServeMux); err != nil {
+		log.Fatalln(err)
+	}
+	// go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+	// log.Fatal(server.ListenAndServeTLS("", "")) //Key and cert are coming from Let's Encrypt
 }

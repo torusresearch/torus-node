@@ -39,9 +39,9 @@ type (
 		suite *Suite
 	}
 	ShareRequestParams struct {
-		Index int    `json:"index"`
-		Token string `json:"token"`
-		Id    string `json:"id"`
+		Index   int    `json:"index"`
+		IDToken string `json:"idtoken"`
+		Email   string `json:"email"`
 	}
 	ShareRequestResult struct {
 		Index    int    `json:"index"`
@@ -51,7 +51,7 @@ type (
 		suite *Suite
 	}
 	SecretAssignParams struct {
-		Id string `json:"id"`
+		Email string `json:"email"`
 	}
 	SecretAssignResult struct {
 		ShareIndex int    `json:"id"`
@@ -159,7 +159,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
-	if p.Token == "blublu" {
+	if p.IDToken == "blublu" {
 		tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
 		if !found {
 			return nil, jsonrpc.ErrInternal()
@@ -183,9 +183,12 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		}
 		secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
 
-		//TODO: check token here
+		//checking oAuth token
+		if oAuthCorrect, _ := testOauth(p.IDToken, p.Email); !*oAuthCorrect {
+			return nil, jsonrpc.ErrInvalidParams()
+		}
 
-		if val, ok := secretAssignment[p.Id]; ok {
+		if val, ok := secretAssignment[p.Email]; ok {
 			return ShareRequestResult{
 				Index:    val.ShareIndex,
 				HexShare: val.Share.Text(16),
@@ -223,7 +226,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	siMAPPING := tmpSiMAPPING.(map[int]pvss.PrimaryShare)
 	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 	secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
-	if val, ok := secretAssignment[p.Id]; ok {
+	if val, ok := secretAssignment[p.Email]; ok {
 		pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(val.Secret.Bytes())
 		return SecretAssignResult{
 			ShareIndex: val.ShareIndex,
@@ -232,7 +235,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		}, nil
 	}
 	temp := siMAPPING[lastAssigned].Value
-	secretAssignment[p.Id] = SecretAssignment{secretMapping[lastAssigned].Secret, lastAssigned, &temp}
+	secretAssignment[p.Email] = SecretAssignment{secretMapping[lastAssigned].Secret, lastAssigned, &temp}
 	pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[lastAssigned].Secret.Bytes())
 	secretMapping[lastAssigned] = SecretStore{secretMapping[lastAssigned].Secret, true}
 	h.suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)

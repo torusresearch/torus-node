@@ -1,7 +1,7 @@
 {
   "makemasteronerror": false,
   "clusterip": "127.0.0.1:8001",
-  "myport": "8001",
+  "myport": "443",
   "ethconnection": "https://ropsten.infura.io/v3/1cd8ab320edc46dd81f09a048dca1e50",
   "ethprivatekey": "83781f4a87b3a1fd7473652afc441f4abb111a46c44b404ec640f43b89202387",
   "nodelistaddress": "0x368d8f21f499748eec3dc064bcd59ce29c5fa6da"

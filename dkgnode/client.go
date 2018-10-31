@@ -94,6 +94,7 @@ func keyGenerationPhase(suite *Suite) {
 				}
 				// fmt.Println("ERROR HERE", int(temp.Index.Int64()))
 				if int(temp.Index.Int64()) != 0 {
+					fmt.Println(int(temp.Index.Int64()))
 					if nodeList[int(temp.Index.Int64())-1] == nil {
 						nodeList[int(temp.Index.Int64())-1] = temp
 					} else {

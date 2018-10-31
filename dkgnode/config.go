@@ -12,7 +12,8 @@ type Config struct {
 	MyPort            string `json:"myport"`
 	EthConnection     string `json:"ethconnection"`
 	EthPrivateKey     string `json:"ethprivatekey"`
-	NodeListAddress   string `json:"nodelistaddress`
+	NodeListAddress   string `json:"nodelistaddress"`
+	HostName          string `json:"hostname"`
 }
 
 func loadConfig(suite *Suite, path string) {

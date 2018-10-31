@@ -265,8 +265,8 @@ func setUpServer(suite *Suite, port string) {
 	http.HandleFunc("/jrpc/debug", mr.ServeDebug)
 	fmt.Println(port)
 	if err := http.ListenAndServeTLS(":443",
-	"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
-	"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem", nil) {
+		"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
+		"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem", nil); err != nil {
 		log.Fatalln(err)
 	}
 	// if err := http.ListenAndServe(":"+port, http.DefaultServeMux); err != nil {

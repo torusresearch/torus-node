@@ -264,10 +264,12 @@ func setUpServer(suite *Suite, port string) {
 	http.Handle("/jrpc", mr)
 	http.HandleFunc("/jrpc/debug", mr.ServeDebug)
 	fmt.Println(port)
-	go http.ListenAndServeTLS(":443", "/etc/letsencrypt/live/www.yourdomain.com/fullchain.pem", "/etc/letsencrypt/live/www.yourdomain.com/privkey.pem", nil)
-	if err := http.ListenAndServe(":"+port, http.DefaultServeMux); err != nil {
+	if err := http.ListenAndServeTLS(":443",
+	"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
+	"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem", nil) {
 		log.Fatalln(err)
 	}
-	// go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
-	// log.Fatal(server.ListenAndServeTLS("", "")) //Key and cert are coming from Let's Encrypt
+	// if err := http.ListenAndServe(":"+port, http.DefaultServeMux); err != nil {
+	// 	log.Fatalln(err)
+	// }
 }

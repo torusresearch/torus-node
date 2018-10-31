@@ -26,12 +26,12 @@ func New(configPath string) {
 	setUpCache(&suite)
 
 	/* Register Node */
-	nodeIP, err := findExternalIP()
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("Node IP Address: " + nodeIP + ":" + string(suite.Config.MyPort))
-	_, err = suite.EthSuite.registerNode(nodeIP + ":" + string(suite.Config.MyPort))
+	// nodeIP, err := findExternalIP()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	fmt.Println("Node IP Address: " + suite.Config.HostName + ":" + string(suite.Config.MyPort))
+	_, err = suite.EthSuite.registerNode(suite.Config.HostName + ":" + string(suite.Config.MyPort))
 	if err != nil {
 		log.Fatal(err)
 	}

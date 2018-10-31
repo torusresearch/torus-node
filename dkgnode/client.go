@@ -225,7 +225,7 @@ func connectToJSONRPCNode(ethSuite *EthSuite, nodeAddress common.Address) (*Node
 		return nil, err
 	}
 	// fmt.Println(nodeAddress.Hex(), "DETAILS: ", details)
-	rpcClient := jsonrpcclient.NewClient("http://" + details.DeclaredIp + "/jrpc")
+	rpcClient := jsonrpcclient.NewClient("https://" + details.DeclaredIp + "/jrpc")
 
 	//TODO: possibble replace with signature?
 	// _, err = rpcClient.Call("Ping", &Message{ethSuite.NodeAddress.Hex()})

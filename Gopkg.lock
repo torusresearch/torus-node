@@ -86,7 +86,7 @@
   revision = "cdc776d8331b9aa96286d629df242fc0c5fc3256"
 
 [[projects]]
-  digest = "1:157ad8964124f4baaaf6d4d8b6434bc3db1cb43936c7ad665bb73d2b2a0d2c2b"
+  digest = "1:08af77c41dc6a9ab5dd123ce76356fa4068d57287c060cdc934e1131973dd037"
   name = "github.com/ethereum/go-ethereum"
   packages = [
     ".",
@@ -114,7 +114,7 @@
     "rpc",
     "trie",
   ]
-  pruneopts = "UT"
+  pruneopts = "T"
   revision = "8bbe72075e4e16442c4e28d999edee12e294329e"
   version = "v1.8.17"
 

@@ -260,6 +260,9 @@ func setUpServer(suite *Suite, port string) {
 	if err := mr.RegisterMethod("ShareRequest", ShareRequestHandler{suite}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
 		log.Fatalln(err)
 	}
+	if err := mr.RegisterMethod("SecretAssign", SecretAssignHandler{suite}, SecretAssignParams{}, SecretAssignResult{}); err != nil {
+		log.Fatalln(err)
+	}
 
 	http.Handle("/jrpc", mr)
 	http.HandleFunc("/jrpc/debug", mr.ServeDebug)

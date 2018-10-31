@@ -93,10 +93,12 @@ func keyGenerationPhase(suite *Suite) {
 					fmt.Println(err)
 				}
 				// fmt.Println("ERROR HERE", int(temp.Index.Int64()))
-				if nodeList[int(temp.Index.Int64())-1] == nil {
-					nodeList[int(temp.Index.Int64())-1] = temp
-				} else {
-					triggerSecretSharing++
+				if int(temp.Index.Int64()) != 0 {
+					if nodeList[int(temp.Index.Int64())-1] == nil {
+						nodeList[int(temp.Index.Int64())-1] = temp
+					} else {
+						triggerSecretSharing++
+					}
 				}
 			}
 

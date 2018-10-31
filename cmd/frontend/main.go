@@ -37,8 +37,8 @@ type (
 	}
 	ShareRequestParams struct {
 		Index int    `json:"index"`
-		Token string `json:"token"`
-		Id    string `json:"id"`
+		Token string `json:"idtoken"`
+		Id    string `json:"email"`
 	}
 	ShareRequestResult struct {
 		Index    int    `json:"index"`

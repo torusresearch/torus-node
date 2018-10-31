@@ -36,8 +36,8 @@ func New(configPath string) {
 		log.Fatal(err)
 	}
 
-	test := make([]string, 1)
-	test[0] = "http://localhost:" + string(suite.Config.MyPort) + "/jrpc"
+	// test := make([]string, 1)
+	// test[0] = "http://localhost:" + string(suite.Config.MyPort) + "/jrpc"
 	// go setUpClient(test)
 	go keyGenerationPhase(&suite)
 	setUpServer(&suite, string(suite.Config.MyPort))

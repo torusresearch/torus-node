@@ -1,0 +1,9 @@
+{
+  "makemasteronerror": false,
+  "clusterip": "127.0.0.1:8001",
+  "myport": "8004",
+  "ethconnection": "http://127.0.0.1:8545",
+  "ethprivatekey": "798c8d2e1f1f3de5ffa27350f481384385be06e21833c6c5988279e86fdf93c4",
+  "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
+  "hostname": "dkg4.tetrator.us"
+}

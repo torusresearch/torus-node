@@ -271,14 +271,17 @@ func setUpServer(suite *Suite, port string) {
 	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
 	// fmt.Println(port)
 	handler := cors.Default().Handler(mux)
-	if err := http.ListenAndServeTLS(":443",
-		"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
-		"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem",
-		handler,
-	); err != nil {
-		log.Fatalln(err)
+	if suite.Flags.Production {
+		if err := http.ListenAndServeTLS(":443",
+			"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
+			"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem",
+			handler,
+		); err != nil {
+			log.Fatalln(err)
+		}
+	} else {
+		if err := http.ListenAndServe(":"+port, handler); err != nil {
+			log.Fatalln(err)
+		}
 	}
-	// if err := http.ListenAndServe(":"+port, http.DefaultServeMux); err != nil {
-	// 	log.Fatalln(err)
-	// }
 }

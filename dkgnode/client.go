@@ -88,7 +88,7 @@ func keyGenerationPhase(suite *Suite) {
 			for i := range ethList {
 				// fmt.Println(ethList[i].Hex())
 
-				temp, err := connectToJSONRPCNode(suite.EthSuite, ethList[i])
+				temp, err := connectToJSONRPCNode(suite, ethList[i])
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -221,18 +221,25 @@ func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *pvss.Point {
 	return &pvss.Point{*ecdsaPt.X, *ecdsaPt.Y}
 }
 
-func connectToJSONRPCNode(ethSuite *EthSuite, nodeAddress common.Address) (*NodeReference, error) {
-	details, err := ethSuite.NodeListInstance.NodeDetails(nil, nodeAddress)
+func connectToJSONRPCNode(suite *Suite, nodeAddress common.Address) (*NodeReference, error) {
+	details, err := suite.EthSuite.NodeListInstance.NodeDetails(nil, nodeAddress)
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println(nodeAddress.Hex(), "DETAILS: ", details)
-	rpcClient := jsonrpcclient.NewClient("https://" + details.DeclaredIp + "/jrpc")
+
+	//if in production use https
+	var nodeIPAddress string
+	if suite.Flags.Production {
+		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
+	} else {
+		nodeIPAddress = "http://" + details.DeclaredIp + "/jrpc"
+	}
+	rpcClient := jsonrpcclient.NewClient(nodeIPAddress)
 
 	//TODO: possibble replace with signature?
-	_, err = rpcClient.Call("Ping", &Message{ethSuite.NodeAddress.Hex()})
+	_, err = rpcClient.Call("Ping", &Message{suite.EthSuite.NodeAddress.Hex()})
 	if err != nil {
 		return nil, err
 	}
-	return &NodeReference{&nodeAddress, rpcClient, details.Position, &ecdsa.PublicKey{ethSuite.secp, details.PubKx, details.PubKy}}, nil
+	return &NodeReference{&nodeAddress, rpcClient, details.Position, &ecdsa.PublicKey{suite.EthSuite.secp, details.PubKx, details.PubKy}}, nil
 }

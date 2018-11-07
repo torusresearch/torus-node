@@ -9,7 +9,8 @@ import (
 func main() {
 	/* Parse the provided parameters on command line */
 	register := flag.Bool("register", true, "defaults true")
+	production := flag.Bool("prodouction", false, "defaults to true")
 	configPath := flag.String("configPath", "./config.json", "provide path to config file, defaults ./cmd/DKGNode/config.json")
 	flag.Parse()
-	dkgnode.New(*configPath, *register)
+	dkgnode.New(*configPath, *register, *production)
 }

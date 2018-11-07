@@ -103,7 +103,7 @@ func main() {
 
 	correctCount := 0
 
-	for shareIndex := 0; shareIndex < 1000; shareIndex++ {
+	for shareIndex := 6; shareIndex < 7; shareIndex++ {
 		//get shares
 		shareList := make([]pvss.PrimaryShare, len(nodeList))
 		for i := range nodeList {
@@ -176,7 +176,7 @@ func main() {
 		}
 		temppp[0] = shareList[2]
 		final = pvss.LagrangeElliptic(append(append(temppp, shareList[3]), shareList[4]))
-		// fmt.Println("345", final.Text(16))
+		fmt.Println("345", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
@@ -227,7 +227,7 @@ func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress commo
 	if err != nil {
 		return nil, err
 	}
-	rpcClient := jsonrpcclient.NewClient("http://" + details.DeclaredIp + "/jrpc")
+	rpcClient := jsonrpcclient.NewClient("https://" + details.DeclaredIp + "/jrpc")
 
 	//TODO: possibble replace with signature?
 	response, err := rpcClient.Call("Ping", &Message{"HEYO"})

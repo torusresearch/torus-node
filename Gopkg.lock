@@ -302,11 +302,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:62cdc4a669f6e036527c19b484232fc1fb163fa9cbc5eaa5454ccf3cc769309e"
+  digest = "1:7645593198ee01f3261e426c857d77a5fb52e1e4b23eface7d0be16514687978"
   name = "golang.org/x/crypto"
   packages = [
-    "acme",
-    "acme/autocert",
     "blake2b",
     "pbkdf2",
     "scrypt",
@@ -373,10 +371,10 @@
     "github.com/micro/go-config/source/file",
     "github.com/osamingo/jsonrpc",
     "github.com/patrickmn/go-cache",
+    "github.com/rs/cors",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/ybbus/jsonrpc",
-    "golang.org/x/crypto/acme/autocert",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

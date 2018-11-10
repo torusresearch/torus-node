@@ -230,11 +230,9 @@ func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress commo
 
 	//if in production use https
 	var nodeIPAddress string
-	if production {
-		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
-	} else {
-		nodeIPAddress = "http://" + details.DeclaredIp + "/jrpc"
-	}
+	// nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
+	nodeIPAddress = "http://" + details.DeclaredIp + "/jrpc"
+
 	rpcClient := jsonrpcclient.NewClient(nodeIPAddress)
 
 	//TODO: possibble replace with signature?

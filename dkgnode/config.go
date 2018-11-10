@@ -14,6 +14,8 @@ type Config struct {
 	EthPrivateKey     string `json:"ethprivatekey"`
 	NodeListAddress   string `json:"nodelistaddress"`
 	HostName          string `json:"hostname"`
+	NumberOfNodes     int    `json:"numberofnodes"`
+	Threshold         int    `json:"threshold"`
 }
 
 func loadConfig(suite *Suite, path string) {

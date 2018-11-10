@@ -5,5 +5,7 @@
   "ethconnection": "http://127.0.0.1:8545",
   "ethprivatekey": "74e31abf0d78420fb095f6e82ad8a0d2158c92079807c46661ea463df3ad53b5",
   "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
+  "numberofnodes": 5,
+  "threshold": 3,
   "hostname": "dkg3.tetrator.us"
 }

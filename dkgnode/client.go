@@ -73,7 +73,7 @@ func setUpClient(nodeListStrings []string) {
 
 func keyGenerationPhase(suite *Suite) {
 	time.Sleep(1000 * time.Millisecond)
-	nodeList := make([]*NodeReference, 99)
+	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	siMapping := make(map[int]pvss.PrimaryShare)
 	for {
 		/*Fetch Node List from contract address */
@@ -84,6 +84,7 @@ func keyGenerationPhase(suite *Suite) {
 		if len(ethList) > 0 {
 			fmt.Println("Connecting to other nodes ------------------")
 			// fmt.Println("ETH LIST: ")
+			//Build count of nodes connected to
 			triggerSecretSharing := 0
 			for i := range ethList {
 				// fmt.Println(ethList[i].Hex())
@@ -102,7 +103,8 @@ func keyGenerationPhase(suite *Suite) {
 				}
 			}
 
-			if triggerSecretSharing > 4 {
+			// if we have connected to all nodes
+			if triggerSecretSharing > suite.Config.NumberOfNodes-1 {
 				fmt.Println("Sending shares -----------")
 				numberOfShares := 1000
 				secretMapping := make(map[int]SecretStore)
@@ -114,7 +116,7 @@ func keyGenerationPhase(suite *Suite) {
 					}
 					secret := pvss.RandomBigInt()
 					// fmt.Println("Node "+suite.EthSuite.NodeAddress.Hex(), " Secret: ", secret.Text(16))
-					signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, 3, *suite.EthSuite.NodePrivateKey.D)
+					signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, suite.Config.Threshold, *suite.EthSuite.NodePrivateKey.D)
 					if err != nil {
 						fmt.Println(err)
 					}
@@ -137,7 +139,7 @@ func keyGenerationPhase(suite *Suite) {
 				// - check if shares are here
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
 					unsigncryptedShares := make([]*big.Int, 0)
-					for i := 0; i < 5; i++ {
+					for i := 0; i < suite.Config.NumberOfNodes; i++ {
 						data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING")
 						if found {
 							var shareMapping = data.(map[int]ShareLog)

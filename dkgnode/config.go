@@ -1,6 +1,6 @@
 package dkgnode
 
-/* Al useful imports */
+/* All useful imports */
 import (
 	"github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"

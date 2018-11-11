@@ -1,6 +1,6 @@
 package main
 
-/* Al useful imports */
+/* All useful imports */
 import (
 	"fmt"
 	"math/big"

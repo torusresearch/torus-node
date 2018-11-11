@@ -1,6 +1,6 @@
 package dkgnode
 
-/* Al useful imports */
+/* All useful imports */
 import (
 	"context"
 	"encoding/hex"

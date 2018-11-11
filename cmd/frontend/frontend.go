@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"math/big"
-	"testing"
 
 	"github.com/YZhenY/DKGNode/pvss"
 	"github.com/YZhenY/DKGNode/solidity/goContracts"
@@ -72,7 +71,7 @@ type Config struct {
 // 	// }
 // }
 
-func Test(t *testing.T) {
+func main() {
 
 	authToken := "blublu"
 	config := loadConfig("../config/config.json")

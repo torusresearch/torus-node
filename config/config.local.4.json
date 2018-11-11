@@ -1,6 +1,5 @@
 {
   "makemasteronerror": false,
-  "clusterip": "127.0.0.1:8001",
   "myport": "8004",
   "ethconnection": "http://127.0.0.1:8545",
   "ethprivatekey": "798c8d2e1f1f3de5ffa27350f481384385be06e21833c6c5988279e86fdf93c4",

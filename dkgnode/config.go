@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	MakeMasterOnError string `json:"makeMasterOnError"`
+	MakeMasterOnError string `json:"makemasteronerror"`
 	ClusterIp         string `json:"clusterip"`
 	MyPort            string `json:"myport"`
 	EthConnection     string `json:"ethconnection"`

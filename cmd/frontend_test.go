@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"math/big"
+	"testing"
 
 	"github.com/YZhenY/DKGNode/pvss"
 	"github.com/YZhenY/DKGNode/solidity/goContracts"
@@ -49,7 +50,7 @@ type (
 type Config struct {
 	EthConnection   string `json:"ethconnection"`
 	EthPrivateKey   string `json:"ethprivatekey"`
-	NodeListAddress string `json:"nodelistaddress`
+	NodeListAddress string `json:"nodelistaddress"`
 }
 
 // func setUpClient(nodeListStrings []string) {
@@ -71,10 +72,10 @@ type Config struct {
 // 	// }
 // }
 
-func main() {
+func Test(t *testing.T) {
 
 	authToken := "blublu"
-	config := loadConfig("./config.json")
+	config := loadConfig("../config/config.json")
 
 	/* Connect to Ethereum */
 	client, err := ethclient.Dial(config.EthConnection)
@@ -123,7 +124,7 @@ func main() {
 			if !ok {
 				fmt.Println("Couldnt parse hex share from ", nodeList[i].Address.Hex())
 			}
-			shareList[i] = pvss.PrimaryShare{tmpShare.Index, *shareVal}
+			shareList[i] = pvss.PrimaryShare{Index: tmpShare.Index, Value: *shareVal}
 		}
 
 		// fmt.Println("FINAL PRIVATE KEY: ")
@@ -242,5 +243,13 @@ func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress commo
 	}
 	fmt.Println(response)
 
-	return &NodeReference{&nodeAddress, rpcClient, details.Position, &pvss.Point{*details.PubKx, *details.PubKy}}, nil
+	return &NodeReference{
+		Address:    &nodeAddress,
+		JSONClient: rpcClient,
+		Index:      details.Position,
+		PublicKey: &pvss.Point{
+			X: *details.PubKx,
+			Y: *details.PubKy,
+		},
+	}, nil
 }

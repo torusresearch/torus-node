@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
+
+const NumberOfShares = 1000
 
 type NodeReference struct {
 	Address    *common.Address
@@ -42,14 +45,14 @@ type SecretAssignment struct {
 }
 
 type SigncryptedMessage struct {
-	FromAddress string `json:fromaddress`
-	FromPubKeyX string `json:frompubkeyx`
-	FromPubKeyY string `json:frompubkeyy`
-	Ciphertext  string `json:ciphertext`
-	RX          string `json:rx`
-	RY          string `json:ry`
-	Signature   string `json:signature`
-	ShareIndex  int    `json:shareindex`
+	FromAddress string `json:"fromaddress"`
+	FromPubKeyX string `json:"frompubkeyx"`
+	FromPubKeyY string `json:"frompubkeyy"`
+	Ciphertext  string `json:"ciphertext"`
+	RX          string `json:"rx"`
+	RY          string `json:"ry"`
+	Signature   string `json:"signature"`
+	ShareIndex  int    `json:"shareindex"`
 }
 
 func setUpClient(nodeListStrings []string) {
@@ -72,7 +75,7 @@ func setUpClient(nodeListStrings []string) {
 }
 
 func keyGenerationPhase(suite *Suite) {
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond) // TODO: why sleep?
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	siMapping := make(map[int]pvss.PrimaryShare)
 	for {
@@ -89,6 +92,7 @@ func keyGenerationPhase(suite *Suite) {
 			for i := range ethList {
 				// fmt.Println(ethList[i].Hex())
 
+				// Check if node is online
 				temp, err := connectToJSONRPCNode(suite, ethList[i])
 				if err != nil {
 					fmt.Println(err)
@@ -103,13 +107,18 @@ func keyGenerationPhase(suite *Suite) {
 				}
 			}
 
+			if triggerSecretSharing > suite.Config.NumberOfNodes {
+				log.Fatal("There are more nodes in the eth node list than the required number of nodes...")
+			}
+
 			// if we have connected to all nodes
-			if triggerSecretSharing > suite.Config.NumberOfNodes-1 {
+			if triggerSecretSharing == suite.Config.NumberOfNodes {
+				fmt.Println("Required number of nodes reached")
 				fmt.Println("Sending shares -----------")
-				numberOfShares := 1000
+				numberOfShares := NumberOfShares
 				secretMapping := make(map[int]SecretStore)
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
-					nodes := make([]pvss.Point, triggerSecretSharing)
+					nodes := make([]pvss.Point, suite.Config.NumberOfNodes)
 
 					for i := 0; i < triggerSecretSharing; i++ {
 						nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
@@ -134,7 +143,7 @@ func keyGenerationPhase(suite *Suite) {
 				}
 				//decrypt done in server.js
 
-				time.Sleep(8000 * time.Millisecond) //TODO: Remove and handle errors
+				time.Sleep(8000 * time.Millisecond) //TODO: Check for communication termination from all other nodes
 				//gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {

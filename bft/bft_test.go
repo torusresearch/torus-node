@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,6 +39,6 @@ func TestHashStructArray(t *testing.T) {
 	}
 	hash := sha3.NewKeccak256()
 	hash.Write(arrBytes)
-	fmt.Println(arrBytes)
+	// fmt.Println(arrBytes)
 	fmt.Println(hex.EncodeToString(hash.Sum([]byte{})))
 }

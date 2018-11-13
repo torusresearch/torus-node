@@ -142,8 +142,8 @@ func keyGenerationPhase(suite *Suite) {
 						num = abi.U256(&item.Y)
 						arrBytes = append(arrBytes, num...)
 					}
-					// TODO: check if it matches on-chain implementation
-					// signedBytes := ECDSASign(arrBytes, suite.Config.EthPrivateKey)
+					// signedBytes := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
+					// broadcast somewhere
 
 					// send shares to nodes
 					// TODO: CHANGE SHARE INDEX

@@ -1,36 +1,63 @@
 package bft
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"database/sql"
 	"log"
-	"os"
+	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-const BftPath = "../config/bft.json"
+const path string = "../bft.db"
 
-type BftJsonInterface struct {
-	Epoch int `json:"epoch"`
-}
+var db *sql.DB
 
-func Epoch() int {
-	jsonFile, err := os.Open(BftPath)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	var tmpbft BftJsonInterface
-	json.Unmarshal(byteValue, &tmpbft)
-	return tmpbft.Epoch
-}
-
-func SetEpoch(val int) {
-	tmpbft := BftJsonInterface{Epoch: val}
-	bftJson, _ := json.Marshal(tmpbft)
-	err := ioutil.WriteFile(BftPath, bftJson, 0644)
+func init() {
+	var err error
+	db, err = sql.Open("sqlite3", path)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// init db if doesn't exist
+	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, data TEXT)")
+	_, err = statement.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+	statement, _ = db.Prepare("CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY, label TEXT, number INT, string TEXT)")
+	_, err = statement.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+	statement, _ = db.Prepare("INSERT INTO state (id, label, number, string) SELECT 1, 'epoch', 0, NULL WHERE NOT EXISTS (SELECT * FROM state)")
+	_, err = statement.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Epoch() int {
+	row := db.QueryRow("SELECT number FROM state WHERE label='epoch'")
+	var epoch int
+	err := row.Scan(&epoch)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return epoch
+}
+
+func SetEpoch(val int) sql.Result {
+	row := db.QueryRow("SELECT id FROM state WHERE label='epoch'")
+	var id int
+	err := row.Scan(&id)
+	if err != nil {
+		log.Fatal(err)
+	}
+	statement, _ := db.Prepare("INSERT OR REPLACE INTO state (id, label, number, string) VALUES (" + strconv.Itoa(id) + ", 'epoch', " + strconv.Itoa(val) + ", NULL)")
+	var res sql.Result
+	res, err = statement.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return res
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/YZhenY/DKGNode/pvss"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
@@ -125,15 +126,27 @@ func keyGenerationPhase(suite *Suite) {
 					}
 					secret := pvss.RandomBigInt()
 					// fmt.Println("Node "+suite.EthSuite.NodeAddress.Hex(), " Secret: ", secret.Text(16))
-					signcryptedOut, _, err := pvss.CreateAndPrepareShares(nodes, *secret, suite.Config.Threshold, *suite.EthSuite.NodePrivateKey.D)
+					signcryptedOut, pubpoly, err := pvss.CreateAndPrepareShares(nodes, *secret, suite.Config.Threshold, *suite.EthSuite.NodePrivateKey.D)
 					if err != nil {
 						fmt.Println(err)
 					}
-					//commit pubpoly
-					// - publish on ethereum
+					// commit pubpoly
 
-					//send shares to nodes
-					//TODO: CHANGE SHARE INDEX
+					// get hash of pubpoly
+					// convert array of points to bytes array
+					arrBytes := []byte{}
+					for _, item := range *pubpoly {
+						var num []byte
+						num = abi.U256(&item.X)
+						arrBytes = append(arrBytes, num...)
+						num = abi.U256(&item.Y)
+						arrBytes = append(arrBytes, num...)
+					}
+					// TODO: check if it matches on-chain implementation
+					// signedBytes := ECDSASign(arrBytes, suite.Config.EthPrivateKey)
+
+					// send shares to nodes
+					// TODO: CHANGE SHARE INDEX
 					errArr := sendSharesToNodes(*suite.EthSuite, signcryptedOut, nodeList, shareIndex)
 					if errArr != nil {
 						fmt.Println("errors sending shares")
@@ -141,10 +154,10 @@ func keyGenerationPhase(suite *Suite) {
 					}
 					secretMapping[shareIndex] = SecretStore{secret, false}
 				}
-				//decrypt done in server.js
+				// decrypt done in server.js
 
-				time.Sleep(8000 * time.Millisecond) //TODO: Check for communication termination from all other nodes
-				//gather shares, decrypt and verify with pubpoly
+				time.Sleep(8000 * time.Millisecond) // TODO: Check for communication termination from all other nodes
+				// gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
 					unsigncryptedShares := make([]*big.Int, 0)
@@ -159,9 +172,9 @@ func keyGenerationPhase(suite *Suite) {
 							}
 						}
 					}
-					//- TODO:need to verify
+					// TODO:need to verify
 
-					//form Si
+					// form Si
 					tempSi := new(big.Int)
 					for i := range unsigncryptedShares {
 						tempSi.Add(tempSi, unsigncryptedShares[i])
@@ -173,7 +186,7 @@ func keyGenerationPhase(suite *Suite) {
 							nodeIndex = int(nodeList[i].Index.Int64())
 						}
 					}
-					si := pvss.PrimaryShare{nodeIndex, *tempSi}
+					si := pvss.PrimaryShare{Index: nodeIndex, Value: *tempSi}
 					fmt.Println("STORED Si: ", shareIndex)
 					siMapping[shareIndex] = si
 				}
@@ -204,7 +217,7 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedO
 	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
 	for i := range signcryptedOutput {
 		for j := range signcryptedOutput {
-			//sanity checks
+			// sanity checks
 			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
 				_, err := nodeList[j].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
 					ethSuite.NodeAddress.Hex(),
@@ -229,7 +242,7 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedO
 }
 
 func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *pvss.Point {
-	return &pvss.Point{*ecdsaPt.X, *ecdsaPt.Y}
+	return &pvss.Point{X: *ecdsaPt.X, Y: *ecdsaPt.Y}
 }
 
 func connectToJSONRPCNode(suite *Suite, nodeAddress common.Address) (*NodeReference, error) {
@@ -238,7 +251,7 @@ func connectToJSONRPCNode(suite *Suite, nodeAddress common.Address) (*NodeRefere
 		return nil, err
 	}
 
-	//if in production use https
+	// if in production use https
 	var nodeIPAddress string
 	if suite.Flags.Production {
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
@@ -247,10 +260,10 @@ func connectToJSONRPCNode(suite *Suite, nodeAddress common.Address) (*NodeRefere
 	}
 	rpcClient := jsonrpcclient.NewClient(nodeIPAddress)
 
-	//TODO: possibble replace with signature?
+	// TODO: possible replace with signature?
 	_, err = rpcClient.Call("Ping", &Message{suite.EthSuite.NodeAddress.Hex()})
 	if err != nil {
 		return nil, err
 	}
-	return &NodeReference{&nodeAddress, rpcClient, details.Position, &ecdsa.PublicKey{suite.EthSuite.secp, details.PubKx, details.PubKy}}, nil
+	return &NodeReference{Address: &nodeAddress, JSONClient: rpcClient, Index: details.Position, PublicKey: &ecdsa.PublicKey{Curve: suite.EthSuite.secp, X: details.PubKx, Y: details.PubKy}}, nil
 }

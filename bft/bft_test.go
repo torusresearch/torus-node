@@ -12,11 +12,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFetchEpochFromJson(t *testing.T) {
+func TestFetchAndModifyEpoch(t *testing.T) {
 	assert.Equal(t, 0, Epoch())
 	SetEpoch(1)
 	assert.Equal(t, 1, Epoch())
 	SetEpoch(0)
+}
+
+func TestBroadcast(t *testing.T) {
+	res := Broadcast([]byte("message"))
+	fmt.Println(res.LastInsertId())
 }
 
 type Point struct {

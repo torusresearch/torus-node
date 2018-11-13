@@ -19,7 +19,7 @@ func init() {
 		log.Fatal(err)
 	}
 	// init db if doesn't exist
-	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, data TEXT)")
+	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS broadcast (id INTEGER PRIMARY KEY, data BLOB)")
 	_, err = statement.Exec()
 	if err != nil {
 		log.Fatal(err)
@@ -56,6 +56,15 @@ func SetEpoch(val int) sql.Result {
 	statement, _ := db.Prepare("INSERT OR REPLACE INTO state (id, label, number, string) VALUES (" + strconv.Itoa(id) + ", 'epoch', " + strconv.Itoa(val) + ", NULL)")
 	var res sql.Result
 	res, err = statement.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return res
+}
+
+func Broadcast(data []byte) sql.Result {
+	statement, _ := db.Prepare("INSERT INTO broadcast (data) VALUES (?)")
+	res, err := statement.Exec(data)
 	if err != nil {
 		log.Fatal(err)
 	}

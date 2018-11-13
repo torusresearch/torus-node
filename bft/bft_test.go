@@ -13,14 +13,16 @@ import (
 )
 
 func TestFetchAndModifyEpoch(t *testing.T) {
-	assert.Equal(t, 0, Epoch())
+	epoch, _ := Epoch()
+	assert.Equal(t, 0, epoch)
 	SetEpoch(1)
-	assert.Equal(t, 1, Epoch())
+	epoch, _ = Epoch()
+	assert.Equal(t, 1, epoch)
 	SetEpoch(0)
 }
 
 func TestBroadcast(t *testing.T) {
-	res := Broadcast([]byte("message"))
+	res, _ := Broadcast([]byte("message"))
 	fmt.Println(res.LastInsertId())
 }
 

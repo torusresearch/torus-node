@@ -65,20 +65,20 @@ func (db *Database) SetEpoch(val int) (sql.Result, error) {
 	return res, nil
 }
 
-func (db *Database) Broadcast(data []byte) (sql.Result, error) {
-	statement, _ := db.Prepare("INSERT INTO broadcast (data) VALUES (?)")
-	res, err := statement.Exec(data)
+func (db *Database) Broadcast(data []byte, length int) (sql.Result, error) {
+	statement, _ := db.Prepare("INSERT INTO broadcast (data, length) VALUES (?, ?)")
+	res, err := statement.Exec(data, length)
 	if err != nil {
 		return nil, err
 	}
 	return res, nil
 }
 
-func (db *Database) Retrieve(id int) (sql.Result, error) {
-	statement, _ := db.Prepare("SELECT * FROM broadcast where id = " + strconv.Itoa(id))
-	res, err := statement.Exec()
+func (db *Database) Retrieve(id int) (data []byte, length int, err error) {
+	row := db.QueryRow("SELECT data, length FROM broadcast where id = " + strconv.Itoa(id))
+	err = row.Scan(&data, &length)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return res, nil
+	return
 }

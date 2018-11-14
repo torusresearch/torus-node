@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -43,30 +42,24 @@ func RunHbbft() {
 			if err := node.hb.Start(); err != nil {
 				log.Fatal(err)
 			}
+			//send out messages for initialization
 			for _, msg := range node.hb.Messages() {
-				fmt.Println("what do these messages look like", reflect.TypeOf(msg.Payload).String())
-				// fmt.Printf("%T\n", msg.Payload)
-				// messages <- message{node.id, msg}
 				nodes[node.id].transport.SendMessage(node.id, msg.To, msg.Payload)
 			}
 		}(node)
-		//run listener loop
+
+		//run listener loop for each server
 		go func(node *Server) {
 			for {
 				msg := <-node.rpcCh
-				// fmt.Println("we're getting messages")
-				// fmt.Printf("%T\n", msg.Payload)
 				switch t := msg.Payload.(type) {
 				case hbbft.HBMessage:
 					if err := node.hb.HandleMessage(msg.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
 						log.Fatal(err)
 					}
-				default:
-					// fmt.Println("didnt do anything", t)
 				}
 
 				for _, msg := range node.hb.Messages() {
-					// messages <- message{node.id, msg}
 					nodes[node.id].transport.SendMessage(node.id, msg.To, msg.Payload)
 				}
 			}
@@ -84,33 +77,20 @@ func RunHbbft() {
 		}
 	}()
 
-	//input ofr transactions?
+	// keep main function running
+	loadingString := "Running "
+	loadingCount := 0
 	for {
-		// msg := <-messages
-		// node := nodes[msg.payload.To]
-		// switch t := msg.payload.Payload.(type) {
-		// case hbbft.HBMessage:
-		// 	if err := node.hb.HandleMessage(msg.from, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
-		// 		log.Fatal(err)
-		// 	}
-		// 	for _, msg := range node.hb.Messages() {
-		// 		messages <- message{node.id, msg}
-		// 	}
-		// }
-		// switch t := p.Payload.(type) {
-		// case hbbft.HBMessage:
-		// 	fmt.Println("Is this ever the case")
-		// 	if err := h.node.hb.HandleMessage(p.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
-		// 		log.Fatal(err)
-		// 	}
-		// 	for _, msg := range h.node.hb.Messages() {
-		// 		// messages <- message{node.id, msg}
-		// 		// h.npde[msg.To].transport.SendMessage(node.id, msg.To, msg.Payload)
-		// 		h.nodes[msg.To].transport.SendMessage(h.node.id, msg.To, msg.Payload)
-		// 	}
-		// }
 		time.Sleep(500000000)
-		fmt.Println("running")
+		tmp := loadingString
+		for i := 0; i < loadingCount; i++ {
+			tmp = tmp + "-"
+		}
+		fmt.Println(tmp)
+		loadingCount++
+		if loadingCount > 8 {
+			loadingCount = 0
+		}
 	}
 }
 
@@ -232,16 +212,16 @@ func (s *Server) addTransactions(txx ...*Transaction) {
 			s.hb.AddTransaction(tx)
 			// relay the transaction to all other nodes in the network.
 			go func() {
-				// if err := s.transport.Broadcast(s.hb.ID, tx); err != nil {
-				// 	fmt.Println("ERROR BBROADCASTING")
-				// }
-
-				for i := 0; i < len(s.hb.Nodes); i++ {
-					if uint64(i) != s.hb.ID {
-						relayCh <- tx
-
-					}
+				if err := s.transport.Broadcast(s.hb.ID, tx); err != nil {
+					fmt.Println("ERROR BBROADCASTING")
 				}
+
+				// for i := 0; i < len(s.hb.Nodes); i++ {
+				// 	if uint64(i) != s.hb.ID {
+				// 		relayCh <- tx
+
+				// 	}
+				// }
 			}()
 		}
 	}

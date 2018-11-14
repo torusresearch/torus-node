@@ -117,10 +117,6 @@ func printHbbbftMessageType(msg interface{}) ([]string, error) {
 	endType := make([]string, 1)
 	for i := range listOfHbbbftStructs {
 		if strings.Contains(reflect.TypeOf(msg).String(), listOfHbbbftStructs[i]) {
-			//for debugging
-			// if strings.Contains(reflect.TypeOf(msg).String(), listOfHbbbftStructs[3]) {
-			// 	fmt.Println("PROOF REQUEST", msg)
-			// }
 			//check for pointers
 			if strings.Contains(reflect.TypeOf(msg).String(), "*") {
 				endType[0] = "*" + listOfHbbbftStructs[i]
@@ -141,12 +137,10 @@ func printHbbbftMessageType(msg interface{}) ([]string, error) {
 	//Catering for edgecase hbbft.Agreement Message field interface{}
 	//THIS ASSUMES THAT structs have EITHER Message OR Payload NOT BOTH
 	if msgField, found := structsMsg.FieldOk("Message"); found {
-		// fmt.Println("WHAT IS THE VALUE?", reflect.TypeOf(msgField.Value()))
 		str, err := printHbbbftMessageType(msgField.Value())
 		if err != nil {
 			return nil, err
 		}
-		// fmt.Println("IS THERE NO TYPE", str)
 		endType = append(endType, str...)
 	}
 
@@ -161,11 +155,6 @@ func (t *NewTransport) makeRPC(id, addr uint64, msg interface{}) error {
 	if !ok {
 		return fmt.Errorf("failed to connect with %d", addr)
 	}
-	// fmt.Println("sent tx", hbbft.RPC{
-	// 	NodeID:  id,
-	// 	Payload: msg,
-	// })
-	// fmt.Println("initial type :", reflect.TypeOf(msg))
 	//form type of message
 	var typeOfMessage = make([]string, 1)
 	if strings.Compare(reflect.TypeOf(msg).String(), "hbbft.HBMessage") == 0 {
@@ -185,11 +174,6 @@ func (t *NewTransport) makeRPC(id, addr uint64, msg interface{}) error {
 		fmt.Println(err)
 	}
 	//hbbft.go responds to this request
-
-	// peer.consumeCh <- hbbft.RPC{
-	// 	NodeID:  id,
-	// 	Payload: msg,
-	// }
 	return nil
 }
 
@@ -201,46 +185,17 @@ type HbbftHandler struct {
 
 func (h HbbftHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
-	// fmt.Println("RAW MSG: ", params)
-
 	var p HbbftRPC
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		fmt.Println("json parse error", err)
 		return nil, err
 	}
-	// fmt.Println("TYPE HERE", p.Type)
-	// tx, ok := p.Payload.(hbbft.MessageTuple)
-	// if !ok {
-	// 	fmt.Println("NOT OKAY ", tx)
-	// } else {
-
-	// 	fmt.Println("Msg", ok)
-	// }
-	// switch t := p.Payload.(type) {
-	// case hbbft.HBMessage:
-	// 	fmt.Println("Is this ever the case")
-	// 	if err := h.node.hb.HandleMessage(p.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	for _, msg := range h.node.hb.Messages() {
-	// 		// messages <- message{node.id, msg}
-	// 		// h.npde[msg.To].transport.SendMessage(node.id, msg.To, msg.Payload)
-	// 		h.nodes[msg.To].transport.SendMessage(h.node.id, msg.To, msg.Payload)
-	// 	}
-	// }
-	// h.nodeTransport.ConsumeCh <- p
 
 	if strings.Contains(p.Type[0], "h") {
-		// fmt.Println("TYPE:", p.Type)
-
-		// fmt.Println("HBBFT MESSAGE", tmp["Payload"])
 		restructedMsg, err := restructHbbfftMessage(p.Payload, p.Type)
 		if err != nil {
 			fmt.Println("ERROR", err)
 		}
-		// fmt.Println("REST: ", restructedMsg)
-		// fmt.Println("RESTURC: ", (restructedMsg.(hbbft.HBMessage)).Payload)
-		// hbbft.ACSMessage
 		h.nodeTransport.ConsumeCh <- hbbft.RPC{p.NodeID, restructedMsg}
 	} else {
 		h.nodeTransport.ConsumeCh <- hbbft.RPC{p.NodeID, p.Payload}
@@ -255,7 +210,6 @@ func restructHbbfftMessage(msg interface{}, typeDescriber []string) (interface{}
 	}
 	mapMessage := msg.(map[string]interface{})
 	//caters for pointers
-	// fmt.Println("TYPEOFMESSAGE: ", typeDescriber[0])
 	var typeOfMsg string
 	if strings.Contains(typeDescriber[0], "*") {
 		typeOfMsg = trimLeftChar(typeDescriber[0])

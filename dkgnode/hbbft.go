@@ -15,10 +15,12 @@ import (
 )
 
 const (
-	lenNodes  = 4
+	lenNodes  = 11
 	batchSize = 500
 	numCores  = 4
 )
+
+var wg = &sync.WaitGroup{}
 
 type message struct {
 	from    uint64
@@ -51,47 +53,51 @@ func RunHbbft() {
 		//run listener loop for each server
 		go func(node *Server) {
 			for {
-				msg := <-node.rpcCh
-				switch t := msg.Payload.(type) {
-				case hbbft.HBMessage:
-					if err := node.hb.HandleMessage(msg.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
-						log.Fatal(err)
+				select {
+				case msg := <-node.rpcCh:
+					switch t := msg.Payload.(type) {
+					case hbbft.HBMessage:
+						if err := node.hb.HandleMessage(msg.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
+							log.Fatal(err)
+						}
 					}
-				}
-
-				for _, msg := range node.hb.Messages() {
-					nodes[node.id].transport.SendMessage(node.id, msg.To, msg.Payload)
+					// TODO: Seperate these two to run on their own triggers?
+					for _, msg := range node.hb.Messages() {
+						nodes[node.id].transport.SendMessage(node.id, msg.To, msg.Payload)
+					}
 				}
 			}
 		}(node)
 	}
 
 	// handle the relayed transactions.
-	go func() {
-		for {
-			tx := <-relayCh
+	// go func() {
+	for {
+		select {
+		case tx := <-relayCh:
 			// fmt.Println("is this still working?")
 			for _, node := range nodes {
 				node.addTransactions(tx)
 			}
 		}
-	}()
+	}
+	// }()
 
 	// keep main function running
-	loadingString := "Running "
-	loadingCount := 0
-	for {
-		time.Sleep(500000000)
-		tmp := loadingString
-		for i := 0; i < loadingCount; i++ {
-			tmp = tmp + "-"
-		}
-		fmt.Println(tmp)
-		loadingCount++
-		if loadingCount > 8 {
-			loadingCount = 0
-		}
-	}
+	// loadingString := "Running "
+	// loadingCount := 0
+	// for {
+	// 	time.Sleep(5000000000)
+	// 	tmp := loadingString
+	// 	for i := 0; i < loadingCount; i++ {
+	// 		tmp = tmp + "-"
+	// 	}
+	// 	fmt.Println(tmp)
+	// 	loadingCount++
+	// 	if loadingCount > 20 {
+	// 		loadingCount = 0
+	// 	}
+	// }
 }
 
 // Server represents the local node.
@@ -211,18 +217,18 @@ func (s *Server) addTransactions(txx ...*Transaction) {
 			// Add this transaction to the hbbft buffer.
 			s.hb.AddTransaction(tx)
 			// relay the transaction to all other nodes in the network.
-			go func() {
-				if err := s.transport.Broadcast(s.hb.ID, tx); err != nil {
-					fmt.Println("ERROR BBROADCASTING")
-				}
+			// go func() {
+			if err := s.transport.Broadcast(s.hb.ID, tx); err != nil {
+				fmt.Println("ERROR BBROADCASTING")
+			}
 
-				// for i := 0; i < len(s.hb.Nodes); i++ {
-				// 	if uint64(i) != s.hb.ID {
-				// 		relayCh <- tx
+			// for i := 0; i < len(s.hb.Nodes); i++ {
+			// 	if uint64(i) != s.hb.ID {
+			// 		relayCh <- tx
 
-				// 	}
-				// }
-			}()
+			// 	}
+			// }
+			// }()
 		}
 	}
 }

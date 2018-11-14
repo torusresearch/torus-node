@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/anthdm/hbbft"
+	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
 const (
@@ -29,10 +32,11 @@ var (
 	relayCh  = make(chan *Transaction, 1024)
 )
 
-func runHbbft() {
+func RunHbbft() {
 	var (
 		nodes = makeNetwork(lenNodes)
 	)
+	//node set up phase
 	for _, node := range nodes {
 		go node.run()
 		go func(node *Server) {
@@ -40,7 +44,31 @@ func runHbbft() {
 				log.Fatal(err)
 			}
 			for _, msg := range node.hb.Messages() {
-				messages <- message{node.id, msg}
+				fmt.Println("what do these messages look like", reflect.TypeOf(msg.Payload).String())
+				// fmt.Printf("%T\n", msg.Payload)
+				// messages <- message{node.id, msg}
+				nodes[node.id].transport.SendMessage(node.id, msg.To, msg.Payload)
+			}
+		}(node)
+		//run listener loop
+		go func(node *Server) {
+			for {
+				msg := <-node.rpcCh
+				// fmt.Println("we're getting messages")
+				// fmt.Printf("%T\n", msg.Payload)
+				switch t := msg.Payload.(type) {
+				case hbbft.HBMessage:
+					if err := node.hb.HandleMessage(msg.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
+						log.Fatal(err)
+					}
+				default:
+					// fmt.Println("didnt do anything", t)
+				}
+
+				for _, msg := range node.hb.Messages() {
+					// messages <- message{node.id, msg}
+					nodes[node.id].transport.SendMessage(node.id, msg.To, msg.Payload)
+				}
 			}
 		}(node)
 	}
@@ -49,24 +77,40 @@ func runHbbft() {
 	go func() {
 		for {
 			tx := <-relayCh
+			// fmt.Println("is this still working?")
 			for _, node := range nodes {
 				node.addTransactions(tx)
 			}
 		}
 	}()
 
+	//input ofr transactions?
 	for {
-		msg := <-messages
-		node := nodes[msg.payload.To]
-		switch t := msg.payload.Payload.(type) {
-		case hbbft.HBMessage:
-			if err := node.hb.HandleMessage(msg.from, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
-				log.Fatal(err)
-			}
-			for _, msg := range node.hb.Messages() {
-				messages <- message{node.id, msg}
-			}
-		}
+		// msg := <-messages
+		// node := nodes[msg.payload.To]
+		// switch t := msg.payload.Payload.(type) {
+		// case hbbft.HBMessage:
+		// 	if err := node.hb.HandleMessage(msg.from, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
+		// 		log.Fatal(err)
+		// 	}
+		// 	for _, msg := range node.hb.Messages() {
+		// 		messages <- message{node.id, msg}
+		// 	}
+		// }
+		// switch t := p.Payload.(type) {
+		// case hbbft.HBMessage:
+		// 	fmt.Println("Is this ever the case")
+		// 	if err := h.node.hb.HandleMessage(p.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
+		// 		log.Fatal(err)
+		// 	}
+		// 	for _, msg := range h.node.hb.Messages() {
+		// 		// messages <- message{node.id, msg}
+		// 		// h.npde[msg.To].transport.SendMessage(node.id, msg.To, msg.Payload)
+		// 		h.nodes[msg.To].transport.SendMessage(h.node.id, msg.To, msg.Payload)
+		// 	}
+		// }
+		time.Sleep(500000000)
+		fmt.Println("running")
 	}
 }
 
@@ -99,6 +143,78 @@ func newServer(id uint64, tr hbbft.Transport, nodes []uint64) *Server {
 	}
 }
 
+/*
+// type HbbftParams struct {
+// 	NodeID  int64       `json:"nodeid"`
+// 	Payload interface{} `json:"payload"`
+// }
+
+type HbbftHandler struct {
+	node  *Server
+	nodes []*Server
+}
+
+func (h HbbftHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+
+	// fmt.Println("RAW MSG: ", params)
+
+	var p hbbft.RPC
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		// fmt.Println("hbbft error", p)
+		return nil, err
+	}
+	// tx, ok := p.Payload.(hbbft.MessageTuple)
+	// if !ok {
+	// 	fmt.Println("NOT OKAY ", tx)
+	// } else {
+
+	// 	fmt.Println("Msg", ok)
+	// }
+	// switch t := p.Payload.(type) {
+	// case hbbft.HBMessage:
+	// 	fmt.Println("Is this ever the case")
+	// 	if err := h.node.hb.HandleMessage(p.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	for _, msg := range h.node.hb.Messages() {
+	// 		// messages <- message{node.id, msg}
+	// 		// h.npde[msg.To].transport.SendMessage(node.id, msg.To, msg.Payload)
+	// 		h.nodes[msg.To].transport.SendMessage(h.node.id, msg.To, msg.Payload)
+	// 	}
+	// }
+	h.node.transport.
+
+	return nil, nil
+}
+
+func setUpHbbftServer(port string, node *Server, nodes []*Server) {
+	mr := jsonrpc.NewMethodRepository()
+	if err := mr.RegisterMethod("hbbft", HbbftHandler{node, nodes}, hbbft.RPC{}, nil); err != nil {
+		log.Fatalln(err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/jrpc", mr)
+	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	// fmt.Println(port)
+	handler := cors.Default().Handler(mux)
+	// if suite.Flags.Production {
+	// 	if err := http.ListenAndServeTLS(":443",
+	// 		"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
+	// 		"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem",
+	// 		handler,
+	// 	); err != nil {
+	// 		log.Fatalln(err)
+	// 	}
+	// } else {
+	fmt.Println("listening to ", port)
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
+		log.Fatalln(err)
+	}
+
+	// }
+}
+*/
 // Simulate the delay of verifying a transaction.
 func (s *Server) verifyTransaction(tx *Transaction) bool {
 	time.Sleep(txDelay)
@@ -116,9 +232,14 @@ func (s *Server) addTransactions(txx ...*Transaction) {
 			s.hb.AddTransaction(tx)
 			// relay the transaction to all other nodes in the network.
 			go func() {
+				// if err := s.transport.Broadcast(s.hb.ID, tx); err != nil {
+				// 	fmt.Println("ERROR BBROADCASTING")
+				// }
+
 				for i := 0; i < len(s.hb.Nodes); i++ {
 					if uint64(i) != s.hb.ID {
 						relayCh <- tx
+
 					}
 				}
 			}()
@@ -180,9 +301,14 @@ func (s *Server) run() {
 func makeNetwork(n int) []*Server {
 	transports := make([]hbbft.Transport, n)
 	nodes := make([]*Server, n)
+	startingPort := 8001
 	for i := 0; i < n; i++ {
-		transports[i] = hbbft.NewLocalTransport(uint64(i))
+		//edits ports here
+		rpcClient := jsonrpcclient.NewClient("http://localhost:" + strconv.FormatInt(int64(startingPort+i), 10) + "/jrpc")
+		tmpTransport := NewNewTransport(uint64(i), &NodeReference{JSONClient: rpcClient})
+		transports[i] = tmpTransport
 		nodes[i] = newServer(uint64(i), transports[i], makeids(n))
+		go setUpHbbftServer(strconv.FormatInt(int64(startingPort+i), 10), nodes[i], nodes, tmpTransport)
 	}
 	connectTransports(transports)
 	return nodes

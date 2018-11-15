@@ -18,45 +18,21 @@ const port = "7053"
 
 var database bft.Database
 
-type (
-	EpochHandler struct{}
-	EpochParams  struct{}
-	EpochResult  struct {
-		Epoch int `json:"epoch"`
-	}
-)
+type EpochHandler struct {
+	bft.EpochHandler
+}
 
-type (
-	SetEpochHandler struct{}
-	SetEpochParams  struct {
-		Epoch int `json:"epoch"`
-	}
-	SetEpochResult struct {
-		Epoch int `json:"epoch"`
-	}
-)
+type SetEpochHandler struct {
+	bft.SetEpochHandler
+}
 
-type (
-	BroadcastHandler struct{}
-	BroadcastParams  struct {
-		Data   string `json:"data"`
-		Length int    `json:"length"`
-	}
-	BroadcastResult struct {
-		Id int `json:"id"`
-	}
-)
+type BroadcastHandler struct {
+	bft.BroadcastHandler
+}
 
-type (
-	RetrieveHandler struct{}
-	RetrieveParams  struct {
-		Id int `json:"id"`
-	}
-	RetrieveResult struct {
-		Data   string `json:"data"`
-		Length int    `json:"length"`
-	}
-)
+type RetrieveHandler struct {
+	bft.RetrieveHandler
+}
 
 func (h EpochHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
@@ -66,14 +42,14 @@ func (h EpochHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessag
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Database error", Data: err.Error()}
 	}
 
-	return EpochResult{
+	return bft.EpochResult{
 		Epoch: epoch,
 	}, nil
 }
 
 func (h SetEpochHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
-	var p SetEpochParams
+	var p bft.SetEpochParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
@@ -83,14 +59,14 @@ func (h SetEpochHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMes
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Database error", Data: err.Error()}
 	}
 
-	return SetEpochResult{
+	return bft.SetEpochResult{
 		Epoch: p.Epoch,
 	}, nil
 }
 
 func (h BroadcastHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
-	var p BroadcastParams
+	var p bft.BroadcastParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
@@ -105,14 +81,14 @@ func (h BroadcastHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMe
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Database error", Data: err.Error()}
 	}
 
-	return BroadcastResult{
+	return bft.BroadcastResult{
 		Id: int(id),
 	}, nil
 }
 
 func (h RetrieveHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
-	var p RetrieveParams
+	var p bft.RetrieveParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
@@ -122,7 +98,7 @@ func (h RetrieveHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMes
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Database error", Data: err.Error()}
 	}
 
-	return RetrieveResult{
+	return bft.RetrieveResult{
 		Data:   string(data[:]),
 		Length: length,
 	}, nil
@@ -141,7 +117,7 @@ func main() {
 	database = bft.Database{DB: db}
 
 	// init db if doesn't exist
-	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS broadcast (id INTEGER PRIMARY KEY, data BLOB, length INT)")
+	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS broadcast (id INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB, length INT)")
 	_, err = statement.Exec()
 	if err != nil {
 		log.Fatal(err)
@@ -160,16 +136,16 @@ func main() {
 	mr := jsonrpc.NewMethodRepository()
 
 	// TODO: method params are not case sensitive: works, but is bad
-	if err := mr.RegisterMethod("Epoch", EpochHandler{}, EpochParams{}, EpochResult{}); err != nil {
+	if err := mr.RegisterMethod("Epoch", EpochHandler{}, bft.EpochParams{}, bft.EpochResult{}); err != nil {
 		log.Fatalln(err)
 	}
-	if err := mr.RegisterMethod("SetEpoch", SetEpochHandler{}, SetEpochParams{}, SetEpochResult{}); err != nil {
+	if err := mr.RegisterMethod("SetEpoch", SetEpochHandler{}, bft.SetEpochParams{}, bft.SetEpochResult{}); err != nil {
 		log.Fatalln(err)
 	}
-	if err := mr.RegisterMethod("Broadcast", BroadcastHandler{}, BroadcastParams{}, BroadcastResult{}); err != nil {
+	if err := mr.RegisterMethod("Broadcast", BroadcastHandler{}, bft.BroadcastParams{}, bft.BroadcastResult{}); err != nil {
 		log.Fatalln(err)
 	}
-	if err := mr.RegisterMethod("Retrieve", RetrieveHandler{}, RetrieveParams{}, RetrieveResult{}); err != nil {
+	if err := mr.RegisterMethod("Retrieve", RetrieveHandler{}, bft.RetrieveParams{}, bft.RetrieveResult{}); err != nil {
 		log.Fatalln(err)
 	}
 

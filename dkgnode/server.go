@@ -35,6 +35,7 @@ type (
 		LogNumber          int
 		ShareIndex         int
 		UnsigncryptedShare []byte
+		BroadcastId        int
 	}
 	ShareRequestHandler struct {
 		suite *Suite
@@ -108,26 +109,32 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	}
 
 	signcryption := pvss.Signcryption{
-		tmpCiphertext,
-		pvss.Point{*tmpRx, *tmpRy},
-		*tmpSig,
+		Ciphertext: tmpCiphertext,
+		R:          pvss.Point{X: *tmpRx, Y: *tmpRy},
+		Signature:  *tmpSig,
 	}
 	// fmt.Println("RECIEVED SIGNCRYPTION")
 	// fmt.Println(signcryption)
-	unsigncryptedShare, err := pvss.UnsigncryptShare(signcryption, *h.suite.EthSuite.NodePrivateKey.D, pvss.Point{*tmpPubKeyX, *tmpPubKeyY})
+	unsigncryptedData, err := pvss.UnsigncryptShare(signcryption, *h.suite.EthSuite.NodePrivateKey.D, pvss.Point{*tmpPubKeyX, *tmpPubKeyY})
 	if err != nil {
 		fmt.Println("Error unsigncrypting share")
 		fmt.Println(err)
 		return nil, jsonrpc.ErrInvalidParams()
 	}
 
+	// deserialize share and broadcastId from signcrypted data
+	n := len(*unsigncryptedData)
+	shareBytes := (*unsigncryptedData)[:n-2]
+	broadcastId := int((new(big.Int).SetBytes((*unsigncryptedData)[n-2:])).Uint64())
+
 	fmt.Println("Saved share from ", p.FromAddress)
 	savedLog, found := h.suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")
-	newShareLog := ShareLog{time.Now().UTC(), 0, p.ShareIndex, *unsigncryptedShare}
+	newShareLog := ShareLog{time.Now().UTC(), 0, p.ShareIndex, shareBytes, broadcastId}
+	// if not found, we create a new mapping
 	if found {
 		var tempLog = savedLog.([]ShareLog)
-		//TODO: possibly change to pointer
-		newShareLog = ShareLog{time.Now().UTC(), len(tempLog), p.ShareIndex, *unsigncryptedShare}
+		// newShareLog = ShareLog{time.Now().UTC(), len(tempLog), p.ShareIndex, shareBytes, broadcastId}
+		newShareLog.LogNumber = len(tempLog)
 		tempLog = append(tempLog, newShareLog)
 		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", tempLog, cache.NoExpiration)
 	} else {
@@ -137,6 +144,7 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	}
 
 	savedMapping, found := h.suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_MAPPING")
+	// if not found, we create a new mapping
 	if found {
 		var tmpMapping = savedMapping.(map[int]ShareLog)
 		tmpMapping[p.ShareIndex] = newShareLog

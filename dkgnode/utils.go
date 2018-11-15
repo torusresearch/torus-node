@@ -2,11 +2,16 @@ package dkgnode
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"net"
 
+	"github.com/YZhenY/DKGNode/pvss"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -93,4 +98,51 @@ func ECDSAVerify(ecdsaPubKey ecdsa.PublicKey, ecdsaSignature ECDSASignature) boo
 		r,
 		s,
 	)
+}
+
+// [X1, Y1, X2, Y2, X3, Y3 ... ]
+func PointsArrayToBytesArray(pointsArray *[]pvss.Point) []byte {
+	arrBytes := []byte{}
+	for _, item := range *pointsArray {
+		var num []byte
+		num = abi.U256(&item.X) // this has length of 32
+		// fmt.Println(len(num))
+		arrBytes = append(arrBytes, num...)
+		num = abi.U256(&item.Y)
+		arrBytes = append(arrBytes, num...)
+	}
+	return arrBytes
+}
+
+func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*pvss.Point) {
+	if len(byteArray)%32 > 0 {
+		fmt.Println("Error with data, not an array of U256s")
+		fmt.Println(len(byteArray), byteArray)
+		return
+	}
+	bigIntArray := make([]*big.Int, len(byteArray)/32)
+	for index := 0; index < len(byteArray)/32; index++ {
+		bigInt, ok := ethMath.ParseBig256("0x" + hex.EncodeToString(byteArray[index*32:index*32+32]))
+		if !ok {
+			fmt.Println("Error with data, could not parse big256")
+			fmt.Println(byteArray[index*32 : index*32+32])
+			return
+		}
+		bigIntArray[index] = bigInt
+	}
+
+	if len(bigIntArray)%2 == 1 {
+		fmt.Println("Error with data, not an even number of bigInts")
+		fmt.Println(bigIntArray)
+		return
+	}
+
+	for ind := 0; ind < len(bigIntArray); ind = ind + 2 {
+		if bigIntArray[ind] != nil && bigIntArray[ind+1] != nil {
+			pointsArray = append(pointsArray, &pvss.Point{X: *bigIntArray[ind], Y: *bigIntArray[ind+1]})
+		} else {
+			fmt.Println("Error fatal, bigIntArray is malformed")
+		}
+	}
+	return
 }

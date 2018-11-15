@@ -2,12 +2,53 @@ package bft
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 const path string = "./bft.db"
+
+type (
+	EpochHandler struct{}
+	EpochParams  struct{}
+	EpochResult  struct {
+		Epoch int `json:"epoch"`
+	}
+)
+
+type (
+	SetEpochHandler struct{}
+	SetEpochParams  struct {
+		Epoch int `json:"epoch"`
+	}
+	SetEpochResult struct {
+		Epoch int `json:"epoch"`
+	}
+)
+
+type (
+	BroadcastHandler struct{}
+	BroadcastParams  struct {
+		Data   string `json:"data"`
+		Length int    `json:"length"`
+	}
+	BroadcastResult struct {
+		Id int `json:"id"`
+	}
+)
+
+type (
+	RetrieveHandler struct{}
+	RetrieveParams  struct {
+		Id int `json:"id"`
+	}
+	RetrieveResult struct {
+		Data   string `json:"data"`
+		Length int    `json:"length"`
+	}
+)
 
 // var db *sql.DB
 
@@ -75,10 +116,13 @@ func (db *Database) Broadcast(data []byte, length int) (sql.Result, error) {
 }
 
 func (db *Database) Retrieve(id int) (data []byte, length int, err error) {
+	fmt.Println(id, strconv.Itoa(id))
 	row := db.QueryRow("SELECT data, length FROM broadcast where id = " + strconv.Itoa(id))
 	err = row.Scan(&data, &length)
 	if err != nil {
+		fmt.Println("WTF ERROR IN DB?")
 		return nil, 0, err
 	}
+	fmt.Println(data, length, err, "OIJOIJOIJ")
 	return
 }

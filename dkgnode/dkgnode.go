@@ -1,6 +1,6 @@
 package dkgnode
 
-/* Al useful imports */
+/* All useful imports */
 import (
 	"fmt"
 	"log"
@@ -23,6 +23,7 @@ func New(configPath string, register bool, production bool) {
 	//Main suite of functions used in node
 	suite := Suite{}
 	suite.Flags = &Flags{production}
+	fmt.Println(configPath)
 	loadConfig(&suite, configPath)
 	err := SetUpEth(&suite)
 	if err != nil {

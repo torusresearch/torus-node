@@ -1,1 +1,0 @@
-web: ./cmd/DKGNode/main.go

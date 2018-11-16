@@ -1,9 +1,8 @@
 {
   "makemasteronerror": false,
-  "clusterip": "127.0.0.1:8001",
   "myport": "443",
   "ethconnection": "https://ropsten.infura.io/v3/1cd8ab320edc46dd81f09a048dca1e50",
-  "ethprivatekey": "798c8d2e1f1f3de5ffa27350f481384385be06e21833c6c5988279e86fdf93c4",
+  "ethprivatekey": "83781f4a87b3a1fd7473652afc441f4abb111a46c44b404ec640f43b89202387",
   "nodelistaddress": "0x6f542699b7cd76035f6aa7823c20911aff19bfb8",
-  "hostname": "dkg4.tetrator.us"
+  "hostname": "dkg5.tetrator.us"
 }

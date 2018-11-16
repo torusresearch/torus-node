@@ -1,14 +1,13 @@
 package dkgnode
 
-/* Al useful imports */
+/* All useful imports */
 import (
 	"github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"
 )
 
 type Config struct {
-	MakeMasterOnError string `json:"makeMasterOnError"`
-	ClusterIp         string `json:"clusterip"`
+	MakeMasterOnError string `json:"makemasteronerror"`
 	MyPort            string `json:"myport"`
 	EthConnection     string `json:"ethconnection"`
 	EthPrivateKey     string `json:"ethprivatekey"`

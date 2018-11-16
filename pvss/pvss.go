@@ -114,7 +114,7 @@ func polyEval(polynomial PrimaryPolynomial, x int) *big.Int { // get private sha
 	return sum
 }
 
-func getShares(polynomial PrimaryPolynomial, n int) []PrimaryShare {
+func getShares(polynomial PrimaryPolynomial, n int) []PrimaryShare { // TODO: should we assume that it's always evaluated from 1 to N?
 	shares := make([]PrimaryShare, n)
 	for i := range shares {
 		shares[i] = PrimaryShare{Index: n + 1, Value: *polyEval(polynomial, i+1)}
@@ -144,23 +144,84 @@ func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial 
 	return &PrimaryPolynomial{coeff, threshold}
 }
 
-func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryption, error) {
-	// Commitment
+func Signcrypt(recipientPubKey Point, data []byte, privKey big.Int) (*Signcryption, error) {
+	// Blinding
 	r := RandomBigInt()
 	rG := pt(s.ScalarBaseMult(r.Bytes()))
-	rU := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
+	rU := pt(s.ScalarMult(&recipientPubKey.X, &recipientPubKey.Y, r.Bytes()))
 
-	//encrypt with AES
-	ciphertext, err := AESencrypt(rU.X.Bytes(), share.Bytes())
+	// encrypt with AES
+	ciphertext, err := AESencrypt(rU.X.Bytes(), data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Concat hashing bytes
+	cb := data
+	cb = append(cb[:], rG.X.Bytes()...)
+
+	// hash h = H(M|r1)
+	hashed := Keccak256(cb)
+	h := new(big.Int).SetBytes(hashed)
+	h.Mod(h, generatorOrder)
+
+	s := new(big.Int)
+	temp := new(big.Int)
+	temp.Mul(h, r)
+	temp.Mod(temp, generatorOrder)
+	s.Sub(&privKey, temp)
+	s.Mod(s, generatorOrder)
+
+	return &Signcryption{*ciphertext, rG, *s}, nil
+}
+
+func UnSignCrypt(signcryption Signcryption, privKey big.Int, senderPubKey Point) (*[]byte, error) {
+	xR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
+	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
 		return nil, err
 	}
 
 	//Concat hashing bytes
+	cb := []byte(*M)
+	cb = append(cb[:], signcryption.R.X.Bytes()...)
+
+	//hash h = H(M|r1)
+	hashed := Keccak256(cb)
+	h := new(big.Int).SetBytes(hashed)
+	h.Mod(h, generatorOrder)
+
+	//Verify signcryption
+	sG := pt(s.ScalarBaseMult(signcryption.Signature.Bytes()))
+	hR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
+	testsenderPubKey := pt(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
+	if senderPubKey.X.Cmp(&testsenderPubKey.X) != 0 {
+		fmt.Println(senderPubKey.X.Cmp(&testsenderPubKey.X))
+		fmt.Println(senderPubKey)
+		fmt.Println(testsenderPubKey)
+		return nil, errors.New("sending node PK does not register with signcryption")
+	}
+
+	return M, nil
+}
+
+func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryption, error) {
+	// Blinding
+	r := RandomBigInt()
+	rG := pt(s.ScalarBaseMult(r.Bytes()))
+	rU := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
+
+	// encrypt with AES
+	ciphertext, err := AESencrypt(rU.X.Bytes(), share.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	// Concat hashing bytes
 	cb := share.Bytes()
 	cb = append(cb[:], rG.X.Bytes()...)
 
-	//hash h = H(M|r1)
+	// hash h = H(M|r1)
 	hashed := Keccak256(cb)
 	h := new(big.Int).SetBytes(hashed)
 	h.Mod(h, generatorOrder)
@@ -187,6 +248,22 @@ func batchSigncryptShare(nodeList []Point, shares []PrimaryShare, privKey big.In
 	return signcryptedShares, nil
 }
 
+// use this instead of CreateAndPrepareShares
+func CreateShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) (*[]PrimaryShare, *[]Point, error) {
+	n := len(nodes)
+
+	polynomial := *generateRandomPolynomial(secret, threshold)
+
+	// determine shares for polynomial with respect to basis point
+	shares := getShares(polynomial, n)
+
+	// committing to polynomial
+	pubPoly := getCommit(polynomial)
+
+	return &shares, &pubPoly, nil
+}
+
+// deprecated: use CreateShares and let client handle signcryption. Client may need to add more information before signcrypting (eg. broadcast id)
 func CreateAndPrepareShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]*SigncryptedOutput, *[]Point, error) {
 	n := len(nodes)
 
@@ -195,10 +272,10 @@ func CreateAndPrepareShares(nodes []Point, secret big.Int, threshold int, privKe
 	// determine shares for polynomial with respect to basis point
 	shares := getShares(polynomial, n)
 
-	//committing to polynomial
+	// committing to polynomial
 	pubPoly := getCommit(polynomial)
 
-	// Create NIZK discrete-logarithm equality proofs
+	// signcrypt shares
 	signcryptedShares, err := batchSigncryptShare(nodes, shares, privKey)
 	if err != nil {
 		return nil, nil, err

@@ -5,3 +5,5 @@
 package-lock.json
 .DS_Store
 /cmd/DKGNode/cache.json
+bft.db
+log*.txt

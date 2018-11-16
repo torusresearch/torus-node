@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	lenNodes  = 11
+	lenNodes  = 21
 	batchSize = 500
 	numCores  = 4
 )
@@ -70,34 +70,15 @@ func RunHbbft() {
 		}(node)
 	}
 
-	// handle the relayed transactions.
-	// go func() {
+	// handle user sending transactions to all nodes.
 	for {
 		select {
 		case tx := <-relayCh:
-			// fmt.Println("is this still working?")
 			for _, node := range nodes {
 				node.addTransactions(tx)
 			}
 		}
 	}
-	// }()
-
-	// keep main function running
-	// loadingString := "Running "
-	// loadingCount := 0
-	// for {
-	// 	time.Sleep(5000000000)
-	// 	tmp := loadingString
-	// 	for i := 0; i < loadingCount; i++ {
-	// 		tmp = tmp + "-"
-	// 	}
-	// 	fmt.Println(tmp)
-	// 	loadingCount++
-	// 	if loadingCount > 20 {
-	// 		loadingCount = 0
-	// 	}
-	// }
 }
 
 // Server represents the local node.
@@ -129,78 +110,6 @@ func newServer(id uint64, tr hbbft.Transport, nodes []uint64) *Server {
 	}
 }
 
-/*
-// type HbbftParams struct {
-// 	NodeID  int64       `json:"nodeid"`
-// 	Payload interface{} `json:"payload"`
-// }
-
-type HbbftHandler struct {
-	node  *Server
-	nodes []*Server
-}
-
-func (h HbbftHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-
-	// fmt.Println("RAW MSG: ", params)
-
-	var p hbbft.RPC
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
-		// fmt.Println("hbbft error", p)
-		return nil, err
-	}
-	// tx, ok := p.Payload.(hbbft.MessageTuple)
-	// if !ok {
-	// 	fmt.Println("NOT OKAY ", tx)
-	// } else {
-
-	// 	fmt.Println("Msg", ok)
-	// }
-	// switch t := p.Payload.(type) {
-	// case hbbft.HBMessage:
-	// 	fmt.Println("Is this ever the case")
-	// 	if err := h.node.hb.HandleMessage(p.NodeID, t.Epoch, t.Payload.(*hbbft.ACSMessage)); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	for _, msg := range h.node.hb.Messages() {
-	// 		// messages <- message{node.id, msg}
-	// 		// h.npde[msg.To].transport.SendMessage(node.id, msg.To, msg.Payload)
-	// 		h.nodes[msg.To].transport.SendMessage(h.node.id, msg.To, msg.Payload)
-	// 	}
-	// }
-	h.node.transport.
-
-	return nil, nil
-}
-
-func setUpHbbftServer(port string, node *Server, nodes []*Server) {
-	mr := jsonrpc.NewMethodRepository()
-	if err := mr.RegisterMethod("hbbft", HbbftHandler{node, nodes}, hbbft.RPC{}, nil); err != nil {
-		log.Fatalln(err)
-	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/jrpc", mr)
-	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
-	// fmt.Println(port)
-	handler := cors.Default().Handler(mux)
-	// if suite.Flags.Production {
-	// 	if err := http.ListenAndServeTLS(":443",
-	// 		"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
-	// 		"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem",
-	// 		handler,
-	// 	); err != nil {
-	// 		log.Fatalln(err)
-	// 	}
-	// } else {
-	fmt.Println("listening to ", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatalln(err)
-	}
-
-	// }
-}
-*/
 // Simulate the delay of verifying a transaction.
 func (s *Server) verifyTransaction(tx *Transaction) bool {
 	time.Sleep(txDelay)
@@ -218,9 +127,9 @@ func (s *Server) addTransactions(txx ...*Transaction) {
 			s.hb.AddTransaction(tx)
 			// relay the transaction to all other nodes in the network.
 			// go func() {
-			if err := s.transport.Broadcast(s.hb.ID, tx); err != nil {
-				fmt.Println("ERROR BBROADCASTING")
-			}
+			// if err := s.transport.Broadcast(s.hb.ID, tx); err != nil {
+			// 	fmt.Println("ERROR BBROADCASTING")
+			// }
 
 			// for i := 0; i < len(s.hb.Nodes); i++ {
 			// 	if uint64(i) != s.hb.ID {

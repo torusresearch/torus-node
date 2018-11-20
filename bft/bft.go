@@ -120,9 +120,9 @@ func (db *Database) Retrieve(id int) (data []byte, length int, err error) {
 	row := db.QueryRow("SELECT data, length FROM broadcast where id = " + strconv.Itoa(id))
 	err = row.Scan(&data, &length)
 	if err != nil {
-		fmt.Println("WTF ERROR IN DB?")
+		fmt.Println("Database error, could not find row?")
 		return nil, 0, err
 	}
-	fmt.Println(data, length, err, "OIJOIJOIJ")
+	fmt.Println(data, length, err)
 	return
 }

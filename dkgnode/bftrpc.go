@@ -1,7 +1,7 @@
 package dkgnode
 
 import (
-	"github.com/YZhenY/DKGNode/bft"
+	"github.com/YZhenY/torus/bft"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 

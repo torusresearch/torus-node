@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/YZhenY/DKGNode/pvss"
+	"github.com/YZhenY/torus/pvss"
 	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"

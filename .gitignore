@@ -4,6 +4,6 @@
 /.vscode
 package-lock.json
 .DS_Store
-/cmd/DKGNode/cache.json
+/cmd/torus/cache.json
 bft.db
 log*.txt

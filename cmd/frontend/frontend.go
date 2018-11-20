@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/YZhenY/DKGNode/pvss"
-	"github.com/YZhenY/DKGNode/solidity/goContracts"
+	"github.com/YZhenY/torus/pvss"
+	"github.com/YZhenY/torus/solidity/goContracts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	config "github.com/micro/go-config"

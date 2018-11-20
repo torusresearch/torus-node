@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/YZhenY/DKGNode/tmabci"
+	"github.com/YZhenY/torus/tmabci"
 )
 
 func main() {

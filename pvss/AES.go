@@ -7,7 +7,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/YZhenY/DKGNode/pkcs7"
+	"github.com/YZhenY/torus/pkcs7"
 )
 
 func AESencrypt(key []byte, plainText []byte) (c *[]byte, err error) {

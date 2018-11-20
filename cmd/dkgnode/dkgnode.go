@@ -5,7 +5,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/YZhenY/DKGNode/dkgnode"
+	"github.com/YZhenY/torus/dkgnode"
 )
 
 func main() {

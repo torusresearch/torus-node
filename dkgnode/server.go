@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/YZhenY/DKGNode/pvss"
+	"github.com/YZhenY/torus/pvss"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"

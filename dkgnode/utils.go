@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"net"
 
-	"github.com/YZhenY/DKGNode/pvss"
+	"github.com/YZhenY/torus/pvss"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"

@@ -65,8 +65,5 @@ func (p *DLEQProof) Verify(G Point, H Point, xG Point, xH Point) bool {
 	}
 }
 
-// Verifiable encryption of an exponent v such that V = g^v
-func VerifiableEncrypt(v big.Int, pubKey Point) []byte {
-	// a := RandomBigInt()
-	return make([]byte, 0)
+type VerifiableProof struct {
 }

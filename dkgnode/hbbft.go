@@ -1,5 +1,9 @@
 package dkgnode
 
+/*
+DEPRECATED
+*/
+
 import (
 	"encoding/binary"
 	"encoding/gob"
@@ -15,7 +19,7 @@ import (
 )
 
 const (
-	lenNodes  = 21
+	lenNodes  = 11
 	batchSize = 500
 	numCores  = 4
 )
@@ -28,7 +32,7 @@ type message struct {
 }
 
 var (
-	txDelay  = (3 * time.Millisecond) / numCores
+	txDelay  = (0 * time.Millisecond) / numCores
 	messages = make(chan message, 1024*1024)
 	relayCh  = make(chan *Transaction, 1024)
 )

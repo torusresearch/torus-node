@@ -1,5 +1,8 @@
 package dkgnode
 
+/*
+DEPRECATED
+*/
 import (
 	"context"
 	"encoding/base64"

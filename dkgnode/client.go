@@ -20,7 +20,7 @@ import (
 )
 
 // TODO: pass in as config
-const NumberOfShares = 1300 // potentially 1.35 mm, assuming 7.5k uniques a day
+const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
 const BftURI = "http://localhost:7053/jrpc"
 
 type NodeReference struct {
@@ -173,7 +173,15 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						// serializing id + primary share value into bytes before signcryption
 						var data []byte
 						data = append(data, share.Value.Bytes()...)
-						data = append(data, big.NewInt(int64(id)).Bytes()...) // length of big.Int is 2 bytes
+						var broadcastIdBytes []byte
+						broadcastIdBytes = append(broadcastIdBytes, big.NewInt(int64(id)).Bytes()...)
+						if len(broadcastIdBytes) == 1 {
+							broadcastIdBytes = append(make([]byte, 1), broadcastIdBytes...)
+						}
+						if err != nil {
+							fmt.Println("Failed during padding of broadcastId bytes")
+						}
+						data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
 						signcryption, err := pvss.Signcrypt(nodes[index], data, *suite.EthSuite.NodePrivateKey.D)
 						if err != nil {
 							fmt.Println("Failed during signcryption")

@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
 	"github.com/YZhenY/torus/solidity/goContracts"
-	"github.com/ethereum/go-ethereum/common"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	config "github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"
@@ -15,10 +16,10 @@ import (
 )
 
 type NodeReference struct {
-	Address    *common.Address
+	Address    *ethCommon.Address
 	JSONClient jsonrpcclient.RPCClient
 	Index      *big.Int
-	PublicKey  *pvss.Point
+	PublicKey  *common.Point
 }
 
 type Person struct {
@@ -83,7 +84,7 @@ func main() {
 	}
 
 	/*Creating contract instances */
-	nodeListInstance, err := nodelist.NewNodelist(common.HexToAddress(config.NodeListAddress), client)
+	nodeListInstance, err := nodelist.NewNodelist(ethCommon.HexToAddress(config.NodeListAddress), client)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -105,7 +106,7 @@ func main() {
 
 	for shareIndex := 6; shareIndex < 7; shareIndex++ {
 		//get shares
-		shareList := make([]pvss.PrimaryShare, len(nodeList))
+		shareList := make([]common.PrimaryShare, len(nodeList))
 		for i := range nodeList {
 			response, err := nodeList[i].JSONClient.Call("ShareRequest", &ShareRequestParams{shareIndex, authToken, "zheeen"})
 			if err != nil {
@@ -123,11 +124,11 @@ func main() {
 			if !ok {
 				fmt.Println("Couldnt parse hex share from ", nodeList[i].Address.Hex())
 			}
-			shareList[i] = pvss.PrimaryShare{Index: tmpShare.Index, Value: *shareVal}
+			shareList[i] = common.PrimaryShare{Index: tmpShare.Index, Value: *shareVal}
 		}
 
 		// fmt.Println("FINAL PRIVATE KEY: ")
-		temppp := make([]pvss.PrimaryShare, 1)
+		temppp := make([]common.PrimaryShare, 1)
 		temppp[0] = shareList[0]
 		equal := true
 		final := pvss.LagrangeElliptic(append(append(temppp, shareList[1]), shareList[2])) // nodes: 0, 1, 2
@@ -222,7 +223,7 @@ func loadConfig(path string) *Config {
 	return &conf
 }
 
-func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress common.Address) (*NodeReference, error) {
+func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress ethCommon.Address) (*NodeReference, error) {
 	details, err := nodeListInstance.NodeDetails(nil, nodeAddress)
 	if err != nil {
 		return nil, err
@@ -246,7 +247,7 @@ func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress commo
 		Address:    &nodeAddress,
 		JSONClient: rpcClient,
 		Index:      details.Position,
-		PublicKey: &pvss.Point{
+		PublicKey: &common.Point{
 			X: *details.PubKx,
 			Y: *details.PubKy,
 		},

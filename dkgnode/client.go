@@ -12,9 +12,10 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
 	"github.com/decred/dcrd/dcrec/secp256k1"
-	"github.com/ethereum/go-ethereum/common"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
@@ -24,7 +25,7 @@ const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
 const BftURI = "http://localhost:7053/jrpc"
 
 type NodeReference struct {
-	Address    *common.Address
+	Address    *ethCommon.Address
 	JSONClient jsonrpcclient.RPCClient
 	Index      *big.Int
 	PublicKey  *ecdsa.PublicKey
@@ -88,7 +89,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
 	bftRPC := NewBftRPC(BftURI)
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
-	siMapping := make(map[int]pvss.PrimaryShare)
+	siMapping := make(map[int]common.PrimaryShare)
 	for {
 		// Fetch Node List from contract address
 		ethList, err := suite.EthSuite.NodeListInstance.ViewNodeList(nil)
@@ -128,7 +129,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 				numberOfShares := NumberOfShares
 				secretMapping := make(map[int]SecretStore)
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
-					nodes := make([]pvss.Point, suite.Config.NumberOfNodes)
+					nodes := make([]common.Point, suite.Config.NumberOfNodes)
 
 					for i := 0; i < triggerSecretSharing; i++ {
 						nodes[i] = *ecdsaPttoPt(nodeList[i].PublicKey)
@@ -168,7 +169,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					fmt.Println(id)
 
 					// signcrypt data
-					signcryptedData := make([]*pvss.SigncryptedOutput, len(nodes))
+					signcryptedData := make([]*common.SigncryptedOutput, len(nodes))
 					for index, share := range *shares {
 						// serializing id + primary share value into bytes before signcryption
 						var data []byte
@@ -186,7 +187,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						if err != nil {
 							fmt.Println("Failed during signcryption")
 						}
-						signcryptedData[index] = &pvss.SigncryptedOutput{NodePubKey: nodes[index], NodeIndex: share.Index, SigncryptedShare: *signcryption}
+						signcryptedData[index] = &common.SigncryptedOutput{NodePubKey: nodes[index], NodeIndex: share.Index, SigncryptedShare: *signcryption}
 					}
 
 					errArr := sendSharesToNodes(*suite.EthSuite, signcryptedData, nodeList, shareIndex)
@@ -226,7 +227,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						}
 					}
 					// Retrieve previously broadcasted signed pubpoly data
-					broadcastedDataArray := make([][]*pvss.Point, len(broadcastIdArray))
+					broadcastedDataArray := make([][]*common.Point, len(broadcastIdArray))
 					for index, broadcastId := range broadcastIdArray {
 						fmt.Println("BROADCASTID WAS: ", broadcastId)
 						jsonData, _, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
@@ -301,7 +302,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 							nodeIndex = int(nodeList[i].Index.Int64())
 						}
 					}
-					si := pvss.PrimaryShare{Index: nodeIndex, Value: *tempSi}
+					si := common.PrimaryShare{Index: nodeIndex, Value: *tempSi}
 					fmt.Println("STORED Si: ", shareIndex)
 					siMapping[shareIndex] = si
 				}
@@ -327,7 +328,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	return "Keygen complete.", nil
 }
 
-func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
+func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
 	errorSlice := make([]error, len(signcryptedOutput))
 	// fmt.Println("GIVEN SIGNCRYPTION")
 	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
@@ -356,11 +357,11 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*pvss.SigncryptedO
 	return &errorSlice
 }
 
-func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *pvss.Point {
-	return &pvss.Point{X: *ecdsaPt.X, Y: *ecdsaPt.Y}
+func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *common.Point {
+	return &common.Point{X: *ecdsaPt.X, Y: *ecdsaPt.Y}
 }
 
-func connectToJSONRPCNode(suite *Suite, nodeAddress common.Address) (*NodeReference, error) {
+func connectToJSONRPCNode(suite *Suite, nodeAddress ethCommon.Address) (*NodeReference, error) {
 	details, err := suite.EthSuite.NodeListInstance.NodeDetails(nil, nodeAddress)
 	if err != nil {
 		return nil, err

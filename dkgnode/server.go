@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
@@ -108,14 +109,14 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 		return nil, jsonrpc.ErrParse()
 	}
 
-	signcryption := pvss.Signcryption{
+	signcryption := common.Signcryption{
 		Ciphertext: tmpCiphertext,
-		R:          pvss.Point{X: *tmpRx, Y: *tmpRy},
+		R:          common.Point{X: *tmpRx, Y: *tmpRy},
 		Signature:  *tmpSig,
 	}
 	// fmt.Println("RECIEVED SIGNCRYPTION")
 	// fmt.Println(signcryption)
-	unsigncryptedData, err := pvss.UnsigncryptShare(signcryption, *h.suite.EthSuite.NodePrivateKey.D, pvss.Point{*tmpPubKeyX, *tmpPubKeyY})
+	unsigncryptedData, err := pvss.UnsigncryptShare(signcryption, *h.suite.EthSuite.NodePrivateKey.D, common.Point{*tmpPubKeyX, *tmpPubKeyY})
 	if err != nil {
 		fmt.Println("Error unsigncrypting share")
 		fmt.Println(err)
@@ -172,7 +173,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	if !found {
 		return nil, jsonrpc.ErrInternal()
 	}
-	siMapping := tmpSi.(map[int]pvss.PrimaryShare)
+	siMapping := tmpSi.(map[int]common.PrimaryShare)
 	if _, ok := siMapping[p.Index]; !ok {
 		return nil, jsonrpc.ErrInvalidParams()
 	}
@@ -233,7 +234,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, jsonrpc.ErrInternal()
 	}
 	lastAssigned := tmpAssigned.(int)
-	siMAPPING := tmpSiMAPPING.(map[int]pvss.PrimaryShare)
+	siMAPPING := tmpSiMAPPING.(map[int]common.PrimaryShare)
 	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 	secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
 	if val, ok := secretAssignment[p.Email]; ok {

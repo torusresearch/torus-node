@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"net"
 
-	"github.com/YZhenY/torus/pvss"
+	"github.com/YZhenY/torus/common"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -101,7 +101,7 @@ func ECDSAVerify(ecdsaPubKey ecdsa.PublicKey, ecdsaSignature ECDSASignature) boo
 }
 
 // [X1, Y1, X2, Y2, X3, Y3 ... ]
-func PointsArrayToBytesArray(pointsArray *[]pvss.Point) []byte {
+func PointsArrayToBytesArray(pointsArray *[]common.Point) []byte {
 	arrBytes := []byte{}
 	for _, item := range *pointsArray {
 		var num []byte
@@ -114,7 +114,7 @@ func PointsArrayToBytesArray(pointsArray *[]pvss.Point) []byte {
 	return arrBytes
 }
 
-func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*pvss.Point) {
+func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 	if len(byteArray)%32 > 0 {
 		fmt.Println("Error with data, not an array of U256s")
 		fmt.Println(len(byteArray), byteArray)
@@ -139,7 +139,7 @@ func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*pvss.Point) {
 
 	for ind := 0; ind < len(bigIntArray); ind = ind + 2 {
 		if bigIntArray[ind] != nil && bigIntArray[ind+1] != nil {
-			pointsArray = append(pointsArray, &pvss.Point{X: *bigIntArray[ind], Y: *bigIntArray[ind+1]})
+			pointsArray = append(pointsArray, &common.Point{X: *bigIntArray[ind], Y: *bigIntArray[ind+1]})
 		} else {
 			fmt.Println("Error fatal, bigIntArray is malformed")
 		}

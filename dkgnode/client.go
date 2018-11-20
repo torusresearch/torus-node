@@ -20,7 +20,7 @@ import (
 )
 
 // TODO: pass in as config
-const NumberOfShares = 1000
+const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
 const BftURI = "http://localhost:7053/jrpc"
 
 type NodeReference struct {
@@ -90,15 +90,14 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	siMapping := make(map[int]pvss.PrimaryShare)
 	for {
-		/*Fetch Node List from contract address */
+		// Fetch Node List from contract address
 		ethList, err := suite.EthSuite.NodeListInstance.ViewNodeList(nil)
 		if err != nil {
 			fmt.Println(err)
 		}
 		if len(ethList) > 0 {
 			fmt.Println("Connecting to other nodes ------------------")
-			// fmt.Println("ETH LIST: ")
-			//Build count of nodes connected to
+			// Build count of nodes connected to
 			triggerSecretSharing := 0
 			for i := range ethList {
 				// fmt.Println(ethList[i].Hex())
@@ -152,9 +151,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
 
 					pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
-					// fmt.Println("checking what arrBytes was when it was broadcasted")
-					// fmt.Println(arrBytes)
-					// fmt.Println("this shouldn't be 0 0 0 0 0...")
 
 					jsonData, err := json.Marshal(pubPolyProof)
 					if err != nil {
@@ -177,7 +173,15 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						// serializing id + primary share value into bytes before signcryption
 						var data []byte
 						data = append(data, share.Value.Bytes()...)
-						data = append(data, big.NewInt(int64(id)).Bytes()...) // length of big.Int is 2 bytes
+						var broadcastIdBytes []byte
+						broadcastIdBytes = append(broadcastIdBytes, big.NewInt(int64(id)).Bytes()...)
+						if len(broadcastIdBytes) == 1 {
+							broadcastIdBytes = append(make([]byte, 1), broadcastIdBytes...)
+						}
+						if err != nil {
+							fmt.Println("Failed during padding of broadcastId bytes")
+						}
+						data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
 						signcryption, err := pvss.Signcrypt(nodes[index], data, *suite.EthSuite.NodePrivateKey.D)
 						if err != nil {
 							fmt.Println("Failed during signcryption")
@@ -207,13 +211,10 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					var nodePubKeyArray []*ecdsa.PublicKey
 					var nodeId []int
 					for i := 0; i < suite.Config.NumberOfNodes; i++ { // TODO: inefficient, we are looping unnecessarily
-						// var broadcastIdArray []int
-						data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING") // TODO: this too, can be avoided
+						data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING")
 						if found {
 							var shareMapping = data.(map[int]ShareLog)
 							if val, ok := shareMapping[shareIndex]; ok {
-								// fmt.Println("DRAWING SHARE FROM CACHE | ", suite.EthSuite.NodeAddress.Hex(), "=>", nodeList[i].Address.Hex())
-								// fmt.Println(val.UnsigncryptedShare)
 								unsigncryptedShares = append(unsigncryptedShares, new(big.Int).SetBytes(val.UnsigncryptedShare))
 								broadcastIdArray = append(broadcastIdArray, val.BroadcastId)
 								nodePubKeyArray = append(nodePubKeyArray, nodeList[i].PublicKey)
@@ -263,7 +264,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					s := secp256k1.S256()
 					for index, pubpoly := range broadcastedDataArray {
 						var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))
-						// nodeI := big.NewInt(int64(nodeId[index]))
 						var myNodeReference *NodeReference
 						for _, noderef := range nodeList {
 							if noderef.Address.Hex() == suite.EthSuite.NodeAddress.Hex() {

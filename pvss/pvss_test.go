@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/YZhenY/torus/common"
 	"github.com/stretchr/testify/assert"
 )
 
 type nodeList struct {
-	Nodes []Point
+	Nodes []common.Point
 }
 
 func createRandomNodes(number int) (*nodeList, []big.Int) {
@@ -41,7 +42,7 @@ func TestPolyEval(test *testing.T) {
 	for i := 1; i < 5; i++ {  //randomly choose coeffs
 		coeff[i] = *big.NewInt(int64(i))
 	}
-	polynomial := PrimaryPolynomial{coeff, 5}
+	polynomial := common.PrimaryPolynomial{coeff, 5}
 	assert.Equal(test, polyEval(polynomial, 10).Text(10), "43217")
 }
 
@@ -50,7 +51,7 @@ func TestCommit(test *testing.T) {
 	// coeff := make([]big.Int, 2)
 	// coeff[0] = *big.NewInt(7) //assign secret as coeff of x^0
 	// coeff[1] = *big.NewInt(10)
-	// polynomial := PrimaryPolynomial{coeff, 2}
+	// polynomial := common.PrimaryPolynomial{coeff, 2}
 
 	// polyCommit := getCommit(polynomial)
 
@@ -73,8 +74,8 @@ func TestCommit(test *testing.T) {
 	polynomial := *generateRandomPolynomial(secret, 11)
 	polyCommit := getCommit(polynomial)
 
-	sum := Point{X: polyCommit[0].X, Y: polyCommit[0].Y}
-	var tmp Point
+	sum := common.Point{X: polyCommit[0].X, Y: polyCommit[0].Y}
+	var tmp common.Point
 
 	index := big.NewInt(int64(10))
 
@@ -110,9 +111,9 @@ func TestCommit(test *testing.T) {
 	// 	sumx = *tmpx
 	// 	sumy = *tmpy
 	// }
-	// sum := Point{X: sumx, Y: sumy}
+	// sum := common.Point{X: sumx, Y: sumy}
 	// gshare5x, gshare5y := s.ScalarBaseMult(share5.Bytes())
-	// gshare := Point{X: *gshare5x, Y: *gshare5y}
+	// gshare := common.Point{X: *gshare5x, Y: *gshare5y}
 	// assert.Equal(test, sum.X, gshare.X)
 	// assert.Equal(test, sum.Y, gshare.Y)
 
@@ -187,12 +188,12 @@ func TestPVSS(test *testing.T) {
 // 	// polyCoeff[0] = *new(big.Int).SetInt64(int64(0))
 // 	// polyCoeff[1] = *new(big.Int).SetInt64(int64(1))
 // 	// polyCoeff[2] = *new(big.Int).SetInt64(int64(1))
-// 	// poly := PrimaryPolynomial{polyCoeff, 3}
-// 	shares := make([]PrimaryShare, 3)
-// 	shares[0] = PrimaryShare{1, *new(big.Int).SetInt64(int64(2))}
-// 	shares[1] = PrimaryShare{2, *new(big.Int).SetInt64(int64(6))}
-// 	shares[2] = PrimaryShare{3, *new(big.Int).SetInt64(int64(12))}
-// 	// shares[3] = PrimaryShare{4, *new(big.Int).SetInt64(int64(20))}
+// 	// poly := common.PrimaryPolynomial{polyCoeff, 3}
+// 	shares := make([]common.PrimaryShare, 3)
+// 	shares[0] = common.PrimaryShare{1, *new(big.Int).SetInt64(int64(2))}
+// 	shares[1] = common.PrimaryShare{2, *new(big.Int).SetInt64(int64(6))}
+// 	shares[2] = common.PrimaryShare{3, *new(big.Int).SetInt64(int64(12))}
+// 	// shares[3] = common.PrimaryShare{4, *new(big.Int).SetInt64(int64(20))}
 // 	testX := Lagrange(shares)
 // 	// fmt.Println(testX)
 // 	assert.True(test, testX.Cmp(new(big.Int).SetInt64(int64(0))) == 0)
@@ -210,14 +211,14 @@ func TestLagrangeInterpolation(test *testing.T) {
 		fmt.Println(err)
 		errorsExist = true
 	}
-	decryptedShares := make([]PrimaryShare, 11)
+	decryptedShares := make([]common.PrimaryShare, 11)
 	for i := range decryptedShares {
 		share, err := UnsigncryptShare(signcryptedShares[i].SigncryptedShare, privateKeys[i], pubKeySender)
 		if err != nil {
 			fmt.Println(err)
 			errorsExist = true
 		}
-		decryptedShares[i] = PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
+		decryptedShares[i] = common.PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
 	}
 	lagrange := LagrangeElliptic(decryptedShares)
 
@@ -229,8 +230,8 @@ func TestPedersons(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(21)
 	secrets := make([]big.Int, len(nodeList.Nodes))
 	errorsExist := false
-	allSigncryptedShares := make([][]*SigncryptedOutput, len(nodeList.Nodes))
-	allPubPoly := make([][]Point, len(nodeList.Nodes))
+	allSigncryptedShares := make([][]*common.SigncryptedOutput, len(nodeList.Nodes))
+	allPubPoly := make([][]common.Point, len(nodeList.Nodes))
 	for i := range nodeList.Nodes {
 		signcryptedShares, pubPoly, err := CreateAndPrepareShares(nodeList.Nodes, secrets[i], 11, privateKeys[i])
 		allSigncryptedShares[i] = signcryptedShares
@@ -255,14 +256,14 @@ func TestPedersons(test *testing.T) {
 		allDecryptedShares[i] = arrDecryptShares
 	}
 	//form si, points on the polynomial f(z) = r + a1z + a2z^2....
-	allSi := make([]PrimaryShare, len(nodeList.Nodes))
+	allSi := make([]common.PrimaryShare, len(nodeList.Nodes))
 	for i := range nodeList.Nodes {
 		sum := new(big.Int)
 		for j := range nodeList.Nodes {
 			sum.Add(sum, &allDecryptedShares[i][j])
 		}
 		sum.Mod(sum, generatorOrder)
-		allSi[i] = PrimaryShare{i + 1, *sum}
+		allSi[i] = common.PrimaryShare{i + 1, *sum}
 	}
 
 	//form r (and other components) to test

@@ -6,36 +6,10 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/YZhenY/torus/common"
 	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 )
-
-type SigncryptedOutput struct {
-	NodePubKey       Point
-	NodeIndex        int
-	SigncryptedShare Signcryption
-}
-
-type Signcryption struct {
-	Ciphertext []byte
-	R          Point
-	Signature  big.Int
-}
-
-type PrimaryPolynomial struct {
-	coeff     []big.Int
-	threshold int
-}
-
-type PrimaryShare struct {
-	Index int
-	Value big.Int
-}
-
-type Point struct {
-	X big.Int
-	Y big.Int
-}
 
 func fromHex(s string) *big.Int {
 	r, ok := new(big.Int).SetString(s, 16)
@@ -45,8 +19,8 @@ func fromHex(s string) *big.Int {
 	return r
 }
 
-func pt(x, y *big.Int) Point {
-	return Point{X: *x, Y: *y}
+func pt(x, y *big.Int) common.Point {
+	return common.Point{X: *x, Y: *y}
 }
 
 var (
@@ -55,7 +29,7 @@ var (
 	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	sqRoot         = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
-	G              = Point{X: *s.Gx, Y: *s.Gy}
+	G              = common.Point{X: *s.Gx, Y: *s.Gy}
 	H              = *hashToPoint(G.X.Bytes())
 	GeneratorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 )
@@ -68,7 +42,7 @@ func Keccak256(data ...[]byte) []byte {
 	return d.Sum(nil)
 }
 
-func hashToPoint(data []byte) *Point {
+func hashToPoint(data []byte) *common.Point {
 	keccakHash := Keccak256(data)
 	x := new(big.Int)
 	x.SetBytes(keccakHash)
@@ -80,7 +54,7 @@ func hashToPoint(data []byte) *Point {
 		y := new(big.Int)
 		y.Exp(beta, sqRoot, fieldOrder)
 		if new(big.Int).Exp(y, big.NewInt(2), fieldOrder).Cmp(beta) == 0 {
-			return &Point{X: *x, Y: *y}
+			return &common.Point{X: *x, Y: *y}
 		} else {
 			x.Add(x, big.NewInt(1))
 		}
@@ -93,19 +67,19 @@ func RandomBigInt() *big.Int {
 }
 
 // Eval computes the private share v = p(i).
-func polyEval(polynomial PrimaryPolynomial, x int) *big.Int { // get private share
+func polyEval(polynomial common.PrimaryPolynomial, x int) *big.Int { // get private share
 	xi := new(big.Int).SetInt64(int64(x))
 	sum := new(big.Int)
-	// for i := polynomial.threshold - 1; i >= 0; i-- {
+	// for i := polynomial.Threshold - 1; i >= 0; i-- {
 	// 	fmt.Println("i: ", i)
 	// 	sum.Mul(sum, xi)
-	// 	sum.Add(sum, &polynomial.coeff[i])
+	// 	sum.Add(sum, &polynomial.Coeff[i])
 	// }
 	// sum.Mod(sum, fieldOrder)
-	sum.Add(sum, &polynomial.coeff[0])
+	sum.Add(sum, &polynomial.Coeff[0])
 
-	for i := 1; i < polynomial.threshold; i++ {
-		tmp := new(big.Int).Mul(xi, &polynomial.coeff[i])
+	for i := 1; i < polynomial.Threshold; i++ {
+		tmp := new(big.Int).Mul(xi, &polynomial.Coeff[i])
 		sum.Add(sum, tmp)
 		sum.Mod(sum, generatorOrder)
 		xi.Mul(xi, big.NewInt(int64(x)))
@@ -114,37 +88,37 @@ func polyEval(polynomial PrimaryPolynomial, x int) *big.Int { // get private sha
 	return sum
 }
 
-func getShares(polynomial PrimaryPolynomial, n int) []PrimaryShare { // TODO: should we assume that it's always evaluated from 1 to N?
-	shares := make([]PrimaryShare, n)
+func getShares(polynomial common.PrimaryPolynomial, n int) []common.PrimaryShare { // TODO: should we assume that it's always evaluated from 1 to N?
+	shares := make([]common.PrimaryShare, n)
 	for i := range shares {
-		shares[i] = PrimaryShare{Index: n + 1, Value: *polyEval(polynomial, i+1)}
+		shares[i] = common.PrimaryShare{Index: n + 1, Value: *polyEval(polynomial, i+1)}
 	}
 	return shares
 }
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial PrimaryPolynomial) []Point {
-	commits := make([]Point, polynomial.threshold)
+func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
+	commits := make([]common.Point, polynomial.Threshold)
 	for i := range commits {
-		commits[i] = pt(s.ScalarBaseMult(polynomial.coeff[i].Bytes()))
+		commits[i] = pt(s.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
 	}
 	// fmt.Println(commits[0].X.Text(16), commits[0].Y.Text(16), "commit0")
 	// fmt.Println(commits[1].X.Text(16), commits[1].Y.Text(16), "commit1")
 	return commits
 }
 
-func generateRandomPolynomial(secret big.Int, threshold int) *PrimaryPolynomial {
+func generateRandomPolynomial(secret big.Int, threshold int) *common.PrimaryPolynomial {
 	// Create secret sharing polynomial
 	coeff := make([]big.Int, threshold)
 	coeff[0] = secret                //assign secret as coeff of x^0
 	for i := 1; i < threshold; i++ { //randomly choose coeffs
 		coeff[i] = *RandomBigInt()
 	}
-	return &PrimaryPolynomial{coeff, threshold}
+	return &common.PrimaryPolynomial{coeff, threshold}
 }
 
-func Signcrypt(recipientPubKey Point, data []byte, privKey big.Int) (*Signcryption, error) {
+func Signcrypt(recipientPubKey common.Point, data []byte, privKey big.Int) (*common.Signcryption, error) {
 	// Blinding
 	r := RandomBigInt()
 	rG := pt(s.ScalarBaseMult(r.Bytes()))
@@ -172,10 +146,10 @@ func Signcrypt(recipientPubKey Point, data []byte, privKey big.Int) (*Signcrypti
 	s.Sub(&privKey, temp)
 	s.Mod(s, generatorOrder)
 
-	return &Signcryption{*ciphertext, rG, *s}, nil
+	return &common.Signcryption{*ciphertext, rG, *s}, nil
 }
 
-func UnSignCrypt(signcryption Signcryption, privKey big.Int, senderPubKey Point) (*[]byte, error) {
+func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey common.Point) (*[]byte, error) {
 	xR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
@@ -205,7 +179,7 @@ func UnSignCrypt(signcryption Signcryption, privKey big.Int, senderPubKey Point)
 	return M, nil
 }
 
-func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryption, error) {
+func signcryptShare(nodePubKey common.Point, share big.Int, privKey big.Int) (*common.Signcryption, error) {
 	// Blinding
 	r := RandomBigInt()
 	rG := pt(s.ScalarBaseMult(r.Bytes()))
@@ -233,23 +207,23 @@ func signcryptShare(nodePubKey Point, share big.Int, privKey big.Int) (*Signcryp
 	s.Sub(&privKey, temp)
 	s.Mod(s, generatorOrder)
 
-	return &Signcryption{*ciphertext, rG, *s}, nil
+	return &common.Signcryption{*ciphertext, rG, *s}, nil
 }
 
-func batchSigncryptShare(nodeList []Point, shares []PrimaryShare, privKey big.Int) ([]*SigncryptedOutput, error) {
-	signcryptedShares := make([]*SigncryptedOutput, len(nodeList))
+func batchSigncryptShare(nodeList []common.Point, shares []common.PrimaryShare, privKey big.Int) ([]*common.SigncryptedOutput, error) {
+	signcryptedShares := make([]*common.SigncryptedOutput, len(nodeList))
 	for i := range nodeList {
 		temp, err := signcryptShare(nodeList[i], shares[i].Value, privKey)
 		if err != nil {
 			return nil, err
 		}
-		signcryptedShares[i] = &SigncryptedOutput{nodeList[i], shares[i].Index, *temp}
+		signcryptedShares[i] = &common.SigncryptedOutput{nodeList[i], shares[i].Index, *temp}
 	}
 	return signcryptedShares, nil
 }
 
 // use this instead of CreateAndPrepareShares
-func CreateShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) (*[]PrimaryShare, *[]Point, error) {
+func CreateShares(nodes []common.Point, secret big.Int, threshold int, privKey big.Int) (*[]common.PrimaryShare, *[]common.Point, error) {
 	n := len(nodes)
 
 	polynomial := *generateRandomPolynomial(secret, threshold)
@@ -264,7 +238,7 @@ func CreateShares(nodes []Point, secret big.Int, threshold int, privKey big.Int)
 }
 
 // deprecated: use CreateShares and let client handle signcryption. Client may need to add more information before signcrypting (eg. broadcast id)
-func CreateAndPrepareShares(nodes []Point, secret big.Int, threshold int, privKey big.Int) ([]*SigncryptedOutput, *[]Point, error) {
+func CreateAndPrepareShares(nodes []common.Point, secret big.Int, threshold int, privKey big.Int) ([]*common.SigncryptedOutput, *[]common.Point, error) {
 	n := len(nodes)
 
 	polynomial := *generateRandomPolynomial(secret, threshold)
@@ -284,7 +258,7 @@ func CreateAndPrepareShares(nodes []Point, secret big.Int, threshold int, privKe
 	return signcryptedShares, &pubPoly, nil
 }
 
-func UnsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePubKey Point) (*[]byte, error) {
+func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sendingNodePubKey common.Point) (*[]byte, error) {
 	xR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
@@ -314,7 +288,7 @@ func UnsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePub
 	return M, nil
 }
 
-// func lagrangeNormal(shares []PrimaryShare) *big.Int {
+// func lagrangeNormal(shares []common.PrimaryShare) *big.Int {
 // 	secret := new(big.Int)
 // 	for _, share := range shares {
 // 		//when x =0
@@ -340,7 +314,7 @@ func UnsigncryptShare(signcryption Signcryption, privKey big.Int, sendingNodePub
 // 	return secret
 // }
 
-func LagrangeElliptic(shares []PrimaryShare) *big.Int {
+func LagrangeElliptic(shares []common.PrimaryShare) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {
 		//when x =0

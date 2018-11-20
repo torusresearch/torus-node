@@ -56,7 +56,7 @@ var (
 	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	sqRoot         = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
 	G              = Point{X: *s.Gx, Y: *s.Gy}
-	H              = hashToPoint(G.X.Bytes())
+	H              = *hashToPoint(G.X.Bytes())
 	GeneratorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 )
 

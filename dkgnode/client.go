@@ -31,10 +31,6 @@ type NodeReference struct {
 	PublicKey  *ecdsa.PublicKey
 }
 
-type Person struct {
-	Name string `json:"name"`
-}
-
 type Message struct {
 	Message string `json:"message"`
 }
@@ -64,25 +60,6 @@ type SigncryptedMessage struct {
 type PubPolyProof struct {
 	EcdsaSignature   ECDSASignature
 	PointsBytesArray []byte
-}
-
-func setUpClient(nodeListStrings []string) {
-	// nodeListStruct make(NodeReference[], 0)
-	// for index, element := range nodeListStrings {
-	time.Sleep(1000 * time.Millisecond)
-	for {
-		rpcClient := jsonrpcclient.NewClient(nodeListStrings[0])
-
-		response, err := rpcClient.Call("Main.Echo", &Person{"John"})
-		if err != nil {
-			fmt.Println("couldnt connect")
-		}
-
-		fmt.Println("response: ", response)
-		fmt.Println(time.Now().UTC())
-		time.Sleep(1000 * time.Millisecond)
-	}
-	// }
 }
 
 func keyGenerationPhase(suite *Suite) (string, error) {

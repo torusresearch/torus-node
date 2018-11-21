@@ -4,12 +4,16 @@ import (
 	"math/big"
 
 	"github.com/YZhenY/torus/common"
-	"github.com/decred/dcrd/dcrec/secp256k1"
+	secp256k1 "github.com/btcsuite/btcd/btcec"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 )
 
+type KoblitzCurve struct {
+	*secp256k1.KoblitzCurve
+}
+
 var (
-	Curve          = secp256k1.S256()
+	Curve          = &KoblitzCurve{secp256k1.S256()}
 	FieldOrder     = common.HexToBigInt("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
 	GeneratorOrder = common.HexToBigInt("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)

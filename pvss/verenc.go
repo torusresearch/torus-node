@@ -18,13 +18,13 @@ type DLEQProof struct {
 
 func GenerateDLEQProof(G common.Point, H common.Point, x big.Int) (p *DLEQProof, xG common.Point, xH common.Point) {
 	// encrypt base points with x
-	xG = pt(s.ScalarBaseMult(x.Bytes()))
-	xH = pt(s.ScalarMult(&H.X, &H.Y, x.Bytes()))
+	xG = common.BigIntToPoint(s.ScalarBaseMult(x.Bytes()))
+	xH = common.BigIntToPoint(s.ScalarMult(&H.X, &H.Y, x.Bytes()))
 
 	// commitment
 	v := RandomBigInt()
-	vG := pt(s.ScalarBaseMult(v.Bytes()))
-	vH := pt(s.ScalarMult(&H.X, &H.Y, v.Bytes()))
+	vG := common.BigIntToPoint(s.ScalarBaseMult(v.Bytes()))
+	vH := common.BigIntToPoint(s.ScalarMult(&H.X, &H.Y, v.Bytes()))
 
 	// challenge: c = hash(xG, xH, vG, vH)
 	tempBytes := make([]byte, 0)
@@ -53,12 +53,12 @@ func GenerateDLEQProof(G common.Point, H common.Point, x big.Int) (p *DLEQProof,
 }
 
 func (p *DLEQProof) Verify(G common.Point, H common.Point, xG common.Point, xH common.Point) bool {
-	rG := pt(s.ScalarMult(&G.X, &G.Y, p.R.Bytes()))
-	rH := pt(s.ScalarMult(&H.X, &H.Y, p.R.Bytes()))
-	cxG := pt(s.ScalarMult(&xG.X, &xG.Y, p.C.Bytes()))
-	cxH := pt(s.ScalarMult(&xH.X, &xH.Y, p.C.Bytes()))
-	a := pt(s.Add(&rG.X, &rG.Y, &cxG.X, &cxG.Y))
-	b := pt(s.Add(&rH.X, &rH.Y, &cxH.X, &cxH.Y))
+	rG := common.BigIntToPoint(s.ScalarMult(&G.X, &G.Y, p.R.Bytes()))
+	rH := common.BigIntToPoint(s.ScalarMult(&H.X, &H.Y, p.R.Bytes()))
+	cxG := common.BigIntToPoint(s.ScalarMult(&xG.X, &xG.Y, p.C.Bytes()))
+	cxH := common.BigIntToPoint(s.ScalarMult(&xH.X, &xH.Y, p.C.Bytes()))
+	a := common.BigIntToPoint(s.Add(&rG.X, &rG.Y, &cxG.X, &cxG.Y))
+	b := common.BigIntToPoint(s.Add(&rH.X, &rH.Y, &cxH.X, &cxH.Y))
 	if !(p.VG.X.Cmp(&a.X) == 0 &&
 		p.VG.Y.Cmp(&a.Y) == 0 &&
 		p.VH.X.Cmp(&b.X) == 0 &&

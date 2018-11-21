@@ -20,7 +20,7 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 	privateKeys := make([]big.Int, number)
 	for i := 0; i < number; i++ {
 		pkey := RandomBigInt()
-		list.Nodes = append(list.Nodes, pt(s.ScalarBaseMult(pkey.Bytes())))
+		list.Nodes = append(list.Nodes, common.BigIntToPoint(s.ScalarBaseMult(pkey.Bytes())))
 		privateKeys[i] = *pkey
 	}
 	return list, privateKeys
@@ -80,11 +80,11 @@ func TestCommit(test *testing.T) {
 	index := big.NewInt(int64(10))
 
 	for i := 1; i < len(polyCommit); i++ {
-		tmp = pt(s.ScalarMult(&polyCommit[i].X, &polyCommit[i].Y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes()))
-		sum = pt(s.Add(&tmp.X, &tmp.Y, &sum.X, &sum.Y))
+		tmp = common.BigIntToPoint(s.ScalarMult(&polyCommit[i].X, &polyCommit[i].Y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes()))
+		sum = common.BigIntToPoint(s.Add(&tmp.X, &tmp.Y, &sum.X, &sum.Y))
 	}
 
-	final := pt(s.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
+	final := common.BigIntToPoint(s.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
 
 	assert.Equal(test, sum.X.Text(16), final.X.Text(16))
 	// sumx, sumy := s.Add(sumx, sumy, )
@@ -135,9 +135,9 @@ func TestAES(test *testing.T) {
 func TestSigncryption(test *testing.T) {
 	secretShare := RandomBigInt()
 	privKeySender := RandomBigInt()
-	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
+	pubKeySender := common.BigIntToPoint(s.ScalarBaseMult(privKeySender.Bytes()))
 	privKeyReceiver := RandomBigInt()
-	pubKeyReceiver := pt(s.ScalarBaseMult(privKeyReceiver.Bytes()))
+	pubKeyReceiver := common.BigIntToPoint(s.ScalarBaseMult(privKeyReceiver.Bytes()))
 	signcryption, err := signcryptShare(pubKeyReceiver, *secretShare, *privKeySender)
 	if err != nil {
 		fmt.Println(err)
@@ -165,7 +165,7 @@ func TestPVSS(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(20)
 	secret := RandomBigInt()
 	privKeySender := RandomBigInt()
-	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
+	pubKeySender := common.BigIntToPoint(s.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false
 	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 10, *privKeySender)
@@ -203,7 +203,7 @@ func TestLagrangeInterpolation(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(20)
 	secret := RandomBigInt()
 	privKeySender := RandomBigInt()
-	pubKeySender := pt(s.ScalarBaseMult(privKeySender.Bytes()))
+	pubKeySender := common.BigIntToPoint(s.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false
 	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 11, *privKeySender)
@@ -272,7 +272,7 @@ func TestPedersons(test *testing.T) {
 		r.Add(r, &secrets[i])
 	}
 	r.Mod(r, generatorOrder)
-	// rY := pt(s.ScalarBaseMult(r.Bytes()))
+	// rY := common.BigIntToPoint(s.ScalarBaseMult(r.Bytes()))
 
 	testr := LagrangeElliptic(allSi[:11])
 

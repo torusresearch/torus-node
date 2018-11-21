@@ -19,10 +19,6 @@ func fromHex(s string) *big.Int {
 	return r
 }
 
-func pt(x, y *big.Int) common.Point {
-	return common.Point{X: *x, Y: *y}
-}
-
 var (
 	s              = secp256k1.S256()
 	fieldOrder     = fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
@@ -101,7 +97,7 @@ func getShares(polynomial common.PrimaryPolynomial, n int) []common.PrimaryShare
 func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	commits := make([]common.Point, polynomial.Threshold)
 	for i := range commits {
-		commits[i] = pt(s.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
+		commits[i] = common.BigIntToPoint(s.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
 	}
 	// fmt.Println(commits[0].X.Text(16), commits[0].Y.Text(16), "commit0")
 	// fmt.Println(commits[1].X.Text(16), commits[1].Y.Text(16), "commit1")
@@ -121,8 +117,8 @@ func generateRandomPolynomial(secret big.Int, threshold int) *common.PrimaryPoly
 func Signcrypt(recipientPubKey common.Point, data []byte, privKey big.Int) (*common.Signcryption, error) {
 	// Blinding
 	r := RandomBigInt()
-	rG := pt(s.ScalarBaseMult(r.Bytes()))
-	rU := pt(s.ScalarMult(&recipientPubKey.X, &recipientPubKey.Y, r.Bytes()))
+	rG := common.BigIntToPoint(s.ScalarBaseMult(r.Bytes()))
+	rU := common.BigIntToPoint(s.ScalarMult(&recipientPubKey.X, &recipientPubKey.Y, r.Bytes()))
 
 	// encrypt with AES
 	ciphertext, err := AESencrypt(rU.X.Bytes(), data)
@@ -150,7 +146,7 @@ func Signcrypt(recipientPubKey common.Point, data []byte, privKey big.Int) (*com
 }
 
 func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey common.Point) (*[]byte, error) {
-	xR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
+	xR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
 		return nil, err
@@ -166,9 +162,9 @@ func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey
 	h.Mod(h, generatorOrder)
 
 	//Verify signcryption
-	sG := pt(s.ScalarBaseMult(signcryption.Signature.Bytes()))
-	hR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
-	testsenderPubKey := pt(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
+	sG := common.BigIntToPoint(s.ScalarBaseMult(signcryption.Signature.Bytes()))
+	hR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
+	testsenderPubKey := common.BigIntToPoint(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if senderPubKey.X.Cmp(&testsenderPubKey.X) != 0 {
 		fmt.Println(senderPubKey.X.Cmp(&testsenderPubKey.X))
 		fmt.Println(senderPubKey)
@@ -182,8 +178,8 @@ func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey
 func signcryptShare(nodePubKey common.Point, share big.Int, privKey big.Int) (*common.Signcryption, error) {
 	// Blinding
 	r := RandomBigInt()
-	rG := pt(s.ScalarBaseMult(r.Bytes()))
-	rU := pt(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
+	rG := common.BigIntToPoint(s.ScalarBaseMult(r.Bytes()))
+	rU := common.BigIntToPoint(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
 
 	// encrypt with AES
 	ciphertext, err := AESencrypt(rU.X.Bytes(), share.Bytes())
@@ -259,7 +255,7 @@ func CreateAndPrepareShares(nodes []common.Point, secret big.Int, threshold int,
 }
 
 func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sendingNodePubKey common.Point) (*[]byte, error) {
-	xR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
+	xR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
 		return nil, err
@@ -275,9 +271,9 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 	h.Mod(h, generatorOrder)
 
 	//Verify signcryption
-	sG := pt(s.ScalarBaseMult(signcryption.Signature.Bytes()))
-	hR := pt(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
-	testSendingNodePubKey := pt(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
+	sG := common.BigIntToPoint(s.ScalarBaseMult(signcryption.Signature.Bytes()))
+	hR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
+	testSendingNodePubKey := common.BigIntToPoint(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X) != 0 {
 		fmt.Println(sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X))
 		fmt.Println(sendingNodePubKey)

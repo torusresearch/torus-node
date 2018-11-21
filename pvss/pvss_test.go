@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/YZhenY/torus/common"
+	"github.com/YZhenY/torus/secp256k1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +21,7 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 	privateKeys := make([]big.Int, number)
 	for i := 0; i < number; i++ {
 		pkey := RandomBigInt()
-		list.Nodes = append(list.Nodes, common.BigIntToPoint(s.ScalarBaseMult(pkey.Bytes())))
+		list.Nodes = append(list.Nodes, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(pkey.Bytes())))
 		privateKeys[i] = *pkey
 	}
 	return list, privateKeys
@@ -32,8 +33,8 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 // }
 
 func TestHash(test *testing.T) {
-	res := hashToPoint([]byte("this is a random message"))
-	assert.True(test, s.IsOnCurve(&res.X, &res.Y))
+	res := secp256k1.HashToPoint([]byte("this is a random message"))
+	assert.True(test, secp256k1.Curve.IsOnCurve(&res.X, &res.Y))
 }
 
 func TestPolyEval(test *testing.T) {
@@ -63,11 +64,11 @@ func TestCommit(test *testing.T) {
 	// sumx := &polyCommit[0].X
 	// sumy := &polyCommit[0].Y
 
-	// tmpx, tmpy := s.ScalarMult(&polyCommit[1].X, &polyCommit[1].Y, ten.Bytes())
+	// tmpx, tmpy := secp256k1.Curve.ScalarMult(&polyCommit[1].X, &polyCommit[1].Y, ten.Bytes())
 
-	// sumx, _ = s.Add(sumx, sumy, tmpx, tmpy)
+	// sumx, _ = secp256k1.Curve.Add(sumx, sumy, tmpx, tmpy)
 
-	// gmul107x, _ := s.ScalarBaseMult(big.NewInt(107).Bytes())
+	// gmul107x, _ := secp256k1.Curve.ScalarBaseMult(big.NewInt(107).Bytes())
 	// assert.Equal(test, sumx.Text(16), gmul107x.Text(16))
 
 	secret := *RandomBigInt()
@@ -80,24 +81,24 @@ func TestCommit(test *testing.T) {
 	index := big.NewInt(int64(10))
 
 	for i := 1; i < len(polyCommit); i++ {
-		tmp = common.BigIntToPoint(s.ScalarMult(&polyCommit[i].X, &polyCommit[i].Y, new(big.Int).Exp(index, big.NewInt(int64(i)), generatorOrder).Bytes()))
-		sum = common.BigIntToPoint(s.Add(&tmp.X, &tmp.Y, &sum.X, &sum.Y))
+		tmp = common.BigIntToPoint(secp256k1.Curve.ScalarMult(&polyCommit[i].X, &polyCommit[i].Y, new(big.Int).Exp(index, big.NewInt(int64(i)), secp256k1.GeneratorOrder).Bytes()))
+		sum = common.BigIntToPoint(secp256k1.Curve.Add(&tmp.X, &tmp.Y, &sum.X, &sum.Y))
 	}
 
-	final := common.BigIntToPoint(s.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
+	final := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
 
 	assert.Equal(test, sum.X.Text(16), final.X.Text(16))
-	// sumx, sumy := s.Add(sumx, sumy, )
+	// sumx, sumy := secp256k1.Curve.Add(sumx, sumy, )
 
 	// secretx := polyCommit[0].X
 	// secrety := polyCommit[0].Y
 
 	// assert.Equal(test, big.NewInt(int64(10)).Text(10), "10")
 
-	// onex, oney := s.ScalarMult(&polyCommit[1].X, &polyCommit[1].Y, big.NewInt(int64(10)).Bytes())
+	// onex, oney := secp256k1.Curve.ScalarMult(&polyCommit[1].X, &polyCommit[1].Y, big.NewInt(int64(10)).Bytes())
 
-	// gshare10x, gshare10y := s.ScalarBaseMult(big.NewInt(int64(10)).Bytes())
-	// sumx, sumy := s.Add(onex, oney, &secretx, &secrety)
+	// gshare10x, gshare10y := secp256k1.Curve.ScalarBaseMult(big.NewInt(int64(10)).Bytes())
+	// sumx, sumy := secp256k1.Curve.Add(onex, oney, &secretx, &secrety)
 	// fmt.Println(sumx.Text(16), sumy.Text(16), gshare10x.Text(16), gshare10y.Text(16))
 
 	// five := big.NewInt(int64(5))
@@ -105,14 +106,14 @@ func TestCommit(test *testing.T) {
 	// 	committedPoint := polyCommit[i]
 	// 	// eg. when i = 1, 342G
 	// 	fivepowi := new(big.Int)
-	// 	fivepowi.Exp(five, big.NewInt(int64(i)), fieldOrder)
-	// 	tmpx, tmpy := s.ScalarMult(&committedPoint.X, &committedPoint.Y, fivepowi.Bytes())
-	// 	tmpx, tmpy = s.Add(&sumx, &sumy, tmpx, tmpy)
+	// 	fivepowi.Exp(five, big.NewInt(int64(i)), secp256k1.FieldOrder)
+	// 	tmpx, tmpy := secp256k1.Curve.ScalarMult(&committedPoint.X, &committedPoint.Y, fivepowi.Bytes())
+	// 	tmpx, tmpy = secp256k1.Curve.Add(&sumx, &sumy, tmpx, tmpy)
 	// 	sumx = *tmpx
 	// 	sumy = *tmpy
 	// }
 	// sum := common.Point{X: sumx, Y: sumy}
-	// gshare5x, gshare5y := s.ScalarBaseMult(share5.Bytes())
+	// gshare5x, gshare5y := secp256k1.Curve.ScalarBaseMult(share5.Bytes())
 	// gshare := common.Point{X: *gshare5x, Y: *gshare5y}
 	// assert.Equal(test, sum.X, gshare.X)
 	// assert.Equal(test, sum.Y, gshare.Y)
@@ -135,9 +136,9 @@ func TestAES(test *testing.T) {
 func TestSigncryption(test *testing.T) {
 	secretShare := RandomBigInt()
 	privKeySender := RandomBigInt()
-	pubKeySender := common.BigIntToPoint(s.ScalarBaseMult(privKeySender.Bytes()))
+	pubKeySender := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeySender.Bytes()))
 	privKeyReceiver := RandomBigInt()
-	pubKeyReceiver := common.BigIntToPoint(s.ScalarBaseMult(privKeyReceiver.Bytes()))
+	pubKeyReceiver := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeyReceiver.Bytes()))
 	signcryption, err := signcryptShare(pubKeyReceiver, *secretShare, *privKeySender)
 	if err != nil {
 		fmt.Println(err)
@@ -165,7 +166,7 @@ func TestPVSS(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(20)
 	secret := RandomBigInt()
 	privKeySender := RandomBigInt()
-	pubKeySender := common.BigIntToPoint(s.ScalarBaseMult(privKeySender.Bytes()))
+	pubKeySender := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false
 	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 10, *privKeySender)
@@ -203,7 +204,7 @@ func TestLagrangeInterpolation(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(20)
 	secret := RandomBigInt()
 	privKeySender := RandomBigInt()
-	pubKeySender := common.BigIntToPoint(s.ScalarBaseMult(privKeySender.Bytes()))
+	pubKeySender := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false
 	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 11, *privKeySender)
@@ -262,7 +263,7 @@ func TestPedersons(test *testing.T) {
 		for j := range nodeList.Nodes {
 			sum.Add(sum, &allDecryptedShares[i][j])
 		}
-		sum.Mod(sum, generatorOrder)
+		sum.Mod(sum, secp256k1.GeneratorOrder)
 		allSi[i] = common.PrimaryShare{i + 1, *sum}
 	}
 
@@ -271,8 +272,8 @@ func TestPedersons(test *testing.T) {
 	for i := range nodeList.Nodes {
 		r.Add(r, &secrets[i])
 	}
-	r.Mod(r, generatorOrder)
-	// rY := common.BigIntToPoint(s.ScalarBaseMult(r.Bytes()))
+	r.Mod(r, secp256k1.GeneratorOrder)
+	// rY := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(r.Bytes()))
 
 	testr := LagrangeElliptic(allSi[:11])
 

@@ -7,50 +7,11 @@ import (
 	"math/big"
 
 	"github.com/YZhenY/torus/common"
-	"github.com/decred/dcrd/dcrec/secp256k1"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/YZhenY/torus/secp256k1"
 )
-
-var (
-	s              = secp256k1.S256()
-	fieldOrder     = common.HexToBigInt("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
-	generatorOrder = common.HexToBigInt("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
-	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
-	sqRoot         = common.HexToBigInt("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
-	G              = common.Point{X: *s.Gx, Y: *s.Gy}
-	H              = *hashToPoint(G.X.Bytes())
-	GeneratorOrder = common.HexToBigInt("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
-)
-
-func Keccak256(data ...[]byte) []byte {
-	d := sha3.NewKeccak256()
-	for _, b := range data {
-		d.Write(b)
-	}
-	return d.Sum(nil)
-}
-
-func hashToPoint(data []byte) *common.Point {
-	keccakHash := Keccak256(data)
-	x := new(big.Int)
-	x.SetBytes(keccakHash)
-	for {
-		beta := new(big.Int)
-		beta.Exp(x, big.NewInt(3), fieldOrder)
-		beta.Add(beta, big.NewInt(7))
-		beta.Mod(beta, fieldOrder)
-		y := new(big.Int)
-		y.Exp(beta, sqRoot, fieldOrder)
-		if new(big.Int).Exp(y, big.NewInt(2), fieldOrder).Cmp(beta) == 0 {
-			return &common.Point{X: *x, Y: *y}
-		} else {
-			x.Add(x, big.NewInt(1))
-		}
-	}
-}
 
 func RandomBigInt() *big.Int {
-	randomInt, _ := rand.Int(rand.Reader, GeneratorOrder)
+	randomInt, _ := rand.Int(rand.Reader, secp256k1.GeneratorOrder)
 	return randomInt
 }
 
@@ -63,15 +24,15 @@ func polyEval(polynomial common.PrimaryPolynomial, x int) *big.Int { // get priv
 	// 	sum.Mul(sum, xi)
 	// 	sum.Add(sum, &polynomial.Coeff[i])
 	// }
-	// sum.Mod(sum, fieldOrder)
+	// sum.Mod(sum, secp256k1.FieldOrder)
 	sum.Add(sum, &polynomial.Coeff[0])
 
 	for i := 1; i < polynomial.Threshold; i++ {
 		tmp := new(big.Int).Mul(xi, &polynomial.Coeff[i])
 		sum.Add(sum, tmp)
-		sum.Mod(sum, generatorOrder)
+		sum.Mod(sum, secp256k1.GeneratorOrder)
 		xi.Mul(xi, big.NewInt(int64(x)))
-		xi.Mod(xi, generatorOrder)
+		xi.Mod(xi, secp256k1.GeneratorOrder)
 	}
 	return sum
 }
@@ -89,7 +50,7 @@ func getShares(polynomial common.PrimaryPolynomial, n int) []common.PrimaryShare
 func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	commits := make([]common.Point, polynomial.Threshold)
 	for i := range commits {
-		commits[i] = common.BigIntToPoint(s.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
+		commits[i] = common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
 	}
 	// fmt.Println(commits[0].X.Text(16), commits[0].Y.Text(16), "commit0")
 	// fmt.Println(commits[1].X.Text(16), commits[1].Y.Text(16), "commit1")
@@ -109,8 +70,8 @@ func generateRandomPolynomial(secret big.Int, threshold int) *common.PrimaryPoly
 func Signcrypt(recipientPubKey common.Point, data []byte, privKey big.Int) (*common.Signcryption, error) {
 	// Blinding
 	r := RandomBigInt()
-	rG := common.BigIntToPoint(s.ScalarBaseMult(r.Bytes()))
-	rU := common.BigIntToPoint(s.ScalarMult(&recipientPubKey.X, &recipientPubKey.Y, r.Bytes()))
+	rG := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(r.Bytes()))
+	rU := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&recipientPubKey.X, &recipientPubKey.Y, r.Bytes()))
 
 	// encrypt with AES
 	ciphertext, err := AESencrypt(rU.X.Bytes(), data)
@@ -122,23 +83,23 @@ func Signcrypt(recipientPubKey common.Point, data []byte, privKey big.Int) (*com
 	cb := data
 	cb = append(cb[:], rG.X.Bytes()...)
 
-	// hash h = H(M|r1)
-	hashed := Keccak256(cb)
+	// hash h = secp256k1.H(M|r1)
+	hashed := secp256k1.Keccak256(cb)
 	h := new(big.Int).SetBytes(hashed)
-	h.Mod(h, generatorOrder)
+	h.Mod(h, secp256k1.GeneratorOrder)
 
-	s := new(big.Int)
+	szecret := new(big.Int)
 	temp := new(big.Int)
 	temp.Mul(h, r)
-	temp.Mod(temp, generatorOrder)
-	s.Sub(&privKey, temp)
-	s.Mod(s, generatorOrder)
+	temp.Mod(temp, secp256k1.GeneratorOrder)
+	szecret.Sub(&privKey, temp)
+	szecret.Mod(szecret, secp256k1.GeneratorOrder)
 
-	return &common.Signcryption{*ciphertext, rG, *s}, nil
+	return &common.Signcryption{*ciphertext, rG, *szecret}, nil
 }
 
 func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey common.Point) (*[]byte, error) {
-	xR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
+	xR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
 		return nil, err
@@ -148,15 +109,15 @@ func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey
 	cb := []byte(*M)
 	cb = append(cb[:], signcryption.R.X.Bytes()...)
 
-	//hash h = H(M|r1)
-	hashed := Keccak256(cb)
+	//hash h = secp256k1.H(M|r1)
+	hashed := secp256k1.Keccak256(cb)
 	h := new(big.Int).SetBytes(hashed)
-	h.Mod(h, generatorOrder)
+	h.Mod(h, secp256k1.GeneratorOrder)
 
 	//Verify signcryption
-	sG := common.BigIntToPoint(s.ScalarBaseMult(signcryption.Signature.Bytes()))
-	hR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
-	testsenderPubKey := common.BigIntToPoint(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
+	sG := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(signcryption.Signature.Bytes()))
+	hR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
+	testsenderPubKey := common.BigIntToPoint(secp256k1.Curve.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if senderPubKey.X.Cmp(&testsenderPubKey.X) != 0 {
 		fmt.Println(senderPubKey.X.Cmp(&testsenderPubKey.X))
 		fmt.Println(senderPubKey)
@@ -170,8 +131,8 @@ func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey
 func signcryptShare(nodePubKey common.Point, share big.Int, privKey big.Int) (*common.Signcryption, error) {
 	// Blinding
 	r := RandomBigInt()
-	rG := common.BigIntToPoint(s.ScalarBaseMult(r.Bytes()))
-	rU := common.BigIntToPoint(s.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
+	rG := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(r.Bytes()))
+	rU := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&nodePubKey.X, &nodePubKey.Y, r.Bytes()))
 
 	// encrypt with AES
 	ciphertext, err := AESencrypt(rU.X.Bytes(), share.Bytes())
@@ -183,19 +144,19 @@ func signcryptShare(nodePubKey common.Point, share big.Int, privKey big.Int) (*c
 	cb := share.Bytes()
 	cb = append(cb[:], rG.X.Bytes()...)
 
-	// hash h = H(M|r1)
-	hashed := Keccak256(cb)
+	// hash h = secp256k1.H(M|r1)
+	hashed := secp256k1.Keccak256(cb)
 	h := new(big.Int).SetBytes(hashed)
-	h.Mod(h, generatorOrder)
+	h.Mod(h, secp256k1.GeneratorOrder)
 
-	s := new(big.Int)
+	szecret := new(big.Int)
 	temp := new(big.Int)
 	temp.Mul(h, r)
-	temp.Mod(temp, generatorOrder)
-	s.Sub(&privKey, temp)
-	s.Mod(s, generatorOrder)
+	temp.Mod(temp, secp256k1.GeneratorOrder)
+	szecret.Sub(&privKey, temp)
+	szecret.Mod(szecret, secp256k1.GeneratorOrder)
 
-	return &common.Signcryption{*ciphertext, rG, *s}, nil
+	return &common.Signcryption{*ciphertext, rG, *szecret}, nil
 }
 
 func batchSigncryptShare(nodeList []common.Point, shares []common.PrimaryShare, privKey big.Int) ([]*common.SigncryptedOutput, error) {
@@ -247,7 +208,7 @@ func CreateAndPrepareShares(nodes []common.Point, secret big.Int, threshold int,
 }
 
 func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sendingNodePubKey common.Point) (*[]byte, error) {
-	xR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
+	xR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, privKey.Bytes()))
 	M, err := AESdecrypt(xR.X.Bytes(), signcryption.Ciphertext)
 	if err != nil {
 		return nil, err
@@ -257,15 +218,15 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 	cb := []byte(*M)
 	cb = append(cb[:], signcryption.R.X.Bytes()...)
 
-	//hash h = H(M|r1)
-	hashed := Keccak256(cb)
+	//hash h = secp256k1.H(M|r1)
+	hashed := secp256k1.Keccak256(cb)
 	h := new(big.Int).SetBytes(hashed)
-	h.Mod(h, generatorOrder)
+	h.Mod(h, secp256k1.GeneratorOrder)
 
 	//Verify signcryption
-	sG := common.BigIntToPoint(s.ScalarBaseMult(signcryption.Signature.Bytes()))
-	hR := common.BigIntToPoint(s.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
-	testSendingNodePubKey := common.BigIntToPoint(s.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
+	sG := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(signcryption.Signature.Bytes()))
+	hR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
+	testSendingNodePubKey := common.BigIntToPoint(secp256k1.Curve.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X) != 0 {
 		fmt.Println(sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X))
 		fmt.Println(sendingNodePubKey)
@@ -298,7 +259,7 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 // 		delta.Mul(&share.Value, delta)
 // 		secret.Add(secret, delta)
 // 	}
-// 	// secret.Mod(secret, generatorOrder)
+// 	// secret.Mod(secret, secp256k1.GeneratorOrder)
 // 	return secret
 // }
 
@@ -312,29 +273,29 @@ func LagrangeElliptic(shares []common.PrimaryShare) *big.Int {
 		for j := range shares {
 			if shares[j].Index != share.Index {
 				upper.Mul(upper, new(big.Int).SetInt64(int64(shares[j].Index)))
-				upper.Mod(upper, generatorOrder)
+				upper.Mod(upper, secp256k1.GeneratorOrder)
 				upper.Neg(upper)
 
 				tempLower := new(big.Int).SetInt64(int64(share.Index))
 				tempLower.Sub(tempLower, new(big.Int).SetInt64(int64(shares[j].Index)))
-				tempLower.Mod(tempLower, generatorOrder)
+				tempLower.Mod(tempLower, secp256k1.GeneratorOrder)
 
 				lower.Mul(lower, tempLower)
-				lower.Mod(lower, generatorOrder)
+				lower.Mod(lower, secp256k1.GeneratorOrder)
 			}
 		}
 		//elliptic devision
 		inv := new(big.Int)
-		inv.ModInverse(lower, generatorOrder)
+		inv.ModInverse(lower, secp256k1.GeneratorOrder)
 		delta.Mul(upper, inv)
-		delta.Mod(delta, generatorOrder)
+		delta.Mod(delta, secp256k1.GeneratorOrder)
 
 		delta.Mul(&share.Value, delta)
-		delta.Mod(delta, generatorOrder)
+		delta.Mod(delta, secp256k1.GeneratorOrder)
 
 		secret.Add(secret, delta)
 	}
-	secret.Mod(secret, generatorOrder)
-	// secret.Mod(secret, generatorOrder)
+	secret.Mod(secret, secp256k1.GeneratorOrder)
+	// secret.Mod(secret, secp256k1.GeneratorOrder)
 	return secret
 }

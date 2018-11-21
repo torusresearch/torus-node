@@ -14,7 +14,7 @@ import (
 
 	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
-	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/YZhenY/torus/secp256k1"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
@@ -239,7 +239,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					}
 
 					// verify share against pubpoly
-					s := secp256k1.S256()
+					s := secp256k1.Curve
 					for index, pubpoly := range broadcastedDataArray {
 						var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))
 						var myNodeReference *NodeReference
@@ -252,7 +252,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						fmt.Println("nodeI ", nodeI)
 						for ind, pt := range pubpoly {
 							x_i := new(big.Int)
-							x_i.Exp(nodeI, big.NewInt(int64(ind)), pvss.GeneratorOrder)
+							x_i.Exp(nodeI, big.NewInt(int64(ind)), secp256k1.GeneratorOrder)
 							tempX, tempY := s.ScalarMult(&pt.X, &pt.Y, x_i.Bytes())
 							sumX, sumY = s.Add(sumX, sumY, tempX, tempY)
 						}
@@ -272,7 +272,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					for i := range unsigncryptedShares {
 						tempSi.Add(tempSi, unsigncryptedShares[i])
 					}
-					tempSi.Mod(tempSi, pvss.GeneratorOrder)
+					tempSi.Mod(tempSi, secp256k1.GeneratorOrder)
 					var nodeIndex int
 					for i := range unsigncryptedShares {
 						if nodeList[i].Address.Hex() == suite.EthSuite.NodeAddress.Hex() {

@@ -1,4 +1,4 @@
-package dkgnode
+package hbbft
 
 /*
 DEPRECATED
@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/YZhenY/torus/dkgnode"
 	"github.com/anthdm/hbbft"
 	"github.com/fatih/structs"
 	"github.com/intel-go/fastjson"
@@ -26,13 +27,13 @@ import (
 type NewTransport struct {
 	lock          sync.RWMutex
 	peers         map[uint64]*NewTransport
-	nodeReference *NodeReference
+	nodeReference *dkgnode.NodeReference
 	ConsumeCh     chan hbbft.RPC
 	addr          uint64
 }
 
 // NewNewTransport returns a new NewTransport.
-func NewNewTransport(addr uint64, nodeReference *NodeReference) *NewTransport {
+func NewNewTransport(addr uint64, nodeReference *dkgnode.NodeReference) *NewTransport {
 	return &NewTransport{
 		peers:         make(map[uint64]*NewTransport),
 		nodeReference: nodeReference,

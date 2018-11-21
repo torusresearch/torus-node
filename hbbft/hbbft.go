@@ -1,4 +1,4 @@
-package dkgnode
+package hbbft
 
 /*
 DEPRECATED
@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/YZhenY/torus/dkgnode"
 	"github.com/anthdm/hbbft"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
@@ -204,7 +205,7 @@ func makeNetwork(n int) []*Server {
 	for i := 0; i < n; i++ {
 		//edits ports here
 		rpcClient := jsonrpcclient.NewClient("http://localhost:" + strconv.FormatInt(int64(startingPort+i), 10) + "/jrpc")
-		tmpTransport := NewNewTransport(uint64(i), &NodeReference{JSONClient: rpcClient})
+		tmpTransport := NewNewTransport(uint64(i), &dkgnode.NodeReference{JSONClient: rpcClient})
 		transports[i] = tmpTransport
 		nodes[i] = newServer(uint64(i), transports[i], makeids(n))
 		go setUpHbbftServer(strconv.FormatInt(int64(startingPort+i), 10), nodes[i], nodes, tmpTransport)

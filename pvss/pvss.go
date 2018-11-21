@@ -11,23 +11,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 )
 
-func fromHex(s string) *big.Int {
-	r, ok := new(big.Int).SetString(s, 16)
-	if !ok {
-		panic("invalid hex in source file: " + s)
-	}
-	return r
-}
-
 var (
 	s              = secp256k1.S256()
-	fieldOrder     = fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
-	generatorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+	fieldOrder     = common.HexToBigInt("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
+	generatorOrder = common.HexToBigInt("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
-	sqRoot         = fromHex("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
+	sqRoot         = common.HexToBigInt("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")
 	G              = common.Point{X: *s.Gx, Y: *s.Gy}
 	H              = *hashToPoint(G.X.Bytes())
-	GeneratorOrder = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+	GeneratorOrder = common.HexToBigInt("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 )
 
 func Keccak256(data ...[]byte) []byte {

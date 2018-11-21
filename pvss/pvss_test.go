@@ -27,7 +27,7 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 }
 
 // func randomMedInt() *big.Int {
-// 	randomInt, _ := rand.Int(rand.Reader, fromHex("3fffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
+// 	randomInt, _ := rand.Int(rand.Reader, common.HexToBigInt("3fffffffffffffffffffffffffffffffffffffffffffbfffff0c"))
 // 	return randomInt
 // }
 

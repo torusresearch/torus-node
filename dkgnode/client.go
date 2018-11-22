@@ -69,23 +69,25 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	siMapping := make(map[int]common.PrimaryShare)
 	for {
 		// Fetch Node List from contract address
-		ethList, err := suite.EthSuite.NodeListInstance.ViewNodeList(nil)
+		ethList, err := suite.EthSuite.NodeListInstance.ViewNodes(nil)
 		if err != nil {
 			fmt.Println(err)
 		}
-		if len(ethList) > 0 {
+		if len(ethList.Nodes) > 0 {
 			fmt.Println("Connecting to other nodes ------------------")
 			// Build count of nodes connected to
 			triggerSecretSharing := 0
-			for i := range ethList {
+			for i := range ethList.Nodes {
 				// fmt.Println(ethList[i].Hex())
 
 				// Check if node is online
-				temp, err := connectToJSONRPCNode(suite, ethList[i])
+				temp, err := connectToJSONRPCNode(suite, ethList.Nodes[i])
 				if err != nil {
 					fmt.Println(err)
 				}
 				// fmt.Println("ERROR HERE", int(temp.Index.Int64()))
+				// TODO: we assume node indexes are consecutive, refactor to remove this assumption
+
 				if temp != nil {
 					if nodeList[int(temp.Index.Int64())-1] == nil {
 						nodeList[int(temp.Index.Int64())-1] = temp

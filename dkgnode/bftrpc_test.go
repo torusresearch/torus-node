@@ -2,11 +2,13 @@ package dkgnode
 
 import (
 	"math/big"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/YZhenY/torus/tmabci"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
 )
 
 type rlpTest struct {
@@ -38,6 +40,7 @@ func TestRLP(t *testing.T) {
 	err = rlp.DecodeBytes(byt, &receivedMsg)
 	// err = rlp.Decode(bytes.NewReader(byt), &receivedMsg)
 	t.Log(receivedMsg)
+	assert.True(t, reflect.DeepEqual(testMessage, receivedMsg))
 }
 
 //Needs tendermint node running on 26657

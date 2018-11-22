@@ -16,6 +16,7 @@ import (
 	"github.com/YZhenY/torus/secp256k1"
 	"github.com/YZhenY/torus/tmabci"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
@@ -56,9 +57,10 @@ type SigncryptedMessage struct {
 	ShareIndex  int    `json:"shareindex"`
 }
 
-type PubPolyProof struct {
-	EcdsaSignature   ECDSASignature
-	PointsBytesArray []byte
+type PubPolyBFTTx struct {
+	PubPoly    []common.Point
+	Epoch      uint
+	ShareIndex uint
 }
 
 func keyGenerationPhase(suite *Suite) (string, error) {
@@ -129,7 +131,17 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// commit pubpoly by signing it and broadcasting it
 
 					// sign hash of pubpoly by converting array of points to bytes array
-					arrBytes := PointsArrayToBytesArray(pubpoly)
+					// arrBytes := PointsArrayToBytesArray(pubpoly)
+					//TODO: Make epoch variable
+					pubPolyTx := PubPolyBFTTx{
+						*pubpoly,
+						uint(0),
+						uint(shareIndex),
+					}
+					rlpEncodedTx, err := rlp.EncodeToBytes(pubPolyTx)
+					if err != nil {
+						fmt.Println(err)
+					}
 
 					//Commented out ECDSA Verification for now. Need to check out tm signing on chain
 					// ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
@@ -143,7 +155,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// }
 
 					// broadcast signed pubpoly
-					id, err := bftRPC.Broadcast(arrBytes)
+					id, err := bftRPC.Broadcast(rlpEncodedTx)
 					if err != nil {
 						fmt.Println("Can't broadcast signed pubpoly")
 						fmt.Println(err)
@@ -204,12 +216,19 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						}
 					}
 					// Retrieve previously broadcasted signed pubpoly data
-					broadcastedDataArray := make([][]*common.Point, len(broadcastIdArray))
+					broadcastedDataArray := make([][]common.Point, len(broadcastIdArray))
 					for index, broadcastId := range broadcastIdArray {
 						fmt.Println("BROADCASTID WAS: ", broadcastId)
-						jsonData, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
+						rlpData, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
 						if err != nil {
 							fmt.Println("Could not retrieve broadcast")
+							fmt.Println(err)
+							continue
+						}
+
+						pubPolyTx := &PubPolyBFTTx{}
+						if err := rlp.DecodeBytes(rlpData, &pubPolyTx); err != nil {
+							fmt.Println("Could not decode rlp data")
 							fmt.Println(err)
 							continue
 						}
@@ -237,11 +256,13 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						// } else {
 						// 	fmt.Println("Signature of pubpoly verified")
 						// }
-						broadcastedDataArray[index] = BytesArrayToPointsArray(jsonData)
+
+						//TODO: Check epoch number and share index against tx received
+						broadcastedDataArray[index] = pubPolyTx.PubPoly
 					}
 
 					// verify share against pubpoly
-					//TODO: i think this could be in pvss.go
+					//TODO: shift to function in pvss.go
 					s := secp256k1.Curve
 					for index, pubpoly := range broadcastedDataArray {
 						var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))

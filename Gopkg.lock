@@ -82,14 +82,6 @@
   version = "v1.7.1"
 
 [[projects]]
-  digest = "1:fa81ed068dcd083c7b514b25d86ffe0cd6aaf741cf894e9b2201cff08e1e7267"
-  name = "github.com/decred/dcrd"
-  packages = ["dcrec/secp256k1"]
-  pruneopts = "UT"
-  revision = "fd99f572cfd52ca722ad501ccb34acdcb22b4a67"
-  version = "v1.2.0"
-
-[[projects]]
   digest = "1:c7644c73a3d23741fdba8a99b1464e021a224b7e205be497271a8003a15ca41b"
   name = "github.com/ebuchman/fail-test"
   packages = ["."]
@@ -521,6 +513,18 @@
   version = "v0.12.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:cc84ef00f00d3d7dca228d9498f44c0d000d329be75ae39d81e7d9bef6422d4f"
+  name = "github.com/xlab-si/emmy"
+  packages = [
+    "crypto/common",
+    "crypto/qr",
+    "crypto/schnorr",
+  ]
+  pruneopts = "UT"
+  revision = "317e5dbb5aad85ad3742ab647b5bdcf45cff3827"
+
+[[projects]]
   digest = "1:564b31f09a21367ada5b019d8413afe99cf770775606f94c7bef42b2ef79dfdf"
   name = "github.com/ybbus/jsonrpc"
   packages = ["."]
@@ -665,7 +669,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/anthdm/hbbft",
-    "github.com/decred/dcrd/dcrec/secp256k1",
+    "github.com/btcsuite/btcd/btcec",
     "github.com/ethereum/go-ethereum",
     "github.com/ethereum/go-ethereum/accounts/abi",
     "github.com/ethereum/go-ethereum/accounts/abi/bind",
@@ -694,6 +698,8 @@
     "github.com/tendermint/tendermint/libs/log",
     "github.com/tendermint/tendermint/rpc/client",
     "github.com/tendermint/tendermint/version",
+    "github.com/xlab-si/emmy/crypto/common",
+    "github.com/xlab-si/emmy/crypto/qr",
     "github.com/ybbus/jsonrpc",
   ]
   solver-name = "gps-cdcl"

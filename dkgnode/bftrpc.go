@@ -10,7 +10,10 @@ import (
 )
 
 type BFTTx interface {
+	//Create byte type and append RLP encoded tx
 	PrepareBFTTx() ([]byte, error)
+	//Decode byte type and RLP into struct
+	DecodeBFTTx([]byte) error
 }
 
 type BftRPC struct {
@@ -23,7 +26,6 @@ type PubPolyBFTTx struct {
 	ShareIndex uint
 }
 
-//Create byte type and append RLP encoded tx
 func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
 	//type byte
 	txType := make([]byte, 1)
@@ -35,6 +37,14 @@ func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
 	}
 	preparedMsg := append(txType[:], data[:]...)
 	return preparedMsg, nil
+}
+
+func (tx *PubPolyBFTTx) DecodeBFTTx(data []byte) error {
+	err := rlp.DecodeBytes(data[1:], tx)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //BroadcastTxSync Wrapper (input should be RLP encoded) to tendermint.
@@ -61,6 +71,27 @@ func (bftrpc BftRPC) Broadcast(tx BFTTx) (*common.Hash, error) {
 	}
 
 	return &common.Hash{response.Hash.Bytes()}, nil
+}
+
+//Retrieves tx from the bft and gives back results. Takes off the donut
+//TODO: this might be a tad redundent a function, to just use innate tendermint functions?
+func (bftrpc BftRPC) Retrieve(hash []byte, txStruct BFTTx) (err error) {
+	// fmt.Println("WE ARE RETRIEVING")
+	result, err := bftrpc.Tx(hash, false)
+	if err != nil {
+		return err
+	}
+	fmt.Println("WE ARE RETRIEVING", result)
+	if result.TxResult.Code != 0 {
+		fmt.Println("Transaction not accepted", result.TxResult.Code)
+	}
+
+	err = (txStruct).DecodeBFTTx(result.Tx[len([]byte("mug00")):])
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewBftRPC(uri string) *BftRPC {
@@ -128,19 +159,3 @@ func NewBftRPC(uri string) *BftRPC {
 // 	}
 // 	return obj.Id, nil
 // }
-
-//Retrieves tx from the bft and gives back results. Takes off the donut
-//TODO: this might be a tad redundent a function, to just use innate tendermint functions?
-func (bftrpc BftRPC) Retrieve(hash []byte) (data []byte, err error) {
-	// fmt.Println("WE ARE RETRIEVING")
-	result, err := bftrpc.Tx(hash, false)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("WE ARE RETRIEVING", result)
-	if result.TxResult.Code != 0 {
-		fmt.Println("Transaction not accepted", result.TxResult.Code)
-	}
-
-	return result.Tx[len([]byte("mug00")):], nil
-}

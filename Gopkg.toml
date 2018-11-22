@@ -24,11 +24,6 @@
 #   go-tests = true
 #   unused-packages = true
 
-
-[[constraint]]
-  name = "github.com/decred/dcrd"
-  version = "1.2.0"
-
 [[constraint]]
   name = "github.com/ethereum/go-ethereum"
   version = "1.8.17"

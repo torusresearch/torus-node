@@ -16,7 +16,6 @@ import (
 	"github.com/YZhenY/torus/secp256k1"
 	"github.com/YZhenY/torus/tmabci"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
@@ -145,7 +144,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// }
 
 					// broadcast signed pubpoly
-					id, err := bftRPC.Broadcast(pubPolyTx)
+					id, err := bftRPC.Broadcast(&pubPolyTx)
 					if err != nil {
 						fmt.Println("Can't broadcast signed pubpoly")
 						fmt.Println(err)
@@ -209,16 +208,11 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					broadcastedDataArray := make([][]common.Point, len(broadcastIdArray))
 					for index, broadcastId := range broadcastIdArray {
 						fmt.Println("BROADCASTID WAS: ", broadcastId)
-						rlpData, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
+
+						pubPolyTx := PubPolyBFTTx{}
+						err := bftRPC.Retrieve(broadcastId, &pubPolyTx) // TODO: use a goroutine to run this concurrently
 						if err != nil {
 							fmt.Println("Could not retrieve broadcast")
-							fmt.Println(err)
-							continue
-						}
-
-						pubPolyTx := &PubPolyBFTTx{}
-						if err := rlp.DecodeBytes(rlpData, &pubPolyTx); err != nil {
-							fmt.Println("Could not decode rlp data")
 							fmt.Println(err)
 							continue
 						}

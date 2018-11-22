@@ -40,10 +40,10 @@ func polyEval(polynomial common.PrimaryPolynomial, x big.Int) *big.Int { // get 
 	return sum
 }
 
-func getShares(polynomial common.PrimaryPolynomial, n int) []common.PrimaryShare { // TODO: should we assume that it's always evaluated from 1 to N?
-	shares := make([]common.PrimaryShare, n)
-	for i := range shares {
-		shares[i] = common.PrimaryShare{Index: i + 1, Value: *polyEval(polynomial, *big.NewInt(int64(i + 1)))}
+func getShares(polynomial common.PrimaryPolynomial, nodes []common.Node) []common.PrimaryShare { // TODO: should we assume that it's always evaluated from 1 to N?
+	shares := make([]common.PrimaryShare, len(nodes))
+	for i, node := range nodes {
+		shares[i] = common.PrimaryShare{Index: node.Index, Value: *polyEval(polynomial, node.Index)}
 	}
 	return shares
 }
@@ -175,13 +175,17 @@ func batchSigncryptShare(nodeList []common.Point, shares []common.PrimaryShare, 
 }
 
 // use this instead of CreateAndPrepareShares
-func CreateShares(nodes []common.Point, secret big.Int, threshold int) (*[]common.PrimaryShare, *[]common.Point, error) {
-	n := len(nodes)
+func CreateShares(nodePubKeys []common.Point, secret big.Int, threshold int) (*[]common.PrimaryShare, *[]common.Point, error) {
 
 	polynomial := *generateRandomZeroPolynomial(secret, threshold)
 
 	// determine shares for polynomial with respect to basis point
-	shares := getShares(polynomial, n)
+	// TODO: IMPT
+	nodes := make([]common.Node, len(nodePubKeys))
+	for i, nodePubKey := range nodePubKeys {
+		nodes[i] = common.Node{*big.NewInt(int64(i + 1)), nodePubKey}
+	}
+	shares := getShares(polynomial, nodes)
 
 	// committing to polynomial
 	pubPoly := getCommit(polynomial)
@@ -190,19 +194,22 @@ func CreateShares(nodes []common.Point, secret big.Int, threshold int) (*[]commo
 }
 
 // deprecated: use CreateShares and let client handle signcryption. Client may need to add more information before signcrypting (eg. broadcast id)
-func CreateAndPrepareShares(nodes []common.Point, secret big.Int, threshold int, privKey big.Int) ([]*common.SigncryptedOutput, *[]common.Point, error) {
-	n := len(nodes)
+func CreateAndPrepareShares(nodePubKeys []common.Point, secret big.Int, threshold int, privKey big.Int) ([]*common.SigncryptedOutput, *[]common.Point, error) {
 
 	polynomial := *generateRandomZeroPolynomial(secret, threshold)
 
 	// determine shares for polynomial with respect to basis point
-	shares := getShares(polynomial, n)
+	nodes := make([]common.Node, len(nodePubKeys))
+	for i, nodePubKey := range nodePubKeys {
+		nodes[i] = common.Node{*big.NewInt(int64(i + 1)), nodePubKey}
+	}
+	shares := getShares(polynomial, nodes)
 
 	// committing to polynomial
 	pubPoly := getCommit(polynomial)
 
 	// signcrypt shares
-	signcryptedShares, err := batchSigncryptShare(nodes, shares, privKey)
+	signcryptedShares, err := batchSigncryptShare(nodePubKeys, shares, privKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -274,13 +281,13 @@ func LagrangeScalar(shares []common.PrimaryShare) *big.Int {
 		upper := new(big.Int).SetInt64(int64(1))
 		lower := new(big.Int).SetInt64(int64(1))
 		for j := range shares {
-			if shares[j].Index != share.Index {
-				upper.Mul(upper, new(big.Int).SetInt64(int64(shares[j].Index)))
+			if shares[j].Index.Cmp(&share.Index) != 0 {
+				upper.Mul(upper, &shares[j].Index)
 				upper.Mod(upper, secp256k1.GeneratorOrder)
 				upper.Neg(upper)
 
-				tempLower := new(big.Int).SetInt64(int64(share.Index))
-				tempLower.Sub(tempLower, new(big.Int).SetInt64(int64(shares[j].Index)))
+				tempLower := new(big.Int).SetBytes(share.Index.Bytes())
+				tempLower.Sub(tempLower, &shares[j].Index)
 				tempLower.Mod(tempLower, secp256k1.GeneratorOrder)
 
 				lower.Mul(lower, tempLower)

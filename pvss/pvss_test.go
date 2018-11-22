@@ -219,7 +219,7 @@ func TestLagrangeInterpolation(test *testing.T) {
 			fmt.Println(err)
 			errorsExist = true
 		}
-		decryptedShares[i] = common.PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
+		decryptedShares[i] = common.PrimaryShare{*big.NewInt(int64(i + 1)), *new(big.Int).SetBytes(*share)}
 	}
 	lagrange := LagrangeScalar(decryptedShares)
 
@@ -264,7 +264,7 @@ func TestPedersons(test *testing.T) {
 			sum.Add(sum, &allDecryptedShares[i][j])
 		}
 		sum.Mod(sum, secp256k1.GeneratorOrder)
-		allSi[i] = common.PrimaryShare{i + 1, *sum}
+		allSi[i] = common.PrimaryShare{*big.NewInt(int64(i + 1)), *sum}
 	}
 
 	//form r (and other components) to test

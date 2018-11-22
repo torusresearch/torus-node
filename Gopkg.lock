@@ -162,12 +162,12 @@
   version = "v0.6.0"
 
 [[projects]]
-  digest = "1:31a18dae27a29aa074515e43a443abfd2ba6deb6d69309d8d7ce789c45f34659"
+  digest = "1:4062bc6de62d73e2be342243cf138cf499b34d558876db8d9430e2149388a4d8"
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
-  version = "v0.3.0"
+  revision = "07c9b44f60d7ffdfb7d8efe1ad539965737836dc"
+  version = "v0.4.0"
 
 [[projects]]
   digest = "1:586ea76dbd0374d6fb649a91d70d652b7fe0ccffb8910a77468e7702e7901f3d"
@@ -513,6 +513,65 @@
   version = "v0.12.0"
 
 [[projects]]
+  digest = "1:ad2b545160ed69c8c4886903eb33d65b02fc47b690b0550c5f701d09c3db9557"
+  name = "github.com/tendermint/tendermint"
+  packages = [
+    "abci/client",
+    "abci/example/code",
+    "abci/example/kvstore",
+    "abci/server",
+    "abci/types",
+    "blockchain",
+    "config",
+    "consensus",
+    "consensus/types",
+    "crypto",
+    "crypto/ed25519",
+    "crypto/encoding/amino",
+    "crypto/merkle",
+    "crypto/multisig",
+    "crypto/multisig/bitarray",
+    "crypto/secp256k1",
+    "crypto/tmhash",
+    "evidence",
+    "libs/autofile",
+    "libs/clist",
+    "libs/common",
+    "libs/db",
+    "libs/errors",
+    "libs/events",
+    "libs/flowrate",
+    "libs/log",
+    "libs/pubsub",
+    "libs/pubsub/query",
+    "mempool",
+    "node",
+    "p2p",
+    "p2p/conn",
+    "p2p/pex",
+    "privval",
+    "proxy",
+    "rpc/client",
+    "rpc/core",
+    "rpc/core/types",
+    "rpc/grpc",
+    "rpc/lib",
+    "rpc/lib/client",
+    "rpc/lib/server",
+    "rpc/lib/types",
+    "state",
+    "state/txindex",
+    "state/txindex/kv",
+    "state/txindex/null",
+    "types",
+    "types/time",
+    "version",
+  ]
+  pruneopts = "UT"
+  revision = "0c9c3292c918617624f6f3fbcd95eceade18bcd5"
+  version = "v0.25.0"
+
+[[projects]]
   branch = "master"
   digest = "1:cc84ef00f00d3d7dca228d9498f44c0d000d329be75ae39d81e7d9bef6422d4f"
   name = "github.com/xlab-si/emmy"
@@ -522,7 +581,7 @@
     "crypto/schnorr",
   ]
   pruneopts = "UT"
-  revision = "317e5dbb5aad85ad3742ab647b5bdcf45cff3827"
+  revision = "9bb30b7507260a3a5c878e4ce51eda8ca653a459"
 
 [[projects]]
   digest = "1:564b31f09a21367ada5b019d8413afe99cf770775606f94c7bef42b2ef79dfdf"
@@ -581,7 +640,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "0cf1ed9e522b7dbb416f080a5c8003de9b702bf4"
+  revision = "62eef0e2fa9b2c385f7b2778e763486da6880d37"
 
 [[projects]]
   digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"

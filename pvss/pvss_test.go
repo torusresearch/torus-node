@@ -13,7 +13,7 @@ import (
 )
 
 type nodeList struct {
-	Nodes []common.Point
+	Nodes []common.Node
 }
 
 func createRandomNodes(number int) (*nodeList, []big.Int) {
@@ -21,7 +21,10 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 	privateKeys := make([]big.Int, number)
 	for i := 0; i < number; i++ {
 		pkey := RandomBigInt()
-		list.Nodes = append(list.Nodes, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(pkey.Bytes())))
+		list.Nodes = append(list.Nodes, common.Node{
+			i + 1,
+			common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(pkey.Bytes())),
+		})
 		privateKeys[i] = *pkey
 	}
 	return list, privateKeys
@@ -72,7 +75,7 @@ func TestCommit(test *testing.T) {
 	// assert.Equal(test, sumx.Text(16), gmul107x.Text(16))
 
 	secret := *RandomBigInt()
-	polynomial := *generateRandomPolynomial(secret, 11)
+	polynomial := *generateRandomZeroPolynomial(secret, 11)
 	polyCommit := getCommit(polynomial)
 
 	sum := common.Point{X: polyCommit[0].X, Y: polyCommit[0].Y}
@@ -221,7 +224,7 @@ func TestLagrangeInterpolation(test *testing.T) {
 		}
 		decryptedShares[i] = common.PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
 	}
-	lagrange := LagrangeElliptic(decryptedShares)
+	lagrange := LagrangeScalar(decryptedShares)
 
 	assert.True(test, secret.Cmp(lagrange) == 0)
 	assert.False(test, errorsExist)
@@ -246,7 +249,7 @@ func TestPedersons(test *testing.T) {
 	for i := range nodeList.Nodes {
 		arrDecryptShares := make([]big.Int, len(nodeList.Nodes))
 		for j := range nodeList.Nodes {
-			decryptedShare, err := UnsigncryptShare(allSigncryptedShares[j][i].SigncryptedShare, privateKeys[i], nodeList.Nodes[j])
+			decryptedShare, err := UnsigncryptShare(allSigncryptedShares[j][i].SigncryptedShare, privateKeys[i], nodeList.Nodes[j].PubKey)
 			temp := new(big.Int).SetBytes(*decryptedShare)
 			if err != nil {
 				fmt.Println(err)
@@ -275,7 +278,7 @@ func TestPedersons(test *testing.T) {
 	r.Mod(r, secp256k1.GeneratorOrder)
 	// rY := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(r.Bytes()))
 
-	testr := LagrangeElliptic(allSi[:11])
+	testr := LagrangeScalar(allSi[:11])
 
 	assert.True(test, testr.Cmp(r) == 0)
 	assert.False(test, errorsExist)

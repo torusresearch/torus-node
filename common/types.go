@@ -36,3 +36,8 @@ type Point struct {
 type Hash struct {
 	cmn.HexBytes
 }
+
+type Node struct {
+	Index  int
+	PubKey Point
+}

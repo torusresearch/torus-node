@@ -89,14 +89,14 @@ func main() {
 		fmt.Println(err)
 	}
 
-	list, err := nodeListInstance.ViewNodeList(nil)
+	list, err := nodeListInstance.ViewNodes(nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	nodeList := make([]*NodeReference, len(list))
-	for i := range list {
-		nodeList[i], err = connectToJSONRPCNode(nodeListInstance, list[i])
+	nodeList := make([]*NodeReference, len(list.Nodes))
+	for i := range list.Nodes {
+		nodeList[i], err = connectToJSONRPCNode(nodeListInstance, list.Nodes[i])
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -131,52 +131,52 @@ func main() {
 		temppp := make([]common.PrimaryShare, 1)
 		temppp[0] = shareList[0]
 		equal := true
-		final := pvss.LagrangeElliptic(append(append(temppp, shareList[1]), shareList[2])) // nodes: 0, 1, 2
+		final := pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[2])) // nodes: 0, 1, 2
 		// fmt.Println("123: ", final.Text(16))
 		testFinal := final
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[1]), shareList[3])) // nodes: 0, 1, 3
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[3])) // nodes: 0, 1, 3
 		// fmt.Println("124: ", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[1]), shareList[4])) // nodes: 0, 1, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[4])) // nodes: 0, 1, 4
 		// fmt.Println("125", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[3])) // nodes: 0, 2, 3
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3])) // nodes: 0, 2, 3
 		// fmt.Println("134", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[4])) // nodes: 0, 2, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4])) // nodes: 0, 2, 4
 		// fmt.Println("135", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[3]), shareList[4])) // nodes: 0, 3, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4])) // nodes: 0, 3, 4
 		// fmt.Println("145", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		temppp[0] = shareList[1]
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[3])) // nodes: 1, 2, 3
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3])) // nodes: 1, 2, 3
 		// fmt.Println("234", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[2]), shareList[4])) // nodes: 1, 2, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4])) // nodes: 1, 2, 4
 		// fmt.Println("235", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[3]), shareList[4])) // nodes: 1, 3, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4])) // nodes: 1, 3, 4
 		// fmt.Println("245", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		temppp[0] = shareList[2]
-		final = pvss.LagrangeElliptic(append(append(temppp, shareList[3]), shareList[4])) // nodes: 2, 3, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4])) // nodes: 2, 3, 4
 		fmt.Println("345", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false

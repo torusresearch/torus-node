@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 contract NodeList {
   event NodeListed(address publicKey, uint256 position);
@@ -17,20 +17,23 @@ contract NodeList {
   }
 
 
-  function viewNodeList() external view  returns (address[]) {
-    return nodeList;
+  function viewNodes() external view  returns (address[] memory nodes, uint256[] memory positions) {
+    for (uint256 i = 0; i < nodeList.length; i++) {
+      positions[i] = nodeDetails[nodeList[i]].position;
+    }
+    return (nodeList, positions);
   }
 
   function viewNodeListCount() external view  returns (uint256) {
     return nodeList.length;
   }
 
-  function viewNodeDetails(address node) external view  returns (string declaredIp, uint256 position) {
+  function viewNodeDetails(address node) external view  returns (string memory declaredIp, uint256 position) {
     declaredIp = nodeDetails[node].declaredIp;
     position = nodeDetails[node].position;
   }
 
-  function listNode(string declaredIp, uint256 pubKx, uint256 pubKy) external {
+  function listNode(string calldata declaredIp, uint256 pubKx, uint256 pubKy) external {
     nodeList.push(msg.sender);
     nodeDetails[msg.sender] = Details({declaredIp: declaredIp, position: nodeList.length, pubKx: pubKx, pubKy: pubKy});
     emit NodeListed(msg.sender, nodeList.length);

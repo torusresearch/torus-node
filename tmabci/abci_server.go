@@ -9,7 +9,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 )
 
-func RunBft() error {
+func RunABCIServer() error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 
 	// Create the application - in memory or persisted to disk

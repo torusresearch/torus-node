@@ -140,7 +140,7 @@ type BlockChain struct {
 func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool) (*BlockChain, error) {
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
-			TrieNodeLimit: 256 * 1024 * 1024,
+			TrieNodeLimit: 256,
 			TrieTimeLimit: 5 * time.Minute,
 		}
 	}
@@ -1002,7 +1002,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 		}
 		// Write the positional metadata for transaction/receipt lookups and preimages
 		rawdb.WriteTxLookupEntries(batch, block)
-		rawdb.WritePreimages(batch, block.NumberU64(), state.Preimages())
+		rawdb.WritePreimages(batch, state.Preimages())
 
 		status = CanonStatTy
 	} else {

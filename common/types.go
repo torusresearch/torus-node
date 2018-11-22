@@ -1,6 +1,10 @@
 package common
 
-import "math/big"
+import (
+	"math/big"
+
+	cmn "github.com/tendermint/tendermint/libs/common"
+)
 
 type SigncryptedOutput struct {
 	NodePubKey       Point
@@ -27,4 +31,8 @@ type PrimaryShare struct {
 type Point struct {
 	X big.Int
 	Y big.Int
+}
+
+type Hash struct {
+	cmn.HexBytes
 }

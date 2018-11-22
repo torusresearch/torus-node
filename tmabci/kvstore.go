@@ -18,6 +18,10 @@ var (
 	ProtocolVersion version.Protocol = 0x1
 )
 
+type Message struct {
+	Message string
+}
+
 type State struct {
 	db      dbm.DB
 	Size    int64  `json:"size"`
@@ -81,20 +85,23 @@ func (app *KVStoreApplication) Info(req types.RequestInfo) (resInfo types.Respon
 // tx is either "key=value" or just arbitrary bytes
 func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
-	fmt.Println("we are delivering tx")
-	fmt.Println(tx)
-	var p ABCITransaction
-	if err := json.Unmarshal(tx, &p); err != nil {
-		fmt.Println("transaction parse error", err)
-		// return types.ResponseDeliverTx{Code: code.CodeTypeEncodingError}
-	}
-	switch p.Type {
-	case "publicpoly":
-		fmt.Println("this is a public polyyyyyy")
-	}
+	fmt.Println("DELIVERINGTX", tx)
 
-	/*
-	 */
+	// var p Message
+	// if err := rlp.DecodeBytes(tx, p); err != nil {
+	// 	fmt.Println("ERROR DECODING RLP")
+	// }
+	// var p ABCITransaction
+	// if err := json.Unmarshal(tx, &p); err != nil {
+	// 	fmt.Println("transaction parse error", err)
+	// 	// return types.ResponseDeliverTx{Code: code.CodeTypeEncodingError}
+	// }
+
+	// switch p.Type {
+	// case "publicpoly":
+	// 	fmt.Println("this is a public polyyyyyy")
+	// }
+
 	// var key, value []byte
 	// parts := bytes.Split(tx, []byte("="))
 	// if len(parts) == 2 {

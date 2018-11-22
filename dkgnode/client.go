@@ -2,7 +2,6 @@ package dkgnode
 
 /* All useful imports */
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -15,14 +14,15 @@ import (
 	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
 	"github.com/YZhenY/torus/secp256k1"
+	"github.com/YZhenY/torus/tmabci"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
 // TODO: pass in as config
-const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
-const BftURI = "http://localhost:7053/jrpc"
+const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
+const BftURI = "tcp://localhost:26657"
 
 type NodeReference struct {
 	Address    *ethCommon.Address
@@ -57,13 +57,13 @@ type SigncryptedMessage struct {
 	ShareIndex  int    `json:"shareindex"`
 }
 
-type PubPolyProof struct {
-	EcdsaSignature   ECDSASignature
-	PointsBytesArray []byte
-}
-
 func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
+	//for testing purposes
+	if suite.Config.MyPort == "8001" {
+		go tmabci.RunABCIServer()
+	}
+	//TODO: add bftRPC to suite, should be in dkgnode.go
 	bftRPC := NewBftRPC(BftURI)
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	siMapping := make(map[int]common.PrimaryShare)
@@ -125,20 +125,27 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// commit pubpoly by signing it and broadcasting it
 
 					// sign hash of pubpoly by converting array of points to bytes array
-					arrBytes := PointsArrayToBytesArray(pubpoly)
-					ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
-
-					pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
-
-					jsonData, err := json.Marshal(pubPolyProof)
-					if err != nil {
-						fmt.Println("Error with marshalling signed pubpoly")
-						fmt.Println(err)
-						return "", err
+					// arrBytes := PointsArrayToBytesArray(pubpoly)
+					//TODO: Make epoch variable
+					pubPolyTx := PubPolyBFTTx{
+						*pubpoly,
+						uint(0),
+						uint(shareIndex),
 					}
 
+					//Commented out ECDSA Verification for now. Need to check out tm signing on chain
+					// ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
+					// pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
+
+					// jsonData, err := json.Marshal(pubPolyProof)
+					// if err != nil {
+					// 	fmt.Println("Error with marshalling signed pubpoly")
+					// 	fmt.Println(err)
+					// 	return "", err
+					// }
+
 					// broadcast signed pubpoly
-					id, err := bftRPC.Broadcast(jsonData)
+					id, err := bftRPC.Broadcast(pubPolyTx)
 					if err != nil {
 						fmt.Println("Can't broadcast signed pubpoly")
 						fmt.Println(err)
@@ -152,14 +159,9 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						var data []byte
 						data = append(data, share.Value.Bytes()...)
 						var broadcastIdBytes []byte
-						broadcastIdBytes = append(broadcastIdBytes, big.NewInt(int64(id)).Bytes()...)
-						if len(broadcastIdBytes) == 1 {
-							broadcastIdBytes = append(make([]byte, 1), broadcastIdBytes...)
-						}
-						if err != nil {
-							fmt.Println("Failed during padding of broadcastId bytes")
-						}
-						data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
+						broadcastIdBytes = append(broadcastIdBytes, id.Bytes()...)
+
+						data = append(data, broadcastIdBytes...)
 						signcryption, err := pvss.Signcrypt(nodes[index], data, *suite.EthSuite.NodePrivateKey.D)
 						if err != nil {
 							fmt.Println("Failed during signcryption")
@@ -177,7 +179,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 
 				// Signcrypted shares are received by the other nodes and handled in server.go
 
-				time.Sleep(8000 * time.Millisecond) // TODO: Check for communication termination from all other nodes
+				time.Sleep(10 * time.Second) // TODO: Check for communication termination from all other nodes
 				// gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
 				// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
@@ -185,7 +187,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 				// we then addmod all shares and get our actual final share
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
 					var unsigncryptedShares []*big.Int
-					var broadcastIdArray []int
+					var broadcastIdArray [][]byte
 					var nodePubKeyArray []*ecdsa.PublicKey
 					var nodeId []int
 					for i := 0; i < suite.Config.NumberOfNodes; i++ { // TODO: inefficient, we are looping unnecessarily
@@ -204,41 +206,53 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						}
 					}
 					// Retrieve previously broadcasted signed pubpoly data
-					broadcastedDataArray := make([][]*common.Point, len(broadcastIdArray))
+					broadcastedDataArray := make([][]common.Point, len(broadcastIdArray))
 					for index, broadcastId := range broadcastIdArray {
 						fmt.Println("BROADCASTID WAS: ", broadcastId)
-						jsonData, _, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
+						rlpData, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
 						if err != nil {
 							fmt.Println("Could not retrieve broadcast")
 							fmt.Println(err)
 							continue
 						}
-						data := &PubPolyProof{}
-						fmt.Println("jsonData was ", jsonData)
-						if err := json.Unmarshal(jsonData, &data); err != nil {
-							fmt.Println("Could not unmarshal json data")
+
+						pubPolyTx := &PubPolyBFTTx{}
+						if err := rlp.DecodeBytes(rlpData, &pubPolyTx); err != nil {
+							fmt.Println("Could not decode rlp data")
 							fmt.Println(err)
-							fmt.Println(jsonData)
 							continue
 						}
-						fmt.Println("jsonData was unmarshaled into ", data)
-						hashedData := bytes32(ethCrypto.Keccak256(data.PointsBytesArray))
-						if bytes.Compare(data.EcdsaSignature.Hash[:], hashedData[:]) != 0 {
-							fmt.Println("Signed hash does not match retrieved hash")
-							fmt.Println(data.EcdsaSignature.Hash[:])
-							fmt.Println(hashedData[:])
-							continue
-						}
-						if !ECDSAVerify(*nodePubKeyArray[index], data.EcdsaSignature) {
-							fmt.Println("Signature does not verify")
-							continue
-						} else {
-							fmt.Println("Signature of pubpoly verified")
-						}
-						broadcastedDataArray[index] = BytesArrayToPointsArray(data.PointsBytesArray)
+						// data := &PubPolyProof{}
+						// fmt.Println("jsonData was ", jsonData)
+						// if err := json.Unmarshal(jsonData, &data); err != nil {
+						// 	fmt.Println("Could not unmarshal json data")
+						// 	fmt.Println(err)
+						// 	fmt.Println(jsonData)
+						// 	continue
+						// }
+
+						// ECDSA COMMENTED OUT
+						// fmt.Println("jsonData was unmarshaled into ", data)
+						// hashedData := bytes32(ethCrypto.Keccak256(data.PointsBytesArray))
+						// if bytes.Compare(data.EcdsaSignature.Hash[:], hashedData[:]) != 0 {
+						// 	fmt.Println("Signed hash does not match retrieved hash")
+						// 	fmt.Println(data.EcdsaSignature.Hash[:])
+						// 	fmt.Println(hashedData[:])
+						// 	continue
+						// }
+						// if !ECDSAVerify(*nodePubKeyArray[index], data.EcdsaSignature) {
+						// 	fmt.Println("Signature does not verify")
+						// 	continue
+						// } else {
+						// 	fmt.Println("Signature of pubpoly verified")
+						// }
+
+						//TODO: Check epoch number and share index against tx received
+						broadcastedDataArray[index] = pubPolyTx.PubPoly
 					}
 
 					// verify share against pubpoly
+					//TODO: shift to function in pvss.go
 					s := secp256k1.Curve
 					for index, pubpoly := range broadcastedDataArray {
 						var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))

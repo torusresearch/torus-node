@@ -36,7 +36,7 @@ type (
 		LogNumber          int
 		ShareIndex         int
 		UnsigncryptedShare []byte
-		BroadcastId        int
+		BroadcastId        []byte
 	}
 	ShareRequestHandler struct {
 		suite *Suite
@@ -125,8 +125,8 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 
 	// deserialize share and broadcastId from signcrypted data
 	n := len(*unsigncryptedData)
-	shareBytes := (*unsigncryptedData)[:n-2]
-	broadcastId := int((new(big.Int).SetBytes((*unsigncryptedData)[n-2:])).Uint64())
+	shareBytes := (*unsigncryptedData)[:n-32]
+	broadcastId := (*unsigncryptedData)[n-32:]
 
 	fmt.Println("Saved share from ", p.FromAddress)
 	savedLog, found := h.suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")

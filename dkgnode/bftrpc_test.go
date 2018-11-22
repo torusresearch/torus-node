@@ -25,20 +25,20 @@ type testMsg struct {
 	Msg string
 }
 
-// func TestRLP(t *testing.T) {
-// 	testMessage := rlpTest{1, "heyo", []byte("blubblu"), innerStruct{*new(big.Int), "biging"}}
-// 	t.Log("Initial message: ", testMessage)
-// 	byt, err := rlp.EncodeToBytes(testMessage)
-// 	if err != nil {
-// 		t.Log(err)
-// 	}
-// 	t.Log(byt)
+func TestRLP(t *testing.T) {
+	testMessage := rlpTest{1, "heyo", []byte("blubblu"), innerStruct{*new(big.Int), "biging"}}
+	t.Log("Initial message: ", testMessage)
+	byt, err := rlp.EncodeToBytes(testMessage)
+	if err != nil {
+		t.Log(err)
+	}
+	t.Log(byt)
 
-// 	var receivedMsg rlpTest
-// 	err = rlp.DecodeBytes(byt, &receivedMsg)
-// 	// err = rlp.Decode(bytes.NewReader(byt), &receivedMsg)
-// 	t.Log(receivedMsg)
-// }
+	var receivedMsg rlpTest
+	err = rlp.DecodeBytes(byt, &receivedMsg)
+	// err = rlp.Decode(bytes.NewReader(byt), &receivedMsg)
+	t.Log(receivedMsg)
+}
 
 //Needs tendermint node running on 26657
 //TODO:Set up tendermint testin environment
@@ -46,16 +46,7 @@ func TestBroadcastRLP(t *testing.T) {
 	// BftURI := "http://localhost:26657/"
 	go tmabci.RunABCIServer()
 
-	// pls := client.NewHTTP("tcp://localhost:26657", "/websocket")
-
 	pls := NewBftRPC("tcp://localhost:26657")
-
-	// client, err := abcicli.NewLocalClient()
-	// _, err := abcicli.NewClient("localhost:26657", "grpc", false)
-
-	// if err != nil {
-	// 	t.Log(err)
-	// }
 
 	time.Sleep(5 * time.Second) // cater for server setting up
 

@@ -221,7 +221,7 @@ func TestLagrangeInterpolation(test *testing.T) {
 		}
 		decryptedShares[i] = common.PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
 	}
-	lagrange := LagrangeElliptic(decryptedShares)
+	lagrange := LagrangeScalar(decryptedShares)
 
 	assert.True(test, secret.Cmp(lagrange) == 0)
 	assert.False(test, errorsExist)
@@ -275,7 +275,7 @@ func TestPedersons(test *testing.T) {
 	r.Mod(r, secp256k1.GeneratorOrder)
 	// rY := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(r.Bytes()))
 
-	testr := LagrangeElliptic(allSi[:11])
+	testr := LagrangeScalar(allSi[:11])
 
 	assert.True(test, testr.Cmp(r) == 0)
 	assert.False(test, errorsExist)

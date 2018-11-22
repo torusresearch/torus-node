@@ -43,7 +43,7 @@ func polyEval(polynomial common.PrimaryPolynomial, x big.Int) *big.Int { // get 
 func getShares(polynomial common.PrimaryPolynomial, n int) []common.PrimaryShare { // TODO: should we assume that it's always evaluated from 1 to N?
 	shares := make([]common.PrimaryShare, n)
 	for i := range shares {
-		shares[i] = common.PrimaryShare{Index: n + 1, Value: *polyEval(polynomial, *big.NewInt(int64(i + 1)))}
+		shares[i] = common.PrimaryShare{Index: i + 1, Value: *polyEval(polynomial, *big.NewInt(int64(i + 1)))}
 	}
 	return shares
 }
@@ -175,7 +175,7 @@ func batchSigncryptShare(nodeList []common.Point, shares []common.PrimaryShare, 
 }
 
 // use this instead of CreateAndPrepareShares
-func CreateShares(nodes []common.Point, secret big.Int, threshold int, privKey big.Int) (*[]common.PrimaryShare, *[]common.Point, error) {
+func CreateShares(nodes []common.Point, secret big.Int, threshold int) (*[]common.PrimaryShare, *[]common.Point, error) {
 	n := len(nodes)
 
 	polynomial := *generateRandomZeroPolynomial(secret, threshold)
@@ -266,7 +266,7 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 // 	return secret
 // }
 
-func LagrangeElliptic(shares []common.PrimaryShare) *big.Int {
+func LagrangeScalar(shares []common.PrimaryShare) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {
 		//when x =0

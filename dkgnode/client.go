@@ -117,7 +117,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// fmt.Println("Node "+suite.EthSuite.NodeAddress.Hex(), " Secret: ", secret.Text(16))
 
 					// create shares and public polynomial commitment
-					shares, pubpoly, err := pvss.CreateShares(nodes, *secret, suite.Config.Threshold, *suite.EthSuite.NodePrivateKey.D)
+					shares, pubpoly, err := pvss.CreateShares(nodes, *secret, suite.Config.Threshold)
 					if err != nil {
 						fmt.Println(err)
 					}

@@ -124,7 +124,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// commit pubpoly by signing it and broadcasting it
 
 					// sign hash of pubpoly by converting array of points to bytes array
-					// arrBytes := PointsArrayToBytesArray(pubpoly)
 					//TODO: Make epoch variable
 					pubPolyTx := PubPolyBFTTx{
 						*pubpoly,
@@ -135,13 +134,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					//Commented out ECDSA Verification for now. Need to check out tm signing on chain
 					// ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
 					// pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
-
-					// jsonData, err := json.Marshal(pubPolyProof)
-					// if err != nil {
-					// 	fmt.Println("Error with marshalling signed pubpoly")
-					// 	fmt.Println(err)
-					// 	return "", err
-					// }
 
 					// broadcast signed pubpoly
 					id, err := bftRPC.Broadcast(&pubPolyTx)
@@ -216,14 +208,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 							fmt.Println(err)
 							continue
 						}
-						// data := &PubPolyProof{}
-						// fmt.Println("jsonData was ", jsonData)
-						// if err := json.Unmarshal(jsonData, &data); err != nil {
-						// 	fmt.Println("Could not unmarshal json data")
-						// 	fmt.Println(err)
-						// 	fmt.Println(jsonData)
-						// 	continue
-						// }
 
 						// ECDSA COMMENTED OUT
 						// fmt.Println("jsonData was unmarshaled into ", data)

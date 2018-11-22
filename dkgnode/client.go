@@ -15,13 +15,14 @@ import (
 	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
 	"github.com/YZhenY/torus/secp256k1"
+	"github.com/YZhenY/torus/tmabci"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
 // TODO: pass in as config
-const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
+const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
 const BftURI = "tcp://localhost:26657"
 
 type NodeReference struct {
@@ -64,6 +65,11 @@ type PubPolyProof struct {
 
 func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
+	//for testing purposes
+	if suite.Config.MyPort == "8001" {
+		go tmabci.RunABCIServer()
+	}
+	//TODO: add bftRPC to suite, should be in dkgnode.go
 	bftRPC := NewBftRPC(BftURI)
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	siMapping := make(map[int]common.PrimaryShare)
@@ -152,14 +158,9 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						var data []byte
 						data = append(data, share.Value.Bytes()...)
 						var broadcastIdBytes []byte
-						broadcastIdBytes = append(broadcastIdBytes, big.NewInt(int64(id)).Bytes()...)
-						if len(broadcastIdBytes) == 1 {
-							broadcastIdBytes = append(make([]byte, 1), broadcastIdBytes...)
-						}
-						if err != nil {
-							fmt.Println("Failed during padding of broadcastId bytes")
-						}
-						data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
+						broadcastIdBytes = append(broadcastIdBytes, id.Bytes()...)
+
+						data = append(data, broadcastIdBytes...)
 						signcryption, err := pvss.Signcrypt(nodes[index], data, *suite.EthSuite.NodePrivateKey.D)
 						if err != nil {
 							fmt.Println("Failed during signcryption")
@@ -177,7 +178,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 
 				// Signcrypted shares are received by the other nodes and handled in server.go
 
-				time.Sleep(8000 * time.Millisecond) // TODO: Check for communication termination from all other nodes
+				time.Sleep(120 * time.Second) // TODO: Check for communication termination from all other nodes
 				// gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
 				// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
@@ -185,7 +186,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 				// we then addmod all shares and get our actual final share
 				for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
 					var unsigncryptedShares []*big.Int
-					var broadcastIdArray []int
+					var broadcastIdArray [][]byte
 					var nodePubKeyArray []*ecdsa.PublicKey
 					var nodeId []int
 					for i := 0; i < suite.Config.NumberOfNodes; i++ { // TODO: inefficient, we are looping unnecessarily
@@ -207,7 +208,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					broadcastedDataArray := make([][]*common.Point, len(broadcastIdArray))
 					for index, broadcastId := range broadcastIdArray {
 						fmt.Println("BROADCASTID WAS: ", broadcastId)
-						jsonData, _, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
+						jsonData, err := bftRPC.Retrieve(broadcastId) // TODO: use a goroutine to run this concurrently
 						if err != nil {
 							fmt.Println("Could not retrieve broadcast")
 							fmt.Println(err)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/YZhenY/torus/common"
-	"github.com/YZhenY/torus/tmabci"
 	"github.com/tendermint/tendermint/rpc/client"
 )
 
@@ -59,7 +58,8 @@ func (bftrpc BftRPC) Broadcast(data []byte) (*common.Hash, error) {
 
 func NewBftRPC(uri string) *BftRPC {
 	//TODO: keep server connection around for logging??
-	go tmabci.RunABCIServer()
+	//commented out for testing purposes
+	// go tmabci.RunABCIServer()
 
 	bftClient := client.NewHTTP(uri, "/websocket")
 	return &BftRPC{
@@ -106,13 +106,13 @@ func NewBftRPC(uri string) *BftRPC {
 
 //Retrieves tx from the bft and gives back results. Takes off the donut
 //TODO: this might be a tad redundent a function, to just use innate tendermint functions?
-func (bftrpc BftRPC) Retrieve(hash common.Hash) (data []byte, err error) {
-	fmt.Println("WE ARE RETRIEVING")
-	result, err := bftrpc.Tx(hash.Bytes(), false)
+func (bftrpc BftRPC) Retrieve(hash []byte) (data []byte, err error) {
+	// fmt.Println("WE ARE RETRIEVING")
+	result, err := bftrpc.Tx(hash, false)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("WE ARE RETRIEVING2", result)
+	fmt.Println("WE ARE RETRIEVING", result)
 	if result.TxResult.Code != 0 {
 		fmt.Println("Transaction not accepted", result.TxResult.Code)
 	}

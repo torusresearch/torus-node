@@ -85,8 +85,7 @@ func (app *KVStoreApplication) Info(req types.RequestInfo) (resInfo types.Respon
 // tx is either "key=value" or just arbitrary bytes
 func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
-	fmt.Println("we are delivering tx")
-	fmt.Println(tx)
+	fmt.Println("DELIVERINGTX", tx)
 
 	// var p Message
 	// if err := rlp.DecodeBytes(tx, p); err != nil {

@@ -66,7 +66,7 @@ func TestBroadcastRLP(t *testing.T) {
 
 	time.Sleep(5 * time.Second) // cater for server setting up
 
-	data, err := pls.Retrieve(*hash)
+	data, err := pls.Retrieve(hash.Bytes())
 	if err != nil {
 		t.Log(err)
 	}

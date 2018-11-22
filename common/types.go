@@ -28,3 +28,8 @@ type Point struct {
 	X big.Int
 	Y big.Int
 }
+
+type Node struct {
+	Index  int
+	PubKey Point
+}

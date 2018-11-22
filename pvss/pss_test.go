@@ -11,9 +11,9 @@ import (
 )
 
 func TestGenPolyForTarget(t *testing.T) {
-	target := big.NewInt(int64(100))
-	poly := genPolyForTarget(*target, 6)
-	assert.Equal(t, polyEval(*poly, *target).Int64(), int64(0))
+	target := 100
+	poly := genPolyForTarget(target, 6)
+	assert.Equal(t, polyEval(*poly, target).Int64(), int64(0))
 }
 
 func TestPSS(t *testing.T) {
@@ -52,7 +52,7 @@ func TestPSS(t *testing.T) {
 		for _, share := range shares {
 			sum.Add(sum, &share.Value)
 		}
-		sharesStore[i] = common.PrimaryShare{Index: *big.NewInt(int64(i + 1)), Value: *sum}
+		sharesStore[i] = common.PrimaryShare{Index: i + 1, Value: *sum}
 	}
 
 	// check that lagrange interpolation of different threshold sets of shares work

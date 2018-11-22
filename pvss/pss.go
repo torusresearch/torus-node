@@ -20,7 +20,7 @@ func generateRandomPolynomial(threshold int) *common.PrimaryPolynomial {
 	return &common.PrimaryPolynomial{coeff, threshold}
 }
 
-func genPolyForTarget(x big.Int, threshold int) *common.PrimaryPolynomial {
+func genPolyForTarget(x int, threshold int) *common.PrimaryPolynomial {
 	tempPoly := generateRandomPolynomial(threshold)
 	var poly common.PrimaryPolynomial
 	copier.Copy(&poly, &tempPoly)

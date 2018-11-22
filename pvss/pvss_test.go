@@ -13,7 +13,7 @@ import (
 )
 
 type nodeList struct {
-	Nodes []common.Point
+	Nodes []common.Node
 }
 
 func createRandomNodes(number int) (*nodeList, []big.Int) {
@@ -21,7 +21,10 @@ func createRandomNodes(number int) (*nodeList, []big.Int) {
 	privateKeys := make([]big.Int, number)
 	for i := 0; i < number; i++ {
 		pkey := RandomBigInt()
-		list.Nodes = append(list.Nodes, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(pkey.Bytes())))
+		list.Nodes = append(list.Nodes, common.Node{
+			i + 1,
+			common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(pkey.Bytes())),
+		})
 		privateKeys[i] = *pkey
 	}
 	return list, privateKeys
@@ -44,7 +47,7 @@ func TestPolyEval(test *testing.T) {
 		coeff[i] = *big.NewInt(int64(i))
 	}
 	polynomial := common.PrimaryPolynomial{coeff, 5}
-	assert.Equal(test, polyEval(polynomial, *big.NewInt(10)).Text(10), "43217")
+	assert.Equal(test, polyEval(polynomial, 10).Text(10), "43217")
 }
 
 func TestCommit(test *testing.T) {
@@ -85,7 +88,7 @@ func TestCommit(test *testing.T) {
 		sum = common.BigIntToPoint(secp256k1.Curve.Add(&tmp.X, &tmp.Y, &sum.X, &sum.Y))
 	}
 
-	final := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polyEval(polynomial, *big.NewInt(10)).Bytes()))
+	final := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
 
 	assert.Equal(test, sum.X.Text(16), final.X.Text(16))
 	// sumx, sumy := secp256k1.Curve.Add(sumx, sumy, )
@@ -219,7 +222,7 @@ func TestLagrangeInterpolation(test *testing.T) {
 			fmt.Println(err)
 			errorsExist = true
 		}
-		decryptedShares[i] = common.PrimaryShare{*big.NewInt(int64(i + 1)), *new(big.Int).SetBytes(*share)}
+		decryptedShares[i] = common.PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
 	}
 	lagrange := LagrangeScalar(decryptedShares)
 
@@ -246,7 +249,7 @@ func TestPedersons(test *testing.T) {
 	for i := range nodeList.Nodes {
 		arrDecryptShares := make([]big.Int, len(nodeList.Nodes))
 		for j := range nodeList.Nodes {
-			decryptedShare, err := UnsigncryptShare(allSigncryptedShares[j][i].SigncryptedShare, privateKeys[i], nodeList.Nodes[j])
+			decryptedShare, err := UnsigncryptShare(allSigncryptedShares[j][i].SigncryptedShare, privateKeys[i], nodeList.Nodes[j].PubKey)
 			temp := new(big.Int).SetBytes(*decryptedShare)
 			if err != nil {
 				fmt.Println(err)
@@ -264,7 +267,7 @@ func TestPedersons(test *testing.T) {
 			sum.Add(sum, &allDecryptedShares[i][j])
 		}
 		sum.Mod(sum, secp256k1.GeneratorOrder)
-		allSi[i] = common.PrimaryShare{*big.NewInt(int64(i + 1)), *sum}
+		allSi[i] = common.PrimaryShare{i + 1, *sum}
 	}
 
 	//form r (and other components) to test

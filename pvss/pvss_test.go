@@ -44,7 +44,7 @@ func TestPolyEval(test *testing.T) {
 		coeff[i] = *big.NewInt(int64(i))
 	}
 	polynomial := common.PrimaryPolynomial{coeff, 5}
-	assert.Equal(test, polyEval(polynomial, 10).Text(10), "43217")
+	assert.Equal(test, polyEval(polynomial, *big.NewInt(10)).Text(10), "43217")
 }
 
 func TestCommit(test *testing.T) {
@@ -72,7 +72,7 @@ func TestCommit(test *testing.T) {
 	// assert.Equal(test, sumx.Text(16), gmul107x.Text(16))
 
 	secret := *RandomBigInt()
-	polynomial := *generateRandomPolynomial(secret, 11)
+	polynomial := *generateRandomZeroPolynomial(secret, 11)
 	polyCommit := getCommit(polynomial)
 
 	sum := common.Point{X: polyCommit[0].X, Y: polyCommit[0].Y}
@@ -85,7 +85,7 @@ func TestCommit(test *testing.T) {
 		sum = common.BigIntToPoint(secp256k1.Curve.Add(&tmp.X, &tmp.Y, &sum.X, &sum.Y))
 	}
 
-	final := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polyEval(polynomial, 10).Bytes()))
+	final := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polyEval(polynomial, *big.NewInt(10)).Bytes()))
 
 	assert.Equal(test, sum.X.Text(16), final.X.Text(16))
 	// sumx, sumy := secp256k1.Curve.Add(sumx, sumy, )

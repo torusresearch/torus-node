@@ -1,60 +1,69 @@
 package dkgnode
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/YZhenY/torus/bft"
-	jsonrpcclient "github.com/ybbus/jsonrpc"
+	"github.com/YZhenY/torus/common"
+	"github.com/YZhenY/torus/tmabci"
+	"github.com/tendermint/tendermint/rpc/client"
 )
 
 type BftRPC struct {
-	jsonrpcclient.RPCClient
+	*client.HTTP
 }
 
-type PubPolyTransaction struct {
-	PubPolyProof
-	ShareIndex int
-	Epoch      int
-}
+// type PubPolyTransaction struct {
+// 	PubPolyProof
+// 	ShareIndex int
+// 	Epoch      int
+// }
 
-func (tx PubPolyTransaction) ValidatePubPolyTransaction(epoch int, shareIndex int) bool {
+// func (tx PubPolyTransaction) ValidatePubPolyTransaction(epoch int, shareIndex int) bool {
 
-	//check if its the right epoch
-	if tx.Epoch != epoch {
-		return false
-	}
+// 	//check if its the right epoch
+// 	if tx.Epoch != epoch {
+// 		return false
+// 	}
 
-	//check for duplicate share indexes from node
-	if tx.ShareIndex != shareIndex {
-		return false
-	}
+// 	//check for duplicate share indexes from node
+// 	if tx.ShareIndex != shareIndex {
+// 		return false
+// 	}
 
-	//check that ECDSA Signature matches pubpolyarr
-	// pubpoly := BytesArrayToPointsArray(tx.PointsBytesArray)
+// 	//check that ECDSA Signature matches pubpolyarr
+// 	// pubpoly := BytesArrayToPointsArray(tx.PointsBytesArray)
 
-	return true
-}
+// 	return true
+// }
 
-func (bftrpc BftRPC) Broadcast(data []byte) (int, error) {
+//BroadcastTxSync Wrapper (input should be RLP encoded) to tendermint.
+//All transactions are appended to a torus signature hexbytes(mug00 + versionNo)
+// e.g mug00 => 6d75673030
+func (bftrpc BftRPC) Broadcast(data []byte) (*common.Hash, error) {
+	//adding mug00
+	//TODO: make version configurable
+	msg := append([]byte("mug00")[:], data[:]...)
 	//tendermint rpc
-	res, err := bftrpc.Call("broadcast_tx_sync", data)
+	response, err := bftrpc.BroadcastTxSync(msg)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	fmt.Println("TENDERBFT RESPONSE: ", res)
-	// var obj bft.BroadcastResult
-	// if err := res.GetObject(&obj); err != nil {
-	// 	return 0, err
-	// }
-	return 0, nil
+	fmt.Println("TENDERBFT RESPONSE: ", response)
+	if response.Code != 0 {
+		return nil, errors.New("Could not broadcast, ErrorCode: " + string(response.Code))
+	}
+
+	return &common.Hash{response.Hash.Bytes()}, nil
 }
 
 func NewBftRPC(uri string) *BftRPC {
-	// go tmabci.RunBft()
+	//TODO: keep server connection around for logging??
+	go tmabci.RunABCIServer()
 
-	rpcClient := jsonrpcclient.NewClient(uri)
+	bftClient := client.NewHTTP(uri, "/websocket")
 	return &BftRPC{
-		RPCClient: rpcClient,
+		bftClient,
 	}
 }
 
@@ -95,16 +104,18 @@ func NewBftRPC(uri string) *BftRPC {
 // 	return obj.Id, nil
 // }
 
-func (bftrpc BftRPC) Retrieve(id int) (data []byte, length int, err error) {
-	res, err := bftrpc.Call("Retrieve", bft.RetrieveParams{Id: id})
+//Retrieves tx from the bft and gives back results. Takes off the donut
+//TODO: this might be a tad redundent a function, to just use innate tendermint functions?
+func (bftrpc BftRPC) Retrieve(hash common.Hash) (data []byte, err error) {
+	fmt.Println("WE ARE RETRIEVING")
+	result, err := bftrpc.Tx(hash.Bytes(), false)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	var obj bft.RetrieveResult
-	if err := res.GetObject(&obj); err != nil {
-		return nil, 0, err
+	fmt.Println("WE ARE RETRIEVING2", result)
+	if result.TxResult.Code != 0 {
+		fmt.Println("Transaction not accepted", result.TxResult.Code)
 	}
-	data = []byte(obj.Data)
-	length = obj.Length
-	return
+
+	return result.Tx[len([]byte("mug00")):], nil
 }

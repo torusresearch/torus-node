@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -88,11 +87,11 @@ func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
 	fmt.Println("we are delivering tx")
 	fmt.Println(tx)
-	var p Message
 
-	if err := rlp.DecodeBytes(tx, p); err != nil {
-		fmt.Println("ERROR DECODING RLP")
-	}
+	// var p Message
+	// if err := rlp.DecodeBytes(tx, p); err != nil {
+	// 	fmt.Println("ERROR DECODING RLP")
+	// }
 	// var p ABCITransaction
 	// if err := json.Unmarshal(tx, &p); err != nil {
 	// 	fmt.Println("transaction parse error", err)
@@ -104,8 +103,6 @@ func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	// 	fmt.Println("this is a public polyyyyyy")
 	// }
 
-	/*
-	 */
 	// var key, value []byte
 	// parts := bytes.Split(tx, []byte("="))
 	// if len(parts) == 2 {

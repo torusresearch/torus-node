@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -17,6 +18,10 @@ var (
 
 	ProtocolVersion version.Protocol = 0x1
 )
+
+type Message struct {
+	Message string
+}
 
 type State struct {
 	db      dbm.DB
@@ -83,15 +88,21 @@ func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
 	fmt.Println("we are delivering tx")
 	fmt.Println(tx)
-	var p ABCITransaction
-	if err := json.Unmarshal(tx, &p); err != nil {
-		fmt.Println("transaction parse error", err)
-		// return types.ResponseDeliverTx{Code: code.CodeTypeEncodingError}
+	var p Message
+
+	if err := rlp.DecodeBytes(tx, p); err != nil {
+		fmt.Println("ERROR DECODING RLP")
 	}
-	switch p.Type {
-	case "publicpoly":
-		fmt.Println("this is a public polyyyyyy")
-	}
+	// var p ABCITransaction
+	// if err := json.Unmarshal(tx, &p); err != nil {
+	// 	fmt.Println("transaction parse error", err)
+	// 	// return types.ResponseDeliverTx{Code: code.CodeTypeEncodingError}
+	// }
+
+	// switch p.Type {
+	// case "publicpoly":
+	// 	fmt.Println("this is a public polyyyyyy")
+	// }
 
 	/*
 	 */

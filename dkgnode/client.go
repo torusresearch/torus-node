@@ -22,7 +22,7 @@ import (
 
 // TODO: pass in as config
 const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
-const BftURI = "http://localhost:7053/jrpc"
+const BftURI = "http://localhost:26657/"
 
 type NodeReference struct {
 	Address    *ethCommon.Address

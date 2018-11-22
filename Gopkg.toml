@@ -30,10 +30,6 @@
   version = "1.2.0"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/dedis/kyber"
-
-[[constraint]]
   name = "github.com/ethereum/go-ethereum"
   version = "1.8.17"
 
@@ -60,10 +56,6 @@
 [[constraint]]
   name = "github.com/ybbus/jsonrpc"
   version = "2.1.2"
-
-[[constraint]]
-  branch = "master"
-  name = "golang.org/x/crypto"
 
 [prune]
   go-tests = true

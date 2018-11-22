@@ -57,12 +57,6 @@ type SigncryptedMessage struct {
 	ShareIndex  int    `json:"shareindex"`
 }
 
-type PubPolyBFTTx struct {
-	PubPoly    []common.Point
-	Epoch      uint
-	ShareIndex uint
-}
-
 func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
 	//for testing purposes
@@ -138,10 +132,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						uint(0),
 						uint(shareIndex),
 					}
-					rlpEncodedTx, err := rlp.EncodeToBytes(pubPolyTx)
-					if err != nil {
-						fmt.Println(err)
-					}
 
 					//Commented out ECDSA Verification for now. Need to check out tm signing on chain
 					// ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
@@ -155,7 +145,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// }
 
 					// broadcast signed pubpoly
-					id, err := bftRPC.Broadcast(rlpEncodedTx)
+					id, err := bftRPC.Broadcast(pubPolyTx)
 					if err != nil {
 						fmt.Println("Can't broadcast signed pubpoly")
 						fmt.Println(err)

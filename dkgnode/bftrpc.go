@@ -5,44 +5,51 @@ import (
 	"fmt"
 
 	"github.com/YZhenY/torus/common"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
 )
+
+type BFTTx interface {
+	PrepareBFTTx() ([]byte, error)
+}
 
 type BftRPC struct {
 	*client.HTTP
 }
 
-// type PubPolyTransaction struct {
-// 	PubPolyProof
-// 	ShareIndex int
-// 	Epoch      int
-// }
+type PubPolyBFTTx struct {
+	PubPoly    []common.Point
+	Epoch      uint
+	ShareIndex uint
+}
 
-// func (tx PubPolyTransaction) ValidatePubPolyTransaction(epoch int, shareIndex int) bool {
+//Create byte type and append RLP encoded tx
+func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
+	//type byte
+	txType := make([]byte, 1)
+	txType[0] = byte(uint8(1))
 
-// 	//check if its the right epoch
-// 	if tx.Epoch != epoch {
-// 		return false
-// 	}
-
-// 	//check for duplicate share indexes from node
-// 	if tx.ShareIndex != shareIndex {
-// 		return false
-// 	}
-
-// 	//check that ECDSA Signature matches pubpolyarr
-// 	// pubpoly := BytesArrayToPointsArray(tx.PointsBytesArray)
-
-// 	return true
-// }
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return nil, err
+	}
+	preparedMsg := append(txType[:], data[:]...)
+	return preparedMsg, nil
+}
 
 //BroadcastTxSync Wrapper (input should be RLP encoded) to tendermint.
 //All transactions are appended to a torus signature hexbytes(mug00 + versionNo)
 // e.g mug00 => 6d75673030
-func (bftrpc BftRPC) Broadcast(data []byte) (*common.Hash, error) {
+func (bftrpc BftRPC) Broadcast(tx BFTTx) (*common.Hash, error) {
+	// prepare transaction with type and rlp encoding
+	preparedTx, err := tx.PrepareBFTTx()
+	if err != nil {
+		return nil, err
+	}
+
 	//adding mug00
 	//TODO: make version configurable
-	msg := append([]byte("mug00")[:], data[:]...)
+	msg := append([]byte("mug00")[:], preparedTx[:]...)
 	//tendermint rpc
 	response, err := bftrpc.BroadcastTxSync(msg)
 	if err != nil {
@@ -66,6 +73,24 @@ func NewBftRPC(uri string) *BftRPC {
 		bftClient,
 	}
 }
+
+// func (tx PubPolyTransaction) ValidatePubPolyTransaction(epoch int, shareIndex int) bool {
+
+// 	//check if its the right epoch
+// 	if tx.Epoch != epoch {
+// 		return false
+// 	}
+
+// 	//check for duplicate share indexes from node
+// 	if tx.ShareIndex != shareIndex {
+// 		return false
+// 	}
+
+// 	//check that ECDSA Signature matches pubpolyarr
+// 	// pubpoly := BytesArrayToPointsArray(tx.PointsBytesArray)
+
+// 	return true
+// }
 
 // func (bftrpc BftRPC) Epoch() (int, error) {
 // 	res, err := bftrpc.Call("Epoch", bft.EpochParams{})

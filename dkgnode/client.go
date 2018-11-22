@@ -2,7 +2,6 @@ package dkgnode
 
 /* All useful imports */
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -17,7 +16,6 @@ import (
 	"github.com/YZhenY/torus/secp256k1"
 	"github.com/YZhenY/torus/tmabci"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
@@ -132,19 +130,20 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 
 					// sign hash of pubpoly by converting array of points to bytes array
 					arrBytes := PointsArrayToBytesArray(pubpoly)
-					ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
 
-					pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
+					//Commented out ECDSA Verification for now. Need to check out tm signing on chain
+					// ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
+					// pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
 
-					jsonData, err := json.Marshal(pubPolyProof)
-					if err != nil {
-						fmt.Println("Error with marshalling signed pubpoly")
-						fmt.Println(err)
-						return "", err
-					}
+					// jsonData, err := json.Marshal(pubPolyProof)
+					// if err != nil {
+					// 	fmt.Println("Error with marshalling signed pubpoly")
+					// 	fmt.Println(err)
+					// 	return "", err
+					// }
 
 					// broadcast signed pubpoly
-					id, err := bftRPC.Broadcast(jsonData)
+					id, err := bftRPC.Broadcast(arrBytes)
 					if err != nil {
 						fmt.Println("Can't broadcast signed pubpoly")
 						fmt.Println(err)
@@ -178,7 +177,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 
 				// Signcrypted shares are received by the other nodes and handled in server.go
 
-				time.Sleep(120 * time.Second) // TODO: Check for communication termination from all other nodes
+				time.Sleep(10 * time.Second) // TODO: Check for communication termination from all other nodes
 				// gather shares, decrypt and verify with pubpoly
 				// - check if shares are here
 				// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
@@ -214,32 +213,35 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 							fmt.Println(err)
 							continue
 						}
-						data := &PubPolyProof{}
-						fmt.Println("jsonData was ", jsonData)
-						if err := json.Unmarshal(jsonData, &data); err != nil {
-							fmt.Println("Could not unmarshal json data")
-							fmt.Println(err)
-							fmt.Println(jsonData)
-							continue
-						}
-						fmt.Println("jsonData was unmarshaled into ", data)
-						hashedData := bytes32(ethCrypto.Keccak256(data.PointsBytesArray))
-						if bytes.Compare(data.EcdsaSignature.Hash[:], hashedData[:]) != 0 {
-							fmt.Println("Signed hash does not match retrieved hash")
-							fmt.Println(data.EcdsaSignature.Hash[:])
-							fmt.Println(hashedData[:])
-							continue
-						}
-						if !ECDSAVerify(*nodePubKeyArray[index], data.EcdsaSignature) {
-							fmt.Println("Signature does not verify")
-							continue
-						} else {
-							fmt.Println("Signature of pubpoly verified")
-						}
-						broadcastedDataArray[index] = BytesArrayToPointsArray(data.PointsBytesArray)
+						// data := &PubPolyProof{}
+						// fmt.Println("jsonData was ", jsonData)
+						// if err := json.Unmarshal(jsonData, &data); err != nil {
+						// 	fmt.Println("Could not unmarshal json data")
+						// 	fmt.Println(err)
+						// 	fmt.Println(jsonData)
+						// 	continue
+						// }
+
+						// ECDSA COMMENTED OUT
+						// fmt.Println("jsonData was unmarshaled into ", data)
+						// hashedData := bytes32(ethCrypto.Keccak256(data.PointsBytesArray))
+						// if bytes.Compare(data.EcdsaSignature.Hash[:], hashedData[:]) != 0 {
+						// 	fmt.Println("Signed hash does not match retrieved hash")
+						// 	fmt.Println(data.EcdsaSignature.Hash[:])
+						// 	fmt.Println(hashedData[:])
+						// 	continue
+						// }
+						// if !ECDSAVerify(*nodePubKeyArray[index], data.EcdsaSignature) {
+						// 	fmt.Println("Signature does not verify")
+						// 	continue
+						// } else {
+						// 	fmt.Println("Signature of pubpoly verified")
+						// }
+						broadcastedDataArray[index] = BytesArrayToPointsArray(jsonData)
 					}
 
 					// verify share against pubpoly
+					//TODO: i think this could be in pvss.go
 					s := secp256k1.Curve
 					for index, pubpoly := range broadcastedDataArray {
 						var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))

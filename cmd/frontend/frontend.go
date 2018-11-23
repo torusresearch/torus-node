@@ -89,14 +89,14 @@ func main() {
 		fmt.Println(err)
 	}
 
-	list, err := nodeListInstance.ViewNodes(nil)
+	list, _, err := nodeListInstance.ViewNodes(nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	nodeList := make([]*NodeReference, len(list.Nodes))
-	for i := range list.Nodes {
-		nodeList[i], err = connectToJSONRPCNode(nodeListInstance, list.Nodes[i])
+	nodeList := make([]*NodeReference, len(list))
+	for i := range list {
+		nodeList[i], err = connectToJSONRPCNode(nodeListInstance, list[i])
 		if err != nil {
 			fmt.Println(err)
 		}

@@ -28,7 +28,7 @@ var (
 )
 
 // NodelistABI is the input ABI used to generate the binding from.
-const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodes\",\"outputs\":[{\"name\":\"nodes\",\"type\":\"address[]\"},{\"name\":\"positions\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"}]"
+const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"},{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"}]"
 
 // Nodelist is an auto generated Go binding around an Ethereum contract.
 type Nodelist struct {
@@ -306,37 +306,31 @@ func (_Nodelist *NodelistCallerSession) ViewNodeListCount() (*big.Int, error) {
 
 // ViewNodes is a free data retrieval call binding the contract method 0x183d1f62.
 //
-// Solidity: function viewNodes() constant returns(nodes address[], positions uint256[])
-func (_Nodelist *NodelistCaller) ViewNodes(opts *bind.CallOpts) (struct {
-	Nodes     []common.Address
-	Positions []*big.Int
-}, error) {
-	ret := new(struct {
-		Nodes     []common.Address
-		Positions []*big.Int
-	})
-	out := ret
+// Solidity: function viewNodes() constant returns(address[], uint256[])
+func (_Nodelist *NodelistCaller) ViewNodes(opts *bind.CallOpts) ([]common.Address, []*big.Int, error) {
+	var (
+		ret0 = new([]common.Address)
+		ret1 = new([]*big.Int)
+	)
+	out := &[]interface{}{
+		ret0,
+		ret1,
+	}
 	err := _Nodelist.contract.Call(opts, out, "viewNodes")
-	return *ret, err
+	return *ret0, *ret1, err
 }
 
 // ViewNodes is a free data retrieval call binding the contract method 0x183d1f62.
 //
-// Solidity: function viewNodes() constant returns(nodes address[], positions uint256[])
-func (_Nodelist *NodelistSession) ViewNodes() (struct {
-	Nodes     []common.Address
-	Positions []*big.Int
-}, error) {
+// Solidity: function viewNodes() constant returns(address[], uint256[])
+func (_Nodelist *NodelistSession) ViewNodes() ([]common.Address, []*big.Int, error) {
 	return _Nodelist.Contract.ViewNodes(&_Nodelist.CallOpts)
 }
 
 // ViewNodes is a free data retrieval call binding the contract method 0x183d1f62.
 //
-// Solidity: function viewNodes() constant returns(nodes address[], positions uint256[])
-func (_Nodelist *NodelistCallerSession) ViewNodes() (struct {
-	Nodes     []common.Address
-	Positions []*big.Int
-}, error) {
+// Solidity: function viewNodes() constant returns(address[], uint256[])
+func (_Nodelist *NodelistCallerSession) ViewNodes() ([]common.Address, []*big.Int, error) {
 	return _Nodelist.Contract.ViewNodes(&_Nodelist.CallOpts)
 }
 

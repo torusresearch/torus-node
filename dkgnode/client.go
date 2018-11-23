@@ -68,19 +68,20 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	siMapping := make(map[int]common.PrimaryShare)
 	for {
 		// Fetch Node List from contract address
-		ethList, err := suite.EthSuite.NodeListInstance.ViewNodes(nil)
+		ethList, positions, err := suite.EthSuite.NodeListInstance.ViewNodes(nil)
+		fmt.Println("Indexes", positions)
 		if err != nil {
 			fmt.Println(err)
 		}
-		if len(ethList.Nodes) > 0 {
+		if len(ethList) > 0 {
 			fmt.Println("Connecting to other nodes ------------------")
 			// Build count of nodes connected to
 			triggerSecretSharing := 0
-			for i := range ethList.Nodes {
+			for i := range ethList {
 				// fmt.Println(ethList[i].Hex())
 
 				// Check if node is online
-				temp, err := connectToJSONRPCNode(suite, ethList.Nodes[i])
+				temp, err := connectToJSONRPCNode(suite, ethList[i])
 				if err != nil {
 					fmt.Println(err)
 				}

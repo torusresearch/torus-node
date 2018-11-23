@@ -17,7 +17,8 @@ contract NodeList {
   }
 
 
-  function viewNodes() external view  returns (address[] nodes, uint256[] positions) {
+  function viewNodes() external view  returns (address[], uint256[]) {
+    uint256[] memory positions = new uint256[](nodeList.length);
     for (uint256 i = 0; i < nodeList.length; i++) {
       positions[i] = nodeDetails[nodeList[i]].position;
     }

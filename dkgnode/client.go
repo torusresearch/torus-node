@@ -14,7 +14,6 @@ import (
 	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
 	"github.com/YZhenY/torus/secp256k1"
-	"github.com/YZhenY/torus/tmabci"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
@@ -60,7 +59,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
 	//for testing purposes
 	if suite.Config.MyPort == "8001" {
-		go tmabci.RunABCIServer()
+		go RunABCIServer()
 	}
 	//TODO: add bftRPC to suite, should be in dkgnode.go
 	bftRPC := NewBftRPC(BftURI)
@@ -126,7 +125,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 
 					// commit pubpoly by signing it and broadcasting it
 
-					// sign hash of pubpoly by converting array of points to bytes array
 					//TODO: Make epoch variable
 					pubPolyTx := PubPolyBFTTx{
 						*pubpoly,
@@ -223,7 +221,6 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						}
 
 						// ECDSA COMMENTED OUT
-						// fmt.Println("jsonData was unmarshaled into ", data)
 						// hashedData := bytes32(ethCrypto.Keccak256(data.PointsBytesArray))
 						// if bytes.Compare(data.EcdsaSignature.Hash[:], hashedData[:]) != 0 {
 						// 	fmt.Println("Signed hash does not match retrieved hash")

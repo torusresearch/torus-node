@@ -266,6 +266,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:5c3444689562053b027ef3b96372e306adbe0d7d109b6cdd48d01eb80f8bab14"
+  name = "github.com/jinzhu/copier"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7e38e58719c33e0d44d585c4ab477a30f8cb82dd"
+
+[[projects]]
+  branch = "master"
   digest = "1:39b27d1381a30421f9813967a5866fba35dc1d4df43a6eefe3b7a5444cb07214"
   name = "github.com/jmhodges/levigo"
   packages = ["."]
@@ -742,11 +750,13 @@
     "github.com/ethereum/go-ethereum/rlp",
     "github.com/fatih/structs",
     "github.com/intel-go/fastjson",
+    "github.com/jinzhu/copier",
     "github.com/mattn/go-sqlite3",
     "github.com/micro/go-config",
     "github.com/micro/go-config/source/file",
     "github.com/osamingo/jsonrpc",
     "github.com/patrickmn/go-cache",
+    "github.com/pkg/errors",
     "github.com/rs/cors",
     "github.com/stretchr/testify/assert",
     "github.com/tendermint/tendermint/abci/example/code",

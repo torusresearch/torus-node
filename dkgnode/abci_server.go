@@ -9,13 +9,13 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 )
 
-func RunABCIServer() error {
+func RunABCIServer(suite *Suite) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 
 	// Create the application - in memory or persisted to disk
 	var app types.Application
 	// if flagPersist == "" {
-	app = NewKVStoreApplication()
+	app = NewABCIApp(suite)
 	// } else {
 	// 	app = kvstore.NewPersistentKVStoreApplication(flagPersist)
 	// 	app.(*kvstore.PersistentKVStoreApplication).SetLogger(logger.With("module", "kvstore"))

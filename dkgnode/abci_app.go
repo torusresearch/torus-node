@@ -57,20 +57,20 @@ func prefixKey(key []byte) []byte {
 
 //---------------------------------------------------
 
-var _ types.Application = (*KVStoreApplication)(nil)
+var _ types.Application = (*ABCIApp)(nil)
 
-type KVStoreApplication struct {
+type ABCIApp struct {
 	types.BaseApplication
-
+	Suite *Suite
 	state State
 }
 
-func NewKVStoreApplication() *KVStoreApplication {
+func NewABCIApp(suite *Suite) *ABCIApp {
 	state := loadState(dbm.NewMemDB())
-	return &KVStoreApplication{state: state}
+	return &ABCIApp{Suite: suite, state: state}
 }
 
-func (app *KVStoreApplication) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
+func (app *ABCIApp) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
 	return types.ResponseInfo{
 		Data:       fmt.Sprintf("{\"size\":%v}", app.state.Size),
 		Version:    version.ABCIVersion,
@@ -79,7 +79,7 @@ func (app *KVStoreApplication) Info(req types.RequestInfo) (resInfo types.Respon
 }
 
 // tx is either "key=value" or just arbitrary bytes
-func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
+func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
 	fmt.Println("DELIVERINGTX", tx)
 
@@ -115,11 +115,12 @@ func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	return types.ResponseDeliverTx{Code: code.CodeTypeOK}
 }
 
-func (app *KVStoreApplication) CheckTx(tx []byte) types.ResponseCheckTx {
+func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
+
 	return types.ResponseCheckTx{Code: code.CodeTypeOK, GasWanted: 1}
 }
 
-func (app *KVStoreApplication) Commit() types.ResponseCommit {
+func (app *ABCIApp) Commit() types.ResponseCommit {
 	// Using a memdb - just return the big endian size of the db
 	appHash := make([]byte, 8)
 	binary.PutVarint(appHash, app.state.Size)
@@ -129,7 +130,7 @@ func (app *KVStoreApplication) Commit() types.ResponseCommit {
 	return types.ResponseCommit{Data: appHash}
 }
 
-func (app *KVStoreApplication) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
+func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
 	if reqQuery.Prove {
 		value := app.state.db.Get(prefixKey(reqQuery.Data))
 		resQuery.Index = -1 // TODO make Proof return index

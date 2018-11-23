@@ -59,7 +59,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
 	//for testing purposes
 	if suite.Config.MyPort == "8001" {
-		go RunABCIServer()
+		go RunABCIServer(suite)
 	}
 	//TODO: add bftRPC to suite, should be in dkgnode.go
 	bftRPC := NewBftRPC(BftURI)
@@ -127,17 +127,19 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 
 					//TODO: Make epoch variable
 					pubPolyTx := PubPolyBFTTx{
-						*pubpoly,
-						uint(0),
-						uint(shareIndex),
+						PubPoly:    *pubpoly,
+						Epoch:      uint(0),
+						ShareIndex: uint(shareIndex),
 					}
+
+					wrapper := DefaultBFTTxWrapper{&pubPolyTx}
 
 					//Commented out ECDSA Verification for now. Need to check out tm signing on chain
 					// ecdsaSignature := ECDSASign(arrBytes, suite.EthSuite.NodePrivateKey) // TODO: check if it matches on-chain implementation
 					// pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
 
 					// broadcast signed pubpoly
-					id, err := bftRPC.Broadcast(&pubPolyTx)
+					id, err := bftRPC.Broadcast(wrapper)
 					if err != nil {
 						fmt.Println("Can't broadcast signed pubpoly")
 						fmt.Println(err)
@@ -213,7 +215,8 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						fmt.Println("BROADCASTID WAS: ", broadcastId)
 
 						pubPolyTx := PubPolyBFTTx{}
-						err := bftRPC.Retrieve(broadcastId, &pubPolyTx) // TODO: use a goroutine to run this concurrently
+						wrappedPubPolyTx := DefaultBFTTxWrapper{&pubPolyTx}
+						err := bftRPC.Retrieve(broadcastId, &wrappedPubPolyTx) // TODO: use a goroutine to run this concurrently
 						if err != nil {
 							fmt.Println("Could not retrieve broadcast")
 							fmt.Println(err)

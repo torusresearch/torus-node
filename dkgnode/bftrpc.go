@@ -3,33 +3,46 @@ package dkgnode
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/YZhenY/torus/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
 )
 
+type BftRPC struct {
+	*client.HTTP
+}
+
+//BFT Transactions are registered under this interface
 type BFTTx interface {
+	//Create byte type and append RLP encoded tx
+	// PrepareBFTTx() ([]byte, error)
+	//Decode byte type and RLP into struct
+	// DecodeBFTTx([]byte) error
+}
+
+type BFTTxWrapper interface {
 	//Create byte type and append RLP encoded tx
 	PrepareBFTTx() ([]byte, error)
 	//Decode byte type and RLP into struct
 	DecodeBFTTx([]byte) error
 }
 
-type BftRPC struct {
-	*client.HTTP
+type DefaultBFTTxWrapper struct {
+	BFTTx BFTTx
 }
 
-type PubPolyBFTTx struct {
-	PubPoly    []common.Point
-	Epoch      uint
-	ShareIndex uint
+var bftTxs = map[string]byte{
+	"PubPolyBFTX": byte(uint8(1)),
+	"EpochBFFTX":  byte(uint8(1)),
 }
 
-func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
+func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
 	//type byte
 	txType := make([]byte, 1)
-	txType[0] = byte(uint8(1))
+	tx := wrapper.BFTTx
+	txType[0] = bftTxs[getType(tx)]
 
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
@@ -39,18 +52,59 @@ func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
 	return preparedMsg, nil
 }
 
-func (tx *PubPolyBFTTx) DecodeBFTTx(data []byte) error {
-	err := rlp.DecodeBytes(data[1:], tx)
+func (wrapper *DefaultBFTTxWrapper) DecodeBFTTx(data []byte) error {
+	err := rlp.DecodeBytes(data[1:], wrapper.BFTTx)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func getType(myvar interface{}) string {
+	if t := reflect.TypeOf(myvar); t.Kind() == reflect.Ptr {
+		return "*" + t.Elem().Name()
+	} else {
+		fmt.Println(t)
+		return t.Name()
+	}
+}
+
+type PubPolyBFTTx struct {
+	PubPoly    []common.Point
+	Epoch      uint
+	ShareIndex uint
+}
+
+type EpochBFFTX struct {
+	EpochNumber uint
+}
+
+// func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
+// 	//type byte
+// 	txType := make([]byte, 1)
+// 	txType[0] = byte(uint8(1))
+
+// 	data, err := rlp.EncodeToBytes(tx)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	preparedMsg := append(txType[:], data[:]...)
+// 	return preparedMsg, nil
+// }
+
+// func (tx *PubPolyBFTTx) DecodeBFTTx(data []byte) error {
+// 	err := rlp.DecodeBytes(data[1:], tx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
 //BroadcastTxSync Wrapper (input should be RLP encoded) to tendermint.
 //All transactions are appended to a torus signature hexbytes(mug00 + versionNo)
 // e.g mug00 => 6d75673030
-func (bftrpc BftRPC) Broadcast(tx BFTTx) (*common.Hash, error) {
+func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
+
 	// prepare transaction with type and rlp encoding
 	preparedTx, err := tx.PrepareBFTTx()
 	if err != nil {
@@ -75,7 +129,7 @@ func (bftrpc BftRPC) Broadcast(tx BFTTx) (*common.Hash, error) {
 
 //Retrieves tx from the bft and gives back results. Takes off the donut
 //TODO: this might be a tad redundent a function, to just use innate tendermint functions?
-func (bftrpc BftRPC) Retrieve(hash []byte, txStruct BFTTx) (err error) {
+func (bftrpc BftRPC) Retrieve(hash []byte, txStruct BFTTxWrapper) (err error) {
 	// fmt.Println("WE ARE RETRIEVING")
 	result, err := bftrpc.Tx(hash, false)
 	if err != nil {

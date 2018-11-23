@@ -60,6 +60,27 @@ func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	return commits
 }
 
+// add two polynomials (modulo generator order Q)
+func addPolynomials(poly1 common.PrimaryPolynomial, poly2 common.PrimaryPolynomial) *common.PrimaryPolynomial {
+	var sumPoly []big.Int
+	if poly1.Threshold != poly2.Threshold {
+		fmt.Println("thresholds of two polynomials are not equal")
+		return &common.PrimaryPolynomial{sumPoly, 0}
+	}
+
+	if len(poly1.Coeff) != len(poly2.Coeff) {
+		fmt.Println("order of two polynomials are not equal")
+		return &common.PrimaryPolynomial{sumPoly, 0}
+	}
+
+	for i, _ := range poly1.Coeff {
+		tmpCoeff := new(big.Int).Add(&poly1.Coeff[i], &poly2.Coeff[i])
+		sumPoly = append(sumPoly, *new(big.Int).Mod(tmpCoeff, secp256k1.GeneratorOrder))
+	}
+
+	return &common.PrimaryPolynomial{sumPoly, poly1.Threshold}
+}
+
 func generateRandomZeroPolynomial(secret big.Int, threshold int) *common.PrimaryPolynomial {
 	// Create secret sharing polynomial
 	coeff := make([]big.Int, threshold)
@@ -264,7 +285,7 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 // 	return secret
 // }
 
-func LagrangeScalar(shares []common.PrimaryShare) *big.Int {
+func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {
 		//when x =0
@@ -273,9 +294,10 @@ func LagrangeScalar(shares []common.PrimaryShare) *big.Int {
 		lower := new(big.Int).SetInt64(int64(1))
 		for j := range shares {
 			if shares[j].Index != share.Index {
-				upper.Mul(upper, big.NewInt(int64(shares[j].Index)))
+				tempUpper := big.NewInt(int64(target))
+				tempUpper.Sub(tempUpper, big.NewInt(int64(shares[j].Index)))
+				upper.Mul(upper, tempUpper)
 				upper.Mod(upper, secp256k1.GeneratorOrder)
-				upper.Neg(upper)
 
 				tempLower := big.NewInt(int64(share.Index))
 				tempLower.Sub(tempLower, big.NewInt(int64(shares[j].Index)))

@@ -131,52 +131,52 @@ func main() {
 		temppp := make([]common.PrimaryShare, 1)
 		temppp[0] = shareList[0]
 		equal := true
-		final := pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[2])) // nodes: 0, 1, 2
+		final := pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[2]), 0) // nodes: 0, 1, 2
 		// fmt.Println("123: ", final.Text(16))
 		testFinal := final
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[3])) // nodes: 0, 1, 3
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[3]), 0) // nodes: 0, 1, 3
 		// fmt.Println("124: ", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[4])) // nodes: 0, 1, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[4]), 0) // nodes: 0, 1, 4
 		// fmt.Println("125", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3])) // nodes: 0, 2, 3
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3]), 0) // nodes: 0, 2, 3
 		// fmt.Println("134", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4])) // nodes: 0, 2, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4]), 0) // nodes: 0, 2, 4
 		// fmt.Println("135", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4])) // nodes: 0, 3, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4]), 0) // nodes: 0, 3, 4
 		// fmt.Println("145", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		temppp[0] = shareList[1]
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3])) // nodes: 1, 2, 3
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3]), 0) // nodes: 1, 2, 3
 		// fmt.Println("234", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4])) // nodes: 1, 2, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4]), 0) // nodes: 1, 2, 4
 		// fmt.Println("235", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4])) // nodes: 1, 3, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4]), 0) // nodes: 1, 3, 4
 		// fmt.Println("245", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		temppp[0] = shareList[2]
-		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4])) // nodes: 2, 3, 4
+		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4]), 0) // nodes: 2, 3, 4
 		fmt.Println("345", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false

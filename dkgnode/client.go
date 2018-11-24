@@ -63,6 +63,19 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	}
 	//TODO: add bftRPC to suite, should be in dkgnode.go
 	bftRPC := NewBftRPC(BftURI)
+	//for testing purposes
+	//TODO: FIX
+	time.Sleep(3 * time.Second)
+	if suite.Config.MyPort == "8001" {
+		epochTxWrapper := DefaultBFTTxWrapper{
+			&EpochBFFTx{uint(0)},
+		}
+		_, err := bftRPC.Broadcast(epochTxWrapper)
+		if err != nil {
+			fmt.Println("error broadcasting epoch: ", err)
+		}
+	}
+
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	siMapping := make(map[int]common.PrimaryShare)
 	for {

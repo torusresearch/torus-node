@@ -29,13 +29,23 @@ type BFTTxWrapper interface {
 	DecodeBFTTx([]byte) error
 }
 
+type PubPolyBFTTx struct {
+	PubPoly    []common.Point
+	Epoch      uint
+	ShareIndex uint
+}
+
+type EpochBFFTx struct {
+	EpochNumber uint
+}
+
 type DefaultBFTTxWrapper struct {
 	BFTTx BFTTx
 }
 
 var bftTxs = map[string]byte{
-	"PubPolyBFTX": byte(uint8(1)),
-	"EpochBFFTX":  byte(uint8(1)),
+	getType(PubPolyBFTTx{}): byte(1),
+	getType(EpochBFFTx{}):   byte(2),
 }
 
 func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
@@ -43,7 +53,7 @@ func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
 	txType := make([]byte, 1)
 	tx := wrapper.BFTTx
 	txType[0] = bftTxs[getType(tx)]
-
+	// fmt.Println("BFTTX: ", bftTxs, txType, getType(tx))
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return nil, err
@@ -62,21 +72,11 @@ func (wrapper *DefaultBFTTxWrapper) DecodeBFTTx(data []byte) error {
 
 func getType(myvar interface{}) string {
 	if t := reflect.TypeOf(myvar); t.Kind() == reflect.Ptr {
-		return "*" + t.Elem().Name()
+		return t.Elem().Name()
 	} else {
 		fmt.Println(t)
 		return t.Name()
 	}
-}
-
-type PubPolyBFTTx struct {
-	PubPoly    []common.Point
-	Epoch      uint
-	ShareIndex uint
-}
-
-type EpochBFFTX struct {
-	EpochNumber uint
 }
 
 // func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
@@ -104,7 +104,6 @@ type EpochBFFTX struct {
 //All transactions are appended to a torus signature hexbytes(mug00 + versionNo)
 // e.g mug00 => 6d75673030
 func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
-
 	// prepare transaction with type and rlp encoding
 	preparedTx, err := tx.PrepareBFTTx()
 	if err != nil {
@@ -131,6 +130,7 @@ func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
 //TODO: this might be a tad redundent a function, to just use innate tendermint functions?
 func (bftrpc BftRPC) Retrieve(hash []byte, txStruct BFTTxWrapper) (err error) {
 	// fmt.Println("WE ARE RETRIEVING")
+
 	result, err := bftrpc.Tx(hash, false)
 	if err != nil {
 		return err

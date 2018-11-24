@@ -83,6 +83,20 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
 	fmt.Println("DELIVERINGTX", tx)
 
+	//Validate transaction here
+	correct, tags, err := app.ValidateBFTTx(tx)
+	if err != nil {
+		fmt.Println("could not validate BFTTx", err)
+	}
+
+	if !correct {
+		//If validated, we save the transaction into the db
+		fmt.Println("BFTTX IS WRONG")
+		return types.ResponseDeliverTx{Code: code.CodeTypeUnauthorized}
+	}
+
+	return types.ResponseDeliverTx{Code: code.CodeTypeOK, Tags: *tags}
+
 	// var p Message
 	// if err := rlp.DecodeBytes(tx, p); err != nil {
 	// 	fmt.Println("ERROR DECODING RLP")
@@ -108,11 +122,6 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	// app.state.db.Set(prefixKey(key), value)
 	// app.state.Size += 1
 
-	// tags := []common.KVPair{
-	// 	{Key: []byte("app.creator"), Value: []byte("Cosmoshi Netowoko")},
-	// 	{Key: []byte("app.key"), Value: key},
-	// }
-	return types.ResponseDeliverTx{Code: code.CodeTypeOK}
 }
 
 func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
@@ -131,26 +140,27 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 }
 
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
-	if reqQuery.Prove {
-		value := app.state.db.Get(prefixKey(reqQuery.Data))
-		resQuery.Index = -1 // TODO make Proof return index
-		resQuery.Key = reqQuery.Data
-		resQuery.Value = value
-		if value != nil {
-			resQuery.Log = "exists"
-		} else {
-			resQuery.Log = "does not exist"
-		}
-		return
-	} else {
-		resQuery.Key = reqQuery.Data
-		value := app.state.db.Get(prefixKey(reqQuery.Data))
-		resQuery.Value = value
-		if value != nil {
-			resQuery.Log = "exists"
-		} else {
-			resQuery.Log = "does not exist"
-		}
-		return
-	}
+	// if reqQuery.Prove
+	// 	value := app.state.db.Get(prefixKey(reqQuery.Data))
+	// 	resQuery.Index = -1 // TODO make Proof return index
+	// 	resQuery.Key = reqQuery.Data
+	// 	resQuery.Value = value
+	// 	if value != nil {
+	// 		resQuery.Log = "exists"
+	// 	} else {
+	// 		resQuery.Log = "does not exist"
+	// 	}
+	// 	return
+	// } else {
+	// 	resQuery.Key = reqQuery.Data
+	// 	value := app.state.db.Get(prefixKey(reqQuery.Data))
+	// 	resQuery.Value = value
+	// 	if value != nil {
+	// 		resQuery.Log = "exists"
+	// 	} else {
+	// 		resQuery.Log = "does not exist"
+	// 	}
+	// 	return
+	// }
+	return
 }

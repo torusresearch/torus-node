@@ -95,7 +95,7 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	fmt.Println("DELIVERINGTX", tx)
 
 	//Validate transaction here
-	correct, tags, err := app.ValidateBFTTx(tx)
+	correct, tags, err := app.ValidateBFTTx(tx) // TODO: doesnt just validate now.. break out update from validate?
 	if err != nil {
 		fmt.Println("could not validate BFTTx", err)
 	}

@@ -43,7 +43,10 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		}
 		fmt.Println("ATTACHING TAGS")
 		tags = []common.KVPair{
-			{Key: []byte("epoch"), Value: []byte{byte(1)}},
+			// retrieve tag using "localhost:26657/tx_search?query=\"epoch='1'\""
+			// remember to change tendermint config to use index_all_tags = true
+			// tags should come back in base64 encoding so pass a string as the Value
+			{Key: []byte("epoch"), Value: []byte("1")},
 		}
 		return true, &tags, nil
 

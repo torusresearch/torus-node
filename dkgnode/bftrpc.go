@@ -35,7 +35,7 @@ type PubPolyBFTTx struct {
 	ShareIndex uint
 }
 
-type EpochBFFTx struct {
+type EpochBFTTx struct {
 	EpochNumber uint
 }
 
@@ -43,9 +43,10 @@ type DefaultBFTTxWrapper struct {
 	BFTTx BFTTx
 }
 
+// mapping of name of struct to id
 var bftTxs = map[string]byte{
 	getType(PubPolyBFTTx{}): byte(1),
-	getType(EpochBFFTx{}):   byte(2),
+	getType(EpochBFTTx{}):   byte(2),
 }
 
 func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
@@ -114,7 +115,7 @@ func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
 	//TODO: make version configurable
 	msg := append([]byte("mug00")[:], preparedTx[:]...)
 	//tendermint rpc
-	response, err := bftrpc.BroadcastTxSync(msg)
+	response, err := bftrpc.BroadcastTxSync(msg) // TODO: sync vs async?
 	if err != nil {
 		return nil, err
 	}

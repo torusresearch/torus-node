@@ -68,7 +68,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(3 * time.Second)
 	if suite.Config.MyPort == "8001" {
 		epochTxWrapper := DefaultBFTTxWrapper{
-			&EpochBFFTx{uint(0)},
+			&EpochBFTTx{uint(1)},
 		}
 		_, err := bftRPC.Broadcast(epochTxWrapper)
 		if err != nil {

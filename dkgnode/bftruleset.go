@@ -24,17 +24,24 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		if err != nil {
 			return false, nil, err
 		}
-		//verify correct epoch
+
 		return true, nil, nil
 		//verify share index has not yet been submitted for epoch
 
 	case byte(2): // EpochTx
-		EpochTx := DefaultBFTTxWrapper{&EpochBFFTx{}}
+		EpochTx := DefaultBFTTxWrapper{&EpochBFTTx{}}
 		err := EpochTx.DecodeBFTTx(txNoSig)
 		if err != nil {
 			return false, nil, err
 		}
-		fmt.Println("ATTATCHING TAGS")
+		//verify correct epoch
+		epochTx := EpochTx.BFTTx.(*EpochBFTTx)
+		if epochTx.EpochNumber != app.state.Epoch+1 {
+			return false, nil, errors.New("Invalid epoch number: " + fmt.Sprintf("%d", epochTx.EpochNumber))
+		} else {
+			app.transientState.Epoch = epochTx.EpochNumber
+		}
+		fmt.Println("ATTACHING TAGS")
 		tags = []common.KVPair{
 			{Key: []byte("epoch"), Value: []byte{byte(1)}},
 		}

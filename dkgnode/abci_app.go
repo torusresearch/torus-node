@@ -1,12 +1,13 @@
 package dkgnode
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 
+	"github.com/YZhenY/torus/secp256k1"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/version"
 )
@@ -18,9 +19,13 @@ var (
 	ProtocolVersion version.Protocol = 0x1
 )
 
+type TransientState struct {
+	State
+}
+
+// Nothing in state should be a pointer
 type State struct {
-	db      dbm.DB
-	Size    int64  `json:"size"`
+	Epoch   uint   `json:"epoch"`
 	Height  int64  `json:"height"`
 	AppHash []byte `json:"app_hash"`
 }
@@ -30,8 +35,8 @@ type ABCITransaction struct {
 	Payload interface{} `json:"payload"`
 }
 
-func loadState(db dbm.DB) State {
-	stateBytes := db.Get(stateKey)
+func (app *ABCIApp) LoadState() State {
+	stateBytes := app.db.Get(stateKey)
 	var state State
 	if len(stateBytes) != 0 {
 		err := json.Unmarshal(stateBytes, &state)
@@ -39,16 +44,17 @@ func loadState(db dbm.DB) State {
 			panic(err)
 		}
 	}
-	state.db = db
+	app.state = state
 	return state
 }
 
-func saveState(state State) {
-	stateBytes, err := json.Marshal(state)
+func (app *ABCIApp) SaveState() State {
+	stateBytes, err := json.Marshal(app.state)
 	if err != nil {
 		panic(err)
 	}
-	state.db.Set(stateKey, stateBytes)
+	app.db.Set(stateKey, stateBytes)
+	return app.state
 }
 
 func prefixKey(key []byte) []byte {
@@ -61,18 +67,23 @@ var _ types.Application = (*ABCIApp)(nil)
 
 type ABCIApp struct {
 	types.BaseApplication
-	Suite *Suite
-	state State
+	Suite          *Suite
+	state          State
+	db             dbm.DB
+	transientState TransientState
 }
 
 func NewABCIApp(suite *Suite) *ABCIApp {
-	state := loadState(dbm.NewMemDB())
-	return &ABCIApp{Suite: suite, state: state}
+	db := dbm.NewMemDB()
+	abciApp := ABCIApp{Suite: suite, db: db}
+
+	state := abciApp.LoadState()
+	abciApp.transientState = TransientState{state}
+	return &abciApp
 }
 
 func (app *ABCIApp) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
 	return types.ResponseInfo{
-		Data:       fmt.Sprintf("{\"size\":%v}", app.state.Size),
 		Version:    version.ABCIVersion,
 		AppVersion: ProtocolVersion.Uint64(),
 	}
@@ -93,6 +104,10 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 		//If validated, we save the transaction into the db
 		fmt.Println("BFTTX IS WRONG")
 		return types.ResponseDeliverTx{Code: code.CodeTypeUnauthorized}
+	}
+
+	if tags == nil {
+		tags = new([]common.KVPair)
 	}
 
 	return types.ResponseDeliverTx{Code: code.CodeTypeOK, Tags: *tags}
@@ -130,13 +145,16 @@ func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
 }
 
 func (app *ABCIApp) Commit() types.ResponseCommit {
-	// Using a memdb - just return the big endian size of the db
-	appHash := make([]byte, 8)
-	binary.PutVarint(appHash, app.state.Size)
-	app.state.AppHash = appHash
+	fmt.Println("COMMITING... HEIGHT:", app.state.Height)
+	// retrieve state from memdb
+	app.LoadState()
+	app.state.AppHash = secp256k1.Keccak256(app.db.Get(stateKey))
+	app.state.Epoch = app.transientState.Epoch
 	app.state.Height += 1
-	saveState(app.state)
-	return types.ResponseCommit{Data: appHash}
+	// commit to memdb
+	app.transientState = TransientState{app.SaveState()}
+	fmt.Println("APP STATE COMMITTED: ", app.state)
+	return types.ResponseCommit{Data: app.state.AppHash}
 }
 
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {

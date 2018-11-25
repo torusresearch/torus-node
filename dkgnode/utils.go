@@ -10,6 +10,7 @@ import (
 	"net"
 
 	"github.com/YZhenY/torus/common"
+	"github.com/YZhenY/torus/secp256k1"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -67,8 +68,8 @@ func bytes32(bytes []byte) [32]byte {
 }
 
 func ECDSASign(data []byte, ecdsaKey *ecdsa.PrivateKey) ECDSASignature {
-	// to get data []byte from string, do ethCrypto.Keccak256([]byte(messageString))
-	hashRaw := ethCrypto.Keccak256(data)
+	// to get data []byte from string, do secp256k1.Keccak256([]byte(messageString))
+	hashRaw := secp256k1.Keccak256(data)
 	signature, err := ethCrypto.Sign(hashRaw, ecdsaKey)
 	if err != nil {
 		log.Fatal(err)

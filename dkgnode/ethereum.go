@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/YZhenY/torus/secp256k1"
 	"github.com/YZhenY/torus/solidity/goContracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -30,10 +31,10 @@ type EthSuite struct {
 /* Form public key using private key */
 func publicKeyFromPrivateKey(privateKey string) string {
 	privateKeyBytes, _ := hex.DecodeString(privateKey)
-	P1x, P1y := ethCrypto.S256().ScalarBaseMult(privateKeyBytes)
+	P1x, P1y := secp256k1.Curve.ScalarBaseMult(privateKeyBytes)
 	Phex := P1x.Text(16) + P1y.Text(16)
 	Pbyte, _ := hex.DecodeString(Phex)
-	pubKHex := hex.EncodeToString(ethCrypto.Keccak256(Pbyte))
+	pubKHex := hex.EncodeToString(secp256k1.Keccak256(Pbyte))
 	return "0x" + pubKHex[len(pubKHex)-40:]
 }
 
@@ -65,7 +66,7 @@ func SetUpEth(suite *Suite) error {
 	if err != nil {
 		return err
 	}
-	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, nodeListInstance, ethCrypto.S256()}
+	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, nodeListInstance, secp256k1.Curve}
 	return nil
 }
 

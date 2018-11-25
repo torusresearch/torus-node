@@ -237,7 +237,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						}
 
 						// ECDSA COMMENTED OUT
-						// hashedData := bytes32(ethCrypto.Keccak256(data.PointsBytesArray))
+						// hashedData := bytes32(secp256k1.Keccak256(data.PointsBytesArray))
 						// if bytes.Compare(data.EcdsaSignature.Hash[:], hashedData[:]) != 0 {
 						// 	fmt.Println("Signed hash does not match retrieved hash")
 						// 	fmt.Println(data.EcdsaSignature.Hash[:])

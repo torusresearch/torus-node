@@ -16,6 +16,7 @@ type Config struct {
 	HostName          string `json:"hostname"`
 	NumberOfNodes     int    `json:"numberofnodes"`
 	Threshold         int    `json:"threshold"`
+	ABCIServer        string `json:"abciserver`
 }
 
 func loadConfig(suite *Suite, path string) {

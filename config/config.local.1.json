@@ -7,5 +7,6 @@
   "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
   "numberofnodes": 5,
   "threshold": 3,
-  "hostname": "dkg1.tetrator.us"
+  "hostname": "dkg1.tetrator.us",
+  "abciserver": "tcp://0.0.0.0:8010"
 }

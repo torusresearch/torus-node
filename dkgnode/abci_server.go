@@ -22,8 +22,7 @@ func RunABCIServer(suite *Suite) error {
 	// }
 
 	// Start the listener
-	//TODO: change literals to flags
-	srv, err := server.NewServer("tcp://0.0.0.0:26658", "socket", app)
+	srv, err := server.NewServer(suite.Config.ABCIServer, "socket", app)
 	if err != nil {
 		return err
 	}

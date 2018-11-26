@@ -11,6 +11,9 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
+	"github.com/Rican7/retry/strategy"
 	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
 	"github.com/YZhenY/torus/secp256k1"
@@ -58,14 +61,14 @@ type SigncryptedMessage struct {
 func keyGenerationPhase(suite *Suite) (string, error) {
 	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
 	//for testing purposes
-	if suite.Config.MyPort == "8001" {
-		go RunABCIServer(suite)
-	}
+	// if suite.Config.MyPort == "8001" {
+	go RunABCIServer(suite)
+	// }
 
 	bftRPC := suite.BftSuite.BftRPC
 	//for testing purposes
 	//TODO: FIX
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 	if suite.Config.MyPort == "8001" {
 		epochTxWrapper := DefaultBFTTxWrapper{
 			&EpochBFTTx{uint(1)},
@@ -152,12 +155,29 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					// pubPolyProof := PubPolyProof{EcdsaSignature: ecdsaSignature, PointsBytesArray: arrBytes}
 
 					// broadcast signed pubpoly
-					id, err := bftRPC.Broadcast(wrapper)
-					if err != nil {
-						fmt.Println("Can't broadcast signed pubpoly")
-						fmt.Println(err)
+					var id *common.Hash
+					action := func(attempt uint) error {
+						id, err = bftRPC.Broadcast(wrapper)
+						if err != nil {
+							fmt.Println("failed to fetch (attempt #%d) with error: %d", err)
+							err = fmt.Errorf("failed to fetch (attempt #%d) with error: %d", err)
+						}
+						return err
 					}
-					fmt.Println(id)
+					err = retry.Retry(
+						action,
+						strategy.Backoff(backoff.Fibonacci(10*time.Millisecond)),
+					)
+					if nil != err {
+						fmt.Println("Failed to publish pub poly with error %q", err)
+					}
+
+					// id, err := bftRPC.Broadcast(wrapper)
+					// if err != nil {
+					// 	fmt.Println("Can't broadcast signed pubpoly")
+					// 	fmt.Println(err)
+					// }
+					// fmt.Println(id)
 
 					// signcrypt data
 					signcryptedData := make([]*common.SigncryptedOutput, len(nodes))

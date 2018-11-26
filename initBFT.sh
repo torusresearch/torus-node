@@ -8,7 +8,10 @@ cd $GOPATH/src/github.com/tendermint/tendermint
 make build-linux
 
 # Build tendermint/localnode image
-make build-docker-localnode
+cd $GOPATH/src/github.com/tendermint/tendermint/network/local
+make
 
 # Some how needs to be done twice
+cd $GOPATH/src/github.com/tendermint/tendermint
 make build-linux
+

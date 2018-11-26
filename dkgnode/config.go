@@ -11,6 +11,7 @@ type Config struct {
 	MyPort            string `json:"myport"`
 	EthConnection     string `json:"ethconnection"`
 	EthPrivateKey     string `json:"ethprivatekey"`
+	BftURI            string `json:"bfturi`
 	NodeListAddress   string `json:"nodelistaddress"`
 	HostName          string `json:"hostname"`
 	NumberOfNodes     int    `json:"numberofnodes"`

@@ -8,6 +8,7 @@ import (
 
 type Suite struct {
 	EthSuite   *EthSuite
+	BftSuite   *BftSuite
 	CacheSuite *CacheSuite
 	Config     *Config
 	Flags      *Flags
@@ -29,7 +30,8 @@ func New(configPath string, register bool, production bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	setUpCache(&suite)
+	SetUpBft(&suite)
+	SetUpCache(&suite)
 	var nodeIPAddress string
 
 	if production {

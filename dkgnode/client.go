@@ -20,7 +20,7 @@ import (
 
 // TODO: pass in as config
 const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
-const BftURI = "tcp://localhost:26657"
+// const BftURI = "tcp://localhost:26657"
 
 type NodeReference struct {
 	Address    *ethCommon.Address
@@ -61,8 +61,8 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	if suite.Config.MyPort == "8001" {
 		go RunABCIServer(suite)
 	}
-	//TODO: add bftRPC to suite, should be in dkgnode.go
-	bftRPC := NewBftRPC(BftURI)
+
+	bftRPC := suite.BftSuite.BftRPC
 	//for testing purposes
 	//TODO: FIX
 	time.Sleep(3 * time.Second)
@@ -330,6 +330,8 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*common.Signcrypte
 	for i := range signcryptedOutput {
 		for j := range signcryptedOutput { // TODO: this is because we aren't sure about the ordering of nodeList/signcryptedOutput...
 			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
+				// send shares to bft
+
 				_, err := nodeList[j].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
 					ethSuite.NodeAddress.Hex(),
 					ethSuite.NodePublicKey.X.Text(16),

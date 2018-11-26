@@ -18,6 +18,19 @@
   revision = "2a1d1d1dc33ce5cf7271c7560c8c62423dd0b094"
 
 [[projects]]
+  digest = "1:a7b19f4f25c2017dc3149f9c4f9993b3c4ba1e491bdd1a2122371062db2fbb05"
+  name = "github.com/Rican7/retry"
+  packages = [
+    ".",
+    "backoff",
+    "jitter",
+    "strategy",
+  ]
+  pruneopts = "UT"
+  revision = "28d17f812805614e76f170aa3c8698155ea8e019"
+  version = "v0.1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:c312c313bb8040fcfb5698f38b51ec279e4635c7619773e6f018c908586c64b1"
   name = "github.com/alecthomas/jsonschema"
@@ -521,65 +534,6 @@
   version = "v0.12.0"
 
 [[projects]]
-  digest = "1:ad2b545160ed69c8c4886903eb33d65b02fc47b690b0550c5f701d09c3db9557"
-  name = "github.com/tendermint/tendermint"
-  packages = [
-    "abci/client",
-    "abci/example/code",
-    "abci/example/kvstore",
-    "abci/server",
-    "abci/types",
-    "blockchain",
-    "config",
-    "consensus",
-    "consensus/types",
-    "crypto",
-    "crypto/ed25519",
-    "crypto/encoding/amino",
-    "crypto/merkle",
-    "crypto/multisig",
-    "crypto/multisig/bitarray",
-    "crypto/secp256k1",
-    "crypto/tmhash",
-    "evidence",
-    "libs/autofile",
-    "libs/clist",
-    "libs/common",
-    "libs/db",
-    "libs/errors",
-    "libs/events",
-    "libs/flowrate",
-    "libs/log",
-    "libs/pubsub",
-    "libs/pubsub/query",
-    "mempool",
-    "node",
-    "p2p",
-    "p2p/conn",
-    "p2p/pex",
-    "privval",
-    "proxy",
-    "rpc/client",
-    "rpc/core",
-    "rpc/core/types",
-    "rpc/grpc",
-    "rpc/lib",
-    "rpc/lib/client",
-    "rpc/lib/server",
-    "rpc/lib/types",
-    "state",
-    "state/txindex",
-    "state/txindex/kv",
-    "state/txindex/null",
-    "types",
-    "types/time",
-    "version",
-  ]
-  pruneopts = "UT"
-  revision = "0c9c3292c918617624f6f3fbcd95eceade18bcd5"
-  version = "v0.25.0"
-
-[[projects]]
   branch = "master"
   digest = "1:cc84ef00f00d3d7dca228d9498f44c0d000d329be75ae39d81e7d9bef6422d4f"
   name = "github.com/xlab-si/emmy"
@@ -735,6 +689,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/Rican7/retry",
+    "github.com/Rican7/retry/backoff",
+    "github.com/Rican7/retry/strategy",
     "github.com/anthdm/hbbft",
     "github.com/btcsuite/btcd/btcec",
     "github.com/ethereum/go-ethereum",

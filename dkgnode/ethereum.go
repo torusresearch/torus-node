@@ -42,7 +42,7 @@ func SetUpEth(suite *Suite) error {
 	/* Connect to Ethereum */
 	client, err := ethclient.Dial(suite.Config.EthConnection)
 	if err != nil {
-		return errors.New("Could not connect to eth connection " + suite.Config.EthConnection)
+		return err
 	}
 
 	privateKeyECDSA, err := ethCrypto.HexToECDSA(string(suite.Config.EthPrivateKey))

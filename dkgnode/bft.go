@@ -6,7 +6,7 @@ type BftSuite struct {
 	BftRPC *BftRPC
 }
 
-func SetUpBft(suite *Suite) {
+func SetUpBftRPC(suite *Suite) {
 	suite.BftSuite = &BftSuite{BftRPC: NewBftRPC(suite.Config.BftURI)}
 }
 

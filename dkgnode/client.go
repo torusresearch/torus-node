@@ -59,16 +59,11 @@ type SigncryptedMessage struct {
 }
 
 func keyGenerationPhase(suite *Suite) (string, error) {
-	time.Sleep(1000 * time.Millisecond) // TODO: wait for servers to spin up
-	//for testing purposes
-	// if suite.Config.MyPort == "8001" {
-	go RunABCIServer(suite)
-	// }
+	time.Sleep(5 * time.Second) // TODO: wait for servers to spin up
 
 	bftRPC := suite.BftSuite.BftRPC
 	//for testing purposes
 	//TODO: FIX
-	time.Sleep(5 * time.Second)
 	if suite.Config.MyPort == "8001" {
 		epochTxWrapper := DefaultBFTTxWrapper{
 			&EpochBFTTx{uint(1)},

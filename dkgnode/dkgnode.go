@@ -29,7 +29,7 @@ type Flags struct {
 }
 
 /* The entry point for our System */
-func New(configPath string, register bool, production bool) {
+func New(configPath string, register bool, production bool, buildPath string) {
 
 	//Main suite of functions used in node
 	suite := Suite{}
@@ -49,6 +49,7 @@ func New(configPath string, register bool, production bool) {
 	//TODO: Abstract to function?
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
+	defaultTmConfig.SetRoot(buildPath)
 	fmt.Println("ROOT DIR", defaultTmConfig.RootDir)
 	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
 	fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
@@ -72,6 +73,10 @@ func New(configPath string, register bool, production bool) {
 		PubKey:  pv.GetPubKey(),
 		Power:   10,
 	}}
+
+	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
+		fmt.Print(err)
+	}
 
 	defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
 

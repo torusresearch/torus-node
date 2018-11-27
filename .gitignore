@@ -8,3 +8,4 @@ cache.json
 bft.db
 log*.txt
 /temporary
+.build

@@ -17,6 +17,7 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 	var tags []common.KVPair
 	txNoSig := tx[len([]byte("mug00")):]
 
+	// we use the first byte to denote message type
 	switch txNoSig[0] {
 	case byte(1): //PubpolyTx
 		pubPolyTx := DefaultBFTTxWrapper{&PubPolyBFTTx{}}
@@ -37,7 +38,7 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		//verify correct epoch
 		epochTx := EpochTx.BFTTx.(*EpochBFTTx)
 		if epochTx.EpochNumber != app.state.Epoch+1 {
-			return false, nil, errors.New("Invalid epoch number: " + fmt.Sprintf("%d", epochTx.EpochNumber))
+			return false, nil, errors.New("Invalid epoch number! was: " + fmt.Sprintf("%d", app.state.Epoch) + "now: " + fmt.Sprintf("%d", epochTx.EpochNumber))
 		} else {
 			app.transientState.Epoch = epochTx.EpochNumber
 		}

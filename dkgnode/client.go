@@ -55,7 +55,7 @@ type SigncryptedMessage struct {
 	RX          string `json:"rx"`
 	RY          string `json:"ry"`
 	Signature   string `json:"signature"`
-	ShareIndex  int    `json:"shareindex"`
+	ShareIndex  uint   `json:"shareindex"`
 }
 
 func keyGenerationPhase(suite *Suite) (string, error) {
@@ -68,15 +68,20 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	bftRPC := suite.BftSuite.BftRPC
 	//for testing purposes
 	//TODO: FIX
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	if suite.Config.MyPort == "8001" {
 		epochTxWrapper := DefaultBFTTxWrapper{
 			&EpochBFTTx{uint(1)},
 		}
-		_, err := bftRPC.Broadcast(epochTxWrapper)
-		if err != nil {
-			fmt.Println("error broadcasting epoch: ", err)
-		}
+		go func() {
+			time.Sleep(time.Second * 10)
+			_, err := bftRPC.Broadcast(epochTxWrapper)
+			if err != nil {
+				fmt.Println("error broadcasting epoch: ", err)
+			} else {
+				fmt.Println("updated epoch to 1")
+			}
+		}()
 	}
 
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
@@ -321,6 +326,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 					fmt.Println("STORED Si: ", shareIndex)
 					siMapping[shareIndex] = si
 				}
+				fmt.Println("Sis finished generation")
 				suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 				suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
 				//save cache
@@ -340,6 +346,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 		}
 		time.Sleep(5000 * time.Millisecond)
 	}
+	fmt.Println("Keygen complete.")
 	return "Keygen complete.", nil
 }
 
@@ -350,7 +357,7 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*common.Signcrypte
 	for i := range signcryptedOutput {
 		for j := range signcryptedOutput { // TODO: this is because we aren't sure about the ordering of nodeList/signcryptedOutput...
 			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
-				// send shares to bft
+				// TODO: send shares to bft
 
 				_, err := nodeList[j].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
 					ethSuite.NodeAddress.Hex(),
@@ -360,7 +367,7 @@ func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*common.Signcrypte
 					signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
 					signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
 					signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
-					shareIndex,
+					uint(shareIndex),
 				})
 				if err != nil {
 					errorSlice = append(errorSlice, err)

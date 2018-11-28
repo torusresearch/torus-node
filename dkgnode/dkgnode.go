@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
@@ -43,6 +45,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	suite.Flags = &Flags{production}
 	fmt.Println(configPath)
 	loadConfig(&suite, configPath)
+	//TODO: Dont die on failure but retry
 	err := SetUpEth(&suite)
 	if err != nil {
 		log.Fatal(err)
@@ -51,6 +54,15 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	SetUpBftRPC(&suite)
 	SetUpCache(&suite)
 	var nodeIPAddress string
+
+	//build folders for tendermint logs
+	os.MkdirAll(buildPath+"/config", os.ModePerm)
+	// we generate nodekey first cause we need it in node list TODO: find a better way
+	nodekey, err := p2p.LoadOrGenNodeKey(buildPath + "/config/node_key.json")
+	if err != nil {
+		fmt.Println("Node Key generation issue")
+		fmt.Println(err)
+	}
 	/*
 		//Starts tendermint node here
 		//TODO: Abstract to function?
@@ -146,7 +158,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	if register {
 		/* Register Node */
 		fmt.Println("Registering node...")
-		_, err = suite.EthSuite.registerNode(nodeIPAddress)
+		_, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
 		if err != nil {
 			log.Fatal(err)
 		}

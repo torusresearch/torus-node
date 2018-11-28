@@ -34,11 +34,13 @@ import (
 const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
 // const BftURI = "tcp://localhost:26657"
 
+//TODO: rename nodePort
 type NodeReference struct {
-	Address    *ethCommon.Address
-	JSONClient jsonrpcclient.RPCClient
-	Index      *big.Int
-	PublicKey  *ecdsa.PublicKey
+	Address       *ethCommon.Address
+	JSONClient    jsonrpcclient.RPCClient
+	Index         *big.Int
+	PublicKey     *ecdsa.PublicKey
+	P2PConnection string
 }
 
 type Message struct {
@@ -125,8 +127,8 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 				defaultTmConfig := tmconfig.DefaultConfig()
 				defaultTmConfig.SetRoot(buildPath)
 				fmt.Println("TM BFT DATA ROOT STORE", defaultTmConfig.RootDir)
-				//build root folders
-				os.MkdirAll(defaultTmConfig.RootDir+"/config", os.ModePerm)
+				//build root folders, done in dkg node now
+				// os.MkdirAll(defaultTmConfig.RootDir+"/config", os.ModePerm)
 				logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
 				fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
 				// defaultTmConfig.NodeKey = "config/"
@@ -168,6 +170,7 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 				}
 				//add validators
 				var temp []tmtypes.GenesisValidator
+				defaultTmConfig.P2P.PersistentPeers = ""
 				for i := range nodeList {
 					//convert pubkey X and Y to tmpubkey
 					pubkeyBytes := RawPointToTMPubKey(nodeList[i].PublicKey.X, nodeList[i].PublicKey.Y)
@@ -176,7 +179,10 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 						PubKey:  pubkeyBytes,
 						Power:   10,
 					})
+					//TODO: cater for failed edge case of ,
+					defaultTmConfig.P2P.PersistentPeers = defaultTmConfig.P2P.PersistentPeers + nodeList[i].P2PConnection + ","
 				}
+				fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
 				genDoc.Validators = temp
 
 				fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
@@ -186,6 +192,8 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 
 				defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
 				defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
+				defaultTmConfig.P2P.MaxNumInboundPeers = 300
+				defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 				err = defaultTmConfig.ValidateBasic()
 				if err != nil {
 					fmt.Println("VALIDATEBASIC FAILED: ", err)
@@ -508,5 +516,11 @@ func connectToJSONRPCNode(suite *Suite, nodeAddress ethCommon.Address) (*NodeRef
 	if err != nil {
 		return nil, err
 	}
-	return &NodeReference{Address: &nodeAddress, JSONClient: rpcClient, Index: details.Position, PublicKey: &ecdsa.PublicKey{Curve: suite.EthSuite.secp, X: details.PubKx, Y: details.PubKy}}, nil
+	return &NodeReference{
+		Address:       &nodeAddress,
+		JSONClient:    rpcClient,
+		Index:         details.Position,
+		PublicKey:     &ecdsa.PublicKey{Curve: suite.EthSuite.secp, X: details.PubKx, Y: details.PubKy},
+		P2PConnection: details.NodePort,
+	}, nil
 }

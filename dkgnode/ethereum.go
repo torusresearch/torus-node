@@ -70,7 +70,7 @@ func SetUpEth(suite *Suite) error {
 	return nil
 }
 
-func (suite EthSuite) registerNode(declaredIP string) (*types.Transaction, error) {
+func (suite EthSuite) registerNode(declaredIP string, TMP2PConnection string) (*types.Transaction, error) {
 	nonce, err := suite.Client.PendingNonceAt(context.Background(), ethCrypto.PubkeyToAddress(*suite.NodePublicKey))
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (suite EthSuite) registerNode(declaredIP string) (*types.Transaction, error
 	auth.GasLimit = uint64(4700000) // in units
 	auth.GasPrice = gasPrice
 
-	tx, err := suite.NodeListInstance.ListNode(auth, declaredIP, suite.NodePublicKey.X, suite.NodePublicKey.Y)
+	tx, err := suite.NodeListInstance.ListNode(auth, declaredIP, suite.NodePublicKey.X, suite.NodePublicKey.Y, TMP2PConnection)
 	if err != nil {
 		return nil, err
 	}

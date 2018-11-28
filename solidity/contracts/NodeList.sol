@@ -8,6 +8,7 @@ contract NodeList {
     uint256 position;
     uint256 pubKx;
     uint256 pubKy;
+    string nodePort;
   }
 
   mapping (address => Details) public nodeDetails;
@@ -29,14 +30,15 @@ contract NodeList {
     return nodeList.length;
   }
 
-  function viewNodeDetails(address node) external view  returns (string declaredIp, uint256 position) {
+  function viewNodeDetails(address node) external view  returns (string declaredIp, uint256 position, string nodePort) {
     declaredIp = nodeDetails[node].declaredIp;
     position = nodeDetails[node].position;
+    nodePort = nodeDetails[node].nodePort;
   }
 
-  function listNode(string declaredIp, uint256 pubKx, uint256 pubKy) external {
+  function listNode(string declaredIp, uint256 pubKx, uint256 pubKy, string nodePort) external {
     nodeList.push(msg.sender);
-    nodeDetails[msg.sender] = Details({declaredIp: declaredIp, position: nodeList.length, pubKx: pubKx, pubKy: pubKy});
+    nodeDetails[msg.sender] = Details({declaredIp: declaredIp, position: nodeList.length, pubKx: pubKx, pubKy: pubKy, nodePort: nodePort});
     emit NodeListed(msg.sender, nodeList.length);
   }
 }

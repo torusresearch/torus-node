@@ -17,6 +17,7 @@ type Config struct {
 	NumberOfNodes     int    `json:"numberofnodes"`
 	Threshold         int    `json:"threshold"`
 	ABCIServer        string `json:"abciserver`
+	P2PListenAddress  string `json"p2plistenaddress"`
 }
 
 func loadConfig(suite *Suite, path string) {

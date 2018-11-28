@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -18,6 +19,14 @@ import (
 	"github.com/YZhenY/torus/pvss"
 	"github.com/YZhenY/torus/secp256k1"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	tmconfig "github.com/tendermint/tendermint/config"
+	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
+	tmlog "github.com/tendermint/tendermint/libs/log"
+	tmnode "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/privval"
+	tmproxy "github.com/tendermint/tendermint/proxy"
+	tmtypes "github.com/tendermint/tendermint/types"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
@@ -58,21 +67,21 @@ type SigncryptedMessage struct {
 	ShareIndex  int    `json:"shareindex"`
 }
 
-func keyGenerationPhase(suite *Suite) (string, error) {
+func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 	time.Sleep(5 * time.Second) // TODO: wait for servers to spin up
 
 	bftRPC := suite.BftSuite.BftRPC
 	//for testing purposes
 	//TODO: FIX
-	if suite.Config.MyPort == "8001" {
-		epochTxWrapper := DefaultBFTTxWrapper{
-			&EpochBFTTx{uint(1)},
-		}
-		_, err := bftRPC.Broadcast(epochTxWrapper)
-		if err != nil {
-			fmt.Println("error broadcasting epoch: ", err)
-		}
-	}
+	// if suite.Config.MyPort == "8001" {
+	// 	epochTxWrapper := DefaultBFTTxWrapper{
+	// 		&EpochBFTTx{uint(1)},
+	// 	}
+	// 	_, err := bftRPC.Broadcast(epochTxWrapper)
+	// 	if err != nil {
+	// 		fmt.Println("error broadcasting epoch: ", err)
+	// 	}
+	// }
 
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	for {
@@ -87,15 +96,12 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 			// Build count of nodes connected to
 			triggerSecretSharing := 0
 			for i := range ethList {
-				// fmt.Println(ethList[i].Hex())
 
 				// Check if node is online
 				temp, err := connectToJSONRPCNode(suite, ethList[i])
 				if err != nil {
 					fmt.Println(err)
 				}
-				// fmt.Println("ERROR HERE", int(temp.Index.Int64()))
-				// TODO: we assume node indexes are consecutive, refactor to remove this assumption
 
 				if temp != nil {
 					if nodeList[int(temp.Index.Int64())-1] == nil {
@@ -112,7 +118,108 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 
 			// if we have connected to all nodes
 			if triggerSecretSharing == suite.Config.NumberOfNodes {
+				//create genesis file
+				//Starts tendermint node here
+
+				//builds default config
+				defaultTmConfig := tmconfig.DefaultConfig()
+				defaultTmConfig.SetRoot(buildPath)
+				fmt.Println("TM BFT DATA ROOT STORE", defaultTmConfig.RootDir)
+				//build root folders
+				os.MkdirAll(defaultTmConfig.RootDir+"/config", os.ModePerm)
+				logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+				fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
+				// defaultTmConfig.NodeKey = "config/"
+				// defaultTmConfig.PrivValidator = "config/"
+				defaultTmConfig.ProxyApp = suite.Config.ABCIServer
+
+				//converts own pv to tendermint key TODO: Double check verification
+				var pv tmsecp.PrivKeySecp256k1
+				for i := 0; i < 32; i++ {
+					pv[i] = suite.EthSuite.NodePrivateKey.D.Bytes()[i]
+				}
+
+				//SEEMS RIGHT (there are some bytes earlier but they use btcecc)
+				//From their docs
+				// PubKeySecp256k1Size is comprised of 32 bytes for one field element
+				// (the x-coordinate), plus one byte for the parity of the y-coordinate.
+				// fmt.Println("ETH PUB KEY: ", suite.EthSuite.NodePublicKey.X.Bytes())
+				// fmt.Println("TM PUB KEY: ", pv.PubKey().Bytes())
+
+				pvFile := &privval.FilePV{
+					Address:  pv.PubKey().Address(),
+					PubKey:   pv.PubKey(),
+					PrivKey:  pv,
+					LastStep: int8(0),
+					// filePath: defaultTmConfig.PrivValidatorFile(),
+				}
+
+				// pv := privval.GenFilePVSecp(defaultTmConfig.PrivValidatorFile())
+				nodeKey, err := p2p.LoadOrGenNodeKey(defaultTmConfig.NodeKeyFile())
+				if err != nil {
+					fmt.Println("Node Key generation issue")
+					fmt.Println(err)
+				}
+
+				genDoc := tmtypes.GenesisDoc{
+					ChainID:         fmt.Sprintf("test-chain-%v", "BLUBLU"),
+					GenesisTime:     time.Now(),
+					ConsensusParams: tmtypes.DefaultConsensusParams(),
+				}
+				//add validators
+				var temp []tmtypes.GenesisValidator
+				for i := range nodeList {
+					//convert pubkey X and Y to tmpubkey
+					pubkeyBytes := RawPointToTMPubKey(nodeList[i].PublicKey.X, nodeList[i].PublicKey.Y)
+					temp = append(temp, tmtypes.GenesisValidator{
+						Address: pubkeyBytes.Address(),
+						PubKey:  pubkeyBytes,
+						Power:   10,
+					})
+				}
+				genDoc.Validators = temp
+
+				fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
+				if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
+					fmt.Print(err)
+				}
+
+				defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
+				defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
+				err = defaultTmConfig.ValidateBasic()
+				if err != nil {
+					fmt.Println("VALIDATEBASIC FAILED: ", err)
+				}
+				fmt.Println("NODEKEY: ", nodeKey)
+				// fmt.Println(nodeKey.ID())
+				fmt.Println(nodeKey.PubKey().Address())
+				n, err := tmnode.NewNode(
+					defaultTmConfig,
+					pvFile,
+					nodeKey,
+					tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
+					ProvideGenDoc(&genDoc),
+					tmnode.DefaultDBProvider,
+					tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
+					logger,
+				)
+
+				if err != nil {
+					log.Fatal("Failed to create tendermint node: %v", err)
+				}
+
+				//Start Tendermint Node
+				fmt.Println("Tendermint P2P Connection on: ", defaultTmConfig.P2P.ListenAddress)
+				fmt.Println("Tendermint Node RPC listening on: ", defaultTmConfig.RPC.ListenAddress)
+				if err := n.Start(); err != nil {
+					log.Fatal("Failed to start tendermint node: %v", err)
+				}
+				logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
+
+				time.Sleep(4 * time.Second)
+
 				startKeyGeneration(suite, nodeList, bftRPC)
+				break
 			}
 
 		} else {
@@ -120,6 +227,9 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 		}
 		time.Sleep(5000 * time.Millisecond)
 	}
+
+	// Run forever
+	select {}
 	return "Keygen complete.", nil
 }
 

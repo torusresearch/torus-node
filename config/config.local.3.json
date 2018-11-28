@@ -8,5 +8,6 @@
   "numberofnodes": 5,
   "threshold": 3,
   "hostname": "dkg3.tetrator.us",
-  "abciserver": "tcp://0.0.0.0:8012"
+  "abciserver": "tcp://0.0.0.0:8012",
+  "p2plistenaddress": "tcp://0.0.0.0:26661"
 }

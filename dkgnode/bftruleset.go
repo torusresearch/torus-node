@@ -17,6 +17,7 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 	var tags []common.KVPair
 	txNoSig := tx[len([]byte("mug00")):]
 
+	// we use the first byte to denote message type
 	switch txNoSig[0] {
 	case byte(1): //PubpolyTx
 		pubPolyTx := DefaultBFTTxWrapper{&PubPolyBFTTx{}}
@@ -24,14 +25,11 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		if err != nil {
 			return false, nil, err
 		}
+		fmt.Println("ATTACHING TAGS for pubpoly")
 		tags = []common.KVPair{
-			// retrieve tag using "localhost:26657/tx_search?query=\"epoch='1'\""
-			// remember to change tendermint config to use index_all_tags = true
-			// tags should come back in base64 encoding so pass a string as the Value
-			{Key: []byte("pubpoy"), Value: []byte("1")},
+			{Key: []byte("pubpoly"), Value: []byte("1")},
 		}
-
-		return true, &tags, nil
+		return true, nil, nil
 		//verify share index has not yet been submitted for epoch
 
 	case byte(2): // EpochTx
@@ -43,16 +41,29 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		//verify correct epoch
 		epochTx := EpochTx.BFTTx.(*EpochBFTTx)
 		if epochTx.EpochNumber != app.state.Epoch+1 {
-			return false, nil, errors.New("Invalid epoch number: " + fmt.Sprintf("%d", epochTx.EpochNumber))
+			return false, nil, errors.New("Invalid epoch number! was: " + fmt.Sprintf("%d", app.state.Epoch) + "now: " + fmt.Sprintf("%d", epochTx.EpochNumber))
 		} else {
 			app.transientState.Epoch = epochTx.EpochNumber
 		}
-		fmt.Println("ATTACHING TAGS")
+		fmt.Println("ATTACHING TAGS for epoch")
 		tags = []common.KVPair{
 			// retrieve tag using "localhost:26657/tx_search?query=\"epoch='1'\""
 			// remember to change tendermint config to use index_all_tags = true
 			// tags should come back in base64 encoding so pass a string as the Value
 			{Key: []byte("epoch"), Value: []byte("1")},
+		}
+		return true, &tags, nil
+
+	case byte(3): // KeyGenShareBFTTx
+		KeyGenShareTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
+		err := KeyGenShareTx.DecodeBFTTx(txNoSig)
+		if err != nil {
+			return false, nil, err
+		}
+		// TODO: verify keygen share?
+		fmt.Println("ATTACHING TAGS for keygenshare")
+		tags = []common.KVPair{
+			{Key: []byte("keygeneration.sharecollection"), Value: []byte("1")},
 		}
 		return true, &tags, nil
 

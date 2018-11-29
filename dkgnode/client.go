@@ -62,11 +62,13 @@ type SigncryptedMessage struct {
 	FromAddress string `json:"fromaddress"`
 	FromPubKeyX string `json:"frompubkeyx"`
 	FromPubKeyY string `json:"frompubkeyy"`
+	ToPubKeyX   string `json:"topubkeyx"`
+	ToPubKeyY   string `json:"topubkeyy"`
 	Ciphertext  string `json:"ciphertext"`
 	RX          string `json:"rx"`
 	RY          string `json:"ry"`
 	Signature   string `json:"signature"`
-	ShareIndex  int    `json:"shareindex"`
+	ShareIndex  uint   `json:"shareindex"`
 }
 
 func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
@@ -75,15 +77,21 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 	bftRPC := suite.BftSuite.BftRPC
 	//for testing purposes
 	//TODO: FIX
-	// if suite.Config.MyPort == "8001" {
-	// 	epochTxWrapper := DefaultBFTTxWrapper{
-	// 		&EpochBFTTx{uint(1)},
-	// 	}
-	// 	_, err := bftRPC.Broadcast(epochTxWrapper)
-	// 	if err != nil {
-	// 		fmt.Println("error broadcasting epoch: ", err)
-	// 	}
-	// }
+	time.Sleep(10 * time.Second)
+	if suite.Config.MyPort == "8001" {
+		epochTxWrapper := DefaultBFTTxWrapper{
+			&EpochBFTTx{uint(1)},
+		}
+		go func() {
+			time.Sleep(time.Second * 10)
+			_, err := bftRPC.Broadcast(epochTxWrapper)
+			if err != nil {
+				fmt.Println("error broadcasting epoch: ", err)
+			} else {
+				fmt.Println("updated epoch to 1")
+			}
+		}()
+	}
 
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	for {
@@ -348,7 +356,7 @@ func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC)
 			signcryptedData[index] = &common.SigncryptedOutput{NodePubKey: nodes[index].PubKey, NodeIndex: share.Index, SigncryptedShare: *signcryption}
 		}
 
-		errArr := sendSharesToNodes(*suite.EthSuite, signcryptedData, nodeList, shareIndex)
+		errArr := sendSharesToNodes(suite, signcryptedData, nodeList, shareIndex)
 		if errArr != nil {
 			fmt.Println("errors sending shares")
 			fmt.Println(errArr)
@@ -358,7 +366,8 @@ func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC)
 
 	// Signcrypted shares are received by the other nodes and handled in server.go
 
-	time.Sleep(10 * time.Second) // TODO: Check for communication termination from all other nodes
+	time.Sleep(60 * time.Second) // TODO: Check for communication termination from all other nodes
+	fmt.Println("STARTING TO GATHER SHARES AND PUT THEM TOGETHER")
 	// gather shares, decrypt and verify with pubpoly
 	// - check if shares are here
 	// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
@@ -478,28 +487,30 @@ func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC)
 	return err
 }
 
-func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
+func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
+	fmt.Println("SHARES BEING SENT TO OTHER NODES")
 	errorSlice := make([]error, len(signcryptedOutput))
 	// fmt.Println("GIVEN SIGNCRYPTION")
 	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
 	for i := range signcryptedOutput {
 		for j := range signcryptedOutput { // TODO: this is because we aren't sure about the ordering of nodeList/signcryptedOutput...
 			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
-				// send shares to bft
-
-				_, err := nodeList[j].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
-					ethSuite.NodeAddress.Hex(),
-					ethSuite.NodePublicKey.X.Text(16),
-					ethSuite.NodePublicKey.Y.Text(16),
-					hex.EncodeToString(signcryptedOutput[i].SigncryptedShare.Ciphertext),
-					signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
-					signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
-					signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
-					shareIndex,
-				})
-				if err != nil {
-					errorSlice = append(errorSlice, err)
+				// send shares through bft
+				broadcastMessage := KeyGenShareBFTTx{
+					SigncryptedMessage{
+						suite.EthSuite.NodeAddress.Hex(),
+						suite.EthSuite.NodePublicKey.X.Text(16),
+						suite.EthSuite.NodePublicKey.Y.Text(16),
+						signcryptedOutput[i].NodePubKey.X.Text(16),
+						signcryptedOutput[i].NodePubKey.Y.Text(16),
+						hex.EncodeToString(signcryptedOutput[i].SigncryptedShare.Ciphertext),
+						signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
+						signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
+						signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
+						uint(shareIndex),
+					},
 				}
+				suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{broadcastMessage})
 			}
 		}
 	}

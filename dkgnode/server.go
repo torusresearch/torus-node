@@ -3,6 +3,7 @@ package dkgnode
 /* All useful imports */
 import (
 	"context"
+	b64 "encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -16,6 +17,8 @@ import (
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
+	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	"github.com/tidwall/gjson"
 )
 
 type (
@@ -76,37 +79,41 @@ func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage
 	}, nil
 }
 
-func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-
-	var p SigncryptedMessage
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
-		return nil, err
+func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
+	p := tx.SigncryptedMessage
+	// check if this for us, or for another node
+	tmpToPubKeyX, parsed := new(big.Int).SetString(p.ToPubKeyX, 16)
+	if parsed == false {
+		return jsonrpc.ErrParse()
 	}
-
+	if suite.EthSuite.NodePublicKey.X.Cmp(tmpToPubKeyX) != 0 {
+		fmt.Println("Signcrypted share received but is not addressed to us")
+		return nil
+	}
 	tmpRx, parsed := new(big.Int).SetString(p.RX, 16)
 	if parsed == false {
-		return nil, jsonrpc.ErrParse()
+		return jsonrpc.ErrParse()
 	}
 	tmpRy, parsed := new(big.Int).SetString(p.RY, 16)
 	if parsed == false {
-		return nil, jsonrpc.ErrParse()
+		return jsonrpc.ErrParse()
 	}
 	tmpSig, parsed := new(big.Int).SetString(p.Signature, 16)
 	if parsed == false {
-		return nil, jsonrpc.ErrParse()
+		return jsonrpc.ErrParse()
 	}
 	tmpPubKeyX, parsed := new(big.Int).SetString(p.FromPubKeyX, 16)
 	if parsed == false {
-		return nil, jsonrpc.ErrParse()
+		return jsonrpc.ErrParse()
 	}
 	tmpPubKeyY, parsed := new(big.Int).SetString(p.FromPubKeyY, 16)
 	if parsed == false {
-		return nil, jsonrpc.ErrParse()
+		return jsonrpc.ErrParse()
 	}
 
 	tmpCiphertext, err := hex.DecodeString(p.Ciphertext)
 	if err != nil {
-		return nil, jsonrpc.ErrParse()
+		return jsonrpc.ErrParse()
 	}
 
 	signcryption := common.Signcryption{
@@ -116,11 +123,11 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	}
 	// fmt.Println("RECIEVED SIGNCRYPTION")
 	// fmt.Println(signcryption)
-	unsigncryptedData, err := pvss.UnsigncryptShare(signcryption, *h.suite.EthSuite.NodePrivateKey.D, common.Point{*tmpPubKeyX, *tmpPubKeyY})
+	unsigncryptedData, err := pvss.UnsigncryptShare(signcryption, *suite.EthSuite.NodePrivateKey.D, common.Point{*tmpPubKeyX, *tmpPubKeyY})
 	if err != nil {
 		fmt.Println("Error unsigncrypting share")
 		fmt.Println(err)
-		return nil, jsonrpc.ErrInvalidParams()
+		return jsonrpc.ErrInvalidParams()
 	}
 
 	// deserialize share and broadcastId from signcrypted data
@@ -129,35 +136,126 @@ func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.Raw
 	broadcastId := (*unsigncryptedData)[n-32:]
 
 	fmt.Println("Saved share from ", p.FromAddress)
-	savedLog, found := h.suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")
-	newShareLog := ShareLog{time.Now().UTC(), 0, p.ShareIndex, shareBytes, broadcastId}
+	savedLog, found := suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")
+	newShareLog := ShareLog{time.Now().UTC(), 0, int(p.ShareIndex), shareBytes, broadcastId}
 	// if not found, we create a new mapping
 	if found {
 		var tempLog = savedLog.([]ShareLog)
 		// newShareLog = ShareLog{time.Now().UTC(), len(tempLog), p.ShareIndex, shareBytes, broadcastId}
 		newShareLog.LogNumber = len(tempLog)
 		tempLog = append(tempLog, newShareLog)
-		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", tempLog, cache.NoExpiration)
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", tempLog, cache.NoExpiration)
 	} else {
 		newLog := make([]ShareLog, 1)
 		newLog[0] = newShareLog
-		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", newLog, cache.NoExpiration)
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", newLog, cache.NoExpiration)
 	}
 
-	savedMapping, found := h.suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_MAPPING")
+	savedMapping, found := suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_MAPPING")
 	// if not found, we create a new mapping
 	if found {
 		var tmpMapping = savedMapping.(map[int]ShareLog)
-		tmpMapping[p.ShareIndex] = newShareLog
-		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", tmpMapping, cache.NoExpiration)
+		tmpMapping[int(p.ShareIndex)] = newShareLog
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", tmpMapping, cache.NoExpiration)
 	} else {
 		newMapping := make(map[int]ShareLog)
-		newMapping[p.ShareIndex] = newShareLog
+		newMapping[int(p.ShareIndex)] = newShareLog
 		// fmt.Println("CACHING SHARE FROM | ", h.suite.EthSuite.NodeAddress.Hex(), "=>", p.FromAddress)
 		// fmt.Println(newShareLog)
-		h.suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", newMapping, cache.NoExpiration)
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", newMapping, cache.NoExpiration)
+	}
+	fmt.Println("SAVED SHARE FINISHED")
+	return nil
+}
+
+func RpcHandleSigncryptedShare(suite *Suite, params *fastjson.RawMessage) error {
+	var p SigncryptedMessage
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		return err
 	}
 
+	tmpRx, parsed := new(big.Int).SetString(p.RX, 16)
+	if parsed == false {
+		return jsonrpc.ErrParse()
+	}
+	tmpRy, parsed := new(big.Int).SetString(p.RY, 16)
+	if parsed == false {
+		return jsonrpc.ErrParse()
+	}
+	tmpSig, parsed := new(big.Int).SetString(p.Signature, 16)
+	if parsed == false {
+		return jsonrpc.ErrParse()
+	}
+	tmpPubKeyX, parsed := new(big.Int).SetString(p.FromPubKeyX, 16)
+	if parsed == false {
+		return jsonrpc.ErrParse()
+	}
+	tmpPubKeyY, parsed := new(big.Int).SetString(p.FromPubKeyY, 16)
+	if parsed == false {
+		return jsonrpc.ErrParse()
+	}
+
+	tmpCiphertext, err := hex.DecodeString(p.Ciphertext)
+	if err != nil {
+		return jsonrpc.ErrParse()
+	}
+
+	signcryption := common.Signcryption{
+		Ciphertext: tmpCiphertext,
+		R:          common.Point{X: *tmpRx, Y: *tmpRy},
+		Signature:  *tmpSig,
+	}
+	// fmt.Println("RECIEVED SIGNCRYPTION")
+	// fmt.Println(signcryption)
+	unsigncryptedData, err := pvss.UnsigncryptShare(signcryption, *suite.EthSuite.NodePrivateKey.D, common.Point{*tmpPubKeyX, *tmpPubKeyY})
+	if err != nil {
+		fmt.Println("Error unsigncrypting share")
+		fmt.Println(err)
+		return jsonrpc.ErrInvalidParams()
+	}
+
+	// deserialize share and broadcastId from signcrypted data
+	n := len(*unsigncryptedData)
+	shareBytes := (*unsigncryptedData)[:n-32]
+	broadcastId := (*unsigncryptedData)[n-32:]
+
+	fmt.Println("Saved share from ", p.FromAddress)
+	savedLog, found := suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")
+	newShareLog := ShareLog{time.Now().UTC(), 0, int(p.ShareIndex), shareBytes, broadcastId}
+	// if not found, we create a new mapping
+	if found {
+		var tempLog = savedLog.([]ShareLog)
+		// newShareLog = ShareLog{time.Now().UTC(), len(tempLog), p.ShareIndex, shareBytes, broadcastId}
+		newShareLog.LogNumber = len(tempLog)
+		tempLog = append(tempLog, newShareLog)
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", tempLog, cache.NoExpiration)
+	} else {
+		newLog := make([]ShareLog, 1)
+		newLog[0] = newShareLog
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_LOG", newLog, cache.NoExpiration)
+	}
+
+	savedMapping, found := suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_MAPPING")
+	// if not found, we create a new mapping
+	if found {
+		var tmpMapping = savedMapping.(map[int]ShareLog)
+		tmpMapping[int(p.ShareIndex)] = newShareLog
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", tmpMapping, cache.NoExpiration)
+	} else {
+		newMapping := make(map[int]ShareLog)
+		newMapping[int(p.ShareIndex)] = newShareLog
+		// fmt.Println("CACHING SHARE FROM | ", h.suite.EthSuite.NodeAddress.Hex(), "=>", p.FromAddress)
+		// fmt.Println(newShareLog)
+		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", newMapping, cache.NoExpiration)
+	}
+	return nil
+}
+
+func (h SigncryptedHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+	err := RpcHandleSigncryptedShare(h.suite, params)
+	if err != nil {
+		return nil, err.(*jsonrpc.Error) // TODO: avoid casting?
+	}
 	return PingResult{
 		Message: h.suite.EthSuite.NodeAddress.Hex(),
 	}, nil
@@ -260,6 +358,40 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}, nil
 }
 
+// func subscribeAndLog(suite *Suite, subscriptionContext context.Context, query tmpubsub.Query, ch chan interface{}) {
+// 	fmt.Println("SUBSCRIBEANDLOG FOR QUERY", query.String())
+// 	var wg sync.WaitGroup
+// 	defer func() {
+// 		err := recover()
+// 		panic(err)
+// 	}()
+// 	wg.Add(1)
+// 	suite.BftSuite.BftRPC.Subscribe(subscriptionContext, "", query, ch)
+// 	timeoutCh := make(chan bool, 1)
+// 	timeoutCh <- true
+// 	go func() {
+// 		for {
+// 			if <-timeoutCh {
+// 				timeoutCh <- false
+// 				fmt.Println("TIMING OUT")
+// 				time.Sleep(120 * time.Second)
+// 			} else {
+// 				wg.Done()
+// 				break
+// 			}
+// 		}
+// 	}()
+// 	go func() {
+// 		for {
+// 			tx := <-ch
+// 			fmt.Println("For query "+query.String()+", received from subscribe: ", tx)
+// 			timeoutCh <- true
+// 			fmt.Println("RESET TIMEOUT")
+// 		}
+// 	}()
+// 	wg.Wait()
+// }
+
 func setUpServer(suite *Suite, port string) {
 	mr := jsonrpc.NewMethodRepository()
 	if err := mr.RegisterMethod("Ping", PingHandler{suite.EthSuite}, PingParams{}, PingResult{}); err != nil {
@@ -275,10 +407,56 @@ func setUpServer(suite *Suite, port string) {
 		log.Fatalln(err)
 	}
 
+	// err := suite.BftSuite.BftRPC.HTTP.WSEvents.BaseService.Start() // TODO: is there a better way to set codec?
+	// if err != nil {
+	// 	fmt.Println("ONSTART HAS ERROR", err)
+	// }
+
+	go func() {
+		// TODO: waiting for websocket connection to be ready
+		time.Sleep(time.Second * 30)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		query := tmquery.MustParse("keygeneration.sharecollection='1'")
+		fmt.Println("QUERY IS:", query)
+		// txs := make(chan interface{})
+		go func() {
+			// note: we also get back the initial "{}"
+			// data comes back in bytes of utf-8 which correspond
+			// to a base64 encoding of the original data
+			for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
+				// fmt.Println("sub got ", string(e.Result[:]))
+				res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e.Result, "data.value.TxResult.tx").String())
+				if err != nil {
+					fmt.Println("error decoding b64", err)
+					continue
+				}
+				if len(res) < 5 {
+					continue
+				}
+				keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
+				err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
+				if err != nil {
+					fmt.Println("error decoding bfttx", err)
+					continue
+				}
+				keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
+				err = HandleSigncryptedShare(suite, *keyGenShareTx)
+				if err != nil {
+					fmt.Println("failed to handle signcrypted share", err)
+					continue
+				}
+			}
+		}()
+		err := suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
+		if err != nil {
+			fmt.Println("Error with subscription", err)
+		}
+	}()
+
 	mux := http.NewServeMux()
 	mux.Handle("/jrpc", mr)
 	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
-	// fmt.Println(port)
 	handler := cors.Default().Handler(mux)
 	if suite.Flags.Production {
 		if err := http.ListenAndServeTLS(":443",
@@ -289,8 +467,10 @@ func setUpServer(suite *Suite, port string) {
 			log.Fatalln(err)
 		}
 	} else {
+		// listenandserve creates a thread in the main that loops indefinitely
 		if err := http.ListenAndServe(":"+port, handler); err != nil {
 			log.Fatalln(err)
 		}
 	}
+	fmt.Println("SERVER STOPPED")
 }

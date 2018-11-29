@@ -51,7 +51,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		log.Fatal(err)
 	}
 	go RunABCIServer(&suite)
-	SetUpBftRPC(&suite)
+	SetUpBft(&suite)
 	SetUpCache(&suite)
 	var nodeIPAddress string
 

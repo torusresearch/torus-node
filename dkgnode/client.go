@@ -22,7 +22,7 @@ import (
 )
 
 // TODO: pass in as config
-const NumberOfShares = 100 // potentially 1.35 mm, assuming 7.5k uniques a day
+const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
 // const BftURI = "tcp://localhost:26657"
 
 type NodeReference struct {

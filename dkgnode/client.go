@@ -71,7 +71,8 @@ type SigncryptedMessage struct {
 	ShareIndex  uint   `json:"shareindex"`
 }
 
-func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
+func startTendermintCore(suite *Suite, buildPath string, nodeListPointer *[]*NodeReference, tmCoreMsgs chan string) (string, error) {
+	nodeList := *nodeListPointer
 	time.Sleep(5 * time.Second) // TODO: wait for servers to spin up
 
 	bftRPC := suite.BftSuite.BftRPC
@@ -93,7 +94,6 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 		}()
 	}
 
-	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
 	for {
 		// Fetch Node List from contract address
 		ethList, positions, err := suite.EthSuite.NodeListInstance.ViewNodes(nil)
@@ -149,13 +149,6 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 					pv[i] = suite.EthSuite.NodePrivateKey.D.Bytes()[i]
 				}
 
-				//SEEMS RIGHT (there are some bytes earlier but they use btcecc)
-				//From their docs
-				// PubKeySecp256k1Size is comprised of 32 bytes for one field element
-				// (the x-coordinate), plus one byte for the parity of the y-coordinate.
-				// fmt.Println("ETH PUB KEY: ", suite.EthSuite.NodePublicKey.X.Bytes())
-				// fmt.Println("TM PUB KEY: ", pv.PubKey().Bytes())
-
 				pvF := privval.GenFilePVFromPrivKey(pv, defaultTmConfig.PrivValidatorFile())
 				pvF.Save()
 				//to load it up just like in the config
@@ -196,6 +189,7 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 					fmt.Print(err)
 				}
 
+				//Other changes to config go here
 				defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
 				defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
 				//TODO: make config
@@ -240,9 +234,10 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 				}
 				logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
 
-				time.Sleep(20 * time.Second)
+				//send back message saying ready
+				// startKeyGeneration(suite, nodeList, bftRPC)
+				tmCoreMsgs <- "Started Tendermint Core"
 
-				startKeyGeneration(suite, nodeList, bftRPC)
 				break
 			}
 

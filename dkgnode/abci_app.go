@@ -28,6 +28,7 @@ type State struct {
 	Epoch   uint   `json:"epoch"`
 	Height  int64  `json:"height"`
 	AppHash []byte `json:"app_hash"`
+	ValSet  []types.ValidatorUpdate
 }
 
 type ABCITransaction struct {
@@ -181,4 +182,9 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 	// 	return
 	// }
 	return
+}
+
+// Update the validator set
+func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
+	return types.ResponseEndBlock{ValidatorUpdates: app.state.ValSet}
 }

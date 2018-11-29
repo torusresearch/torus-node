@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"time"
 
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
@@ -63,84 +64,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		fmt.Println("Node Key generation issue")
 		fmt.Println(err)
 	}
-	/*
-		//Starts tendermint node here
-		//TODO: Abstract to function?
-		//builds default config
-		defaultTmConfig := tmconfig.DefaultConfig()
-		defaultTmConfig.SetRoot(buildPath)
-		fmt.Println("ROOT DIR", defaultTmConfig.RootDir)
-		logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
-		fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
-		// defaultTmConfig.NodeKey = "config/"
-		// defaultTmConfig.PrivValidator = "config/"
-		defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
-		//converts own pv to tendermint key TODO: Double check verification
-		var testpv tmsecp.PrivKeySecp256k1
-		for i := range suite.EthSuite.NodePrivateKey.D.Bytes() {
-			testpv[i] = suite.EthSuite.NodePrivateKey.D.Bytes()[i]
-		}
-		//SEEMS RIGHT (there are some bytes earlier but they use btcecc)
-		//From their docs
-		// PubKeySecp256k1Size is comprised of 32 bytes for one field element
-		// (the x-coordinate), plus one byte for the parity of the y-coordinate.
-		fmt.Println("ETH PUB KEY: ", suite.EthSuite.NodePublicKey.X.Bytes())
-		fmt.Println("TM PUB KEY: ", testpv.PubKey().Bytes())
-
-		//convert pubkey X and Y to tmpubkey
-		pubkeyBytes := RawPointToTMPubKey(suite.EthSuite.NodePublicKey.X, suite.EthSuite.NodePublicKey.Y)
-
-		fmt.Println("DOEST IT EQUAL", pubkeyBytes.Equals(testpv.PubKey()))
-
-		// pv := &privval.FilePV{
-		// 	Address:  testpv.PubKey().Address(),
-		// 	PubKey:   testpv.PubKey(),
-		// 	PrivKey:  testpv,
-		// 	LastStep: int8(0),
-		// 	// filePath: defaultTmConfig.PrivValidatorFile(),
-		// }
-
-		// pv := privval.GenFilePVSecp(defaultTmConfig.PrivValidatorFile())
-		nodeKey, err := p2p.LoadOrGenNodeKey(defaultTmConfig.NodeKeyFile())
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		genDoc := tmtypes.GenesisDoc{
-			ChainID:         fmt.Sprintf("test-chain-%v", "BLUBLU"),
-			GenesisTime:     time.Now(),
-			ConsensusParams: tmtypes.DefaultConsensusParams(),
-		}
-		genDoc.Validators = []tmtypes.GenesisValidator{{
-			Address: pubkeyBytes.Address(),
-			PubKey:  pubkeyBytes,
-			Power:   10,
-		}}
-
-		if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
-			fmt.Print(err)
-		}
-
-		defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
-
-		n, err := tmnode.NewNode(defaultTmConfig,
-			privval.LoadOrGenFilePV(defaultTmConfig.PrivValidatorFile()),
-			nodeKey,
-			tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
-			ProvideGenDoc(&genDoc),
-			tmnode.DefaultDBProvider,
-			tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
-			logger,
-		)
-
-		// n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
-
-		if err != nil {
-			log.Fatal("Failed to create tendermint node: %v", err)
-		}
-
-	*/
 	var nodeIP string
 	if production {
 		fmt.Println("//PRODUCTION MDOE ")
@@ -165,19 +89,28 @@ func New(configPath string, register bool, production bool, buildPath string) {
 			log.Fatal(err)
 		}
 	}
-	/*
 
-		//Start Tendermint Node
-		fmt.Println("Tendermint Node listening on: ", defaultTmConfig.RPC.ListenAddress)
-		if err := n.Start(); err != nil {
-			log.Fatal("Failed to start tendermint node: %v", err)
+	tmCoreMsgs := make(chan string)
+	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
+	go startTendermintCore(&suite, buildPath, &nodeList, tmCoreMsgs)
+
+	//Set up standard server
+	go setUpServer(&suite, string(suite.Config.MyPort))
+
+	// So it runs forever
+	for {
+		select {
+		case coreMsg := <-tmCoreMsgs:
+			fmt.Println("received", coreMsg)
+			if coreMsg == "Started Tendermint Core" {
+				time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
+				//Start key generation when bft is done setting up
+				fmt.Println("Started KEY GENERATION WITH:", nodeList, suite.BftSuite.BftRPC)
+				go startKeyGeneration(&suite, nodeList, suite.BftSuite.BftRPC)
+			}
 		}
-		logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
-	*/
-
-	go keyGenerationPhase(&suite, buildPath)
-
-	setUpServer(&suite, string(suite.Config.MyPort))
+		time.Sleep(1 * time.Second) //TODO: Is a time out necessary?
+	}
 }
 
 func ProvideGenDoc(doc *tmtypes.GenesisDoc) tmnode.GenesisDocProvider {

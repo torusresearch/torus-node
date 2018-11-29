@@ -277,15 +277,10 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 // 		panic(err)
 // 	}()
 // 	wg.Add(1)
-// 	fmt.Println("asdf1")
 // 	suite.BftSuite.BftRPC.Subscribe(subscriptionContext, "", query, ch)
-// 	fmt.Println("asdf2")
 // 	timeoutCh := make(chan bool, 1)
-// 	fmt.Println("asdf3")
 // 	timeoutCh <- true
-// 	fmt.Println("asdf4")
 // 	go func() {
-// 		fmt.Println("ENTERED??1")
 // 		for {
 // 			if <-timeoutCh {
 // 				timeoutCh <- false
@@ -297,9 +292,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 // 			}
 // 		}
 // 	}()
-// 	fmt.Println("asdf5")
 // 	go func() {
-// 		fmt.Println("entered??2")
 // 		for {
 // 			tx := <-ch
 // 			fmt.Println("For query "+query.String()+", received from subscribe: ", tx)
@@ -307,7 +300,6 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 // 			fmt.Println("RESET TIMEOUT")
 // 		}
 // 	}()
-// 	fmt.Println("asdf6")
 // 	wg.Wait()
 // }
 
@@ -365,9 +357,7 @@ func setUpServer(suite *Suite, port string) {
 				}
 			}
 		}()
-		fmt.Println("REACHED HERE1")
 		err := suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
-		fmt.Println("REACHED HERE2")
 		if err != nil {
 			fmt.Println("Error with subscription", err)
 		}

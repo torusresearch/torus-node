@@ -146,7 +146,7 @@ func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey
 		fmt.Println(senderPubKey.X.Cmp(&testsenderPubKey.X))
 		fmt.Println(senderPubKey)
 		fmt.Println(testsenderPubKey)
-		return nil, errors.New("sending node PK does not register with signcryption")
+		return nil, errors.New("sending node PK does not register with signcryption unsigncrypt")
 	}
 
 	return M, nil

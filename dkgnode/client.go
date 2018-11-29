@@ -22,7 +22,7 @@ import (
 )
 
 // TODO: pass in as config
-const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
+const NumberOfShares = 100 // potentially 1.35 mm, assuming 7.5k uniques a day
 // const BftURI = "tcp://localhost:26657"
 
 type NodeReference struct {
@@ -51,6 +51,8 @@ type SigncryptedMessage struct {
 	FromAddress string `json:"fromaddress"`
 	FromPubKeyX string `json:"frompubkeyx"`
 	FromPubKeyY string `json:"frompubkeyy"`
+	ToPubKeyX   string `json:"topubkeyx"`
+	ToPubKeyY   string `json:"topubkeyy"`
 	Ciphertext  string `json:"ciphertext"`
 	RX          string `json:"rx"`
 	RY          string `json:"ry"`
@@ -211,7 +213,7 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 						signcryptedData[index] = &common.SigncryptedOutput{NodePubKey: nodes[index].PubKey, NodeIndex: share.Index, SigncryptedShare: *signcryption}
 					}
 
-					errArr := sendSharesToNodes(*suite.EthSuite, signcryptedData, nodeList, shareIndex)
+					errArr := sendSharesToNodes(suite, signcryptedData, nodeList, shareIndex)
 					if errArr != nil {
 						fmt.Println("errors sending shares")
 						fmt.Println(errArr)
@@ -350,28 +352,29 @@ func keyGenerationPhase(suite *Suite) (string, error) {
 	return "Keygen complete.", nil
 }
 
-func sendSharesToNodes(ethSuite EthSuite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
+func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
 	errorSlice := make([]error, len(signcryptedOutput))
 	// fmt.Println("GIVEN SIGNCRYPTION")
 	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
 	for i := range signcryptedOutput {
 		for j := range signcryptedOutput { // TODO: this is because we aren't sure about the ordering of nodeList/signcryptedOutput...
 			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
-				// TODO: send shares to bft
-
-				_, err := nodeList[j].JSONClient.Call("KeyGeneration.ShareCollection", &SigncryptedMessage{
-					ethSuite.NodeAddress.Hex(),
-					ethSuite.NodePublicKey.X.Text(16),
-					ethSuite.NodePublicKey.Y.Text(16),
-					hex.EncodeToString(signcryptedOutput[i].SigncryptedShare.Ciphertext),
-					signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
-					signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
-					signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
-					uint(shareIndex),
-				})
-				if err != nil {
-					errorSlice = append(errorSlice, err)
+				// send shares through bft
+				broadcastMessage := KeyGenShareBFTTx{
+					SigncryptedMessage{
+						suite.EthSuite.NodeAddress.Hex(),
+						suite.EthSuite.NodePublicKey.X.Text(16),
+						suite.EthSuite.NodePublicKey.Y.Text(16),
+						signcryptedOutput[i].NodePubKey.X.Text(16),
+						signcryptedOutput[i].NodePubKey.Y.Text(16),
+						hex.EncodeToString(signcryptedOutput[i].SigncryptedShare.Ciphertext),
+						signcryptedOutput[i].SigncryptedShare.R.X.Text(16),
+						signcryptedOutput[i].SigncryptedShare.R.Y.Text(16),
+						signcryptedOutput[i].SigncryptedShare.Signature.Text(16),
+						uint(shareIndex),
+					},
 				}
+				suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{broadcastMessage})
 			}
 		}
 	}

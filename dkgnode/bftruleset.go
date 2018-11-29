@@ -25,7 +25,10 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		if err != nil {
 			return false, nil, err
 		}
-
+		fmt.Println("ATTACHING TAGS for pubpoly")
+		tags = []common.KVPair{
+			{Key: []byte("pubpoly"), Value: []byte("1")},
+		}
 		return true, nil, nil
 		//verify share index has not yet been submitted for epoch
 
@@ -42,12 +45,25 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		} else {
 			app.transientState.Epoch = epochTx.EpochNumber
 		}
-		fmt.Println("ATTACHING TAGS")
+		fmt.Println("ATTACHING TAGS for epoch")
 		tags = []common.KVPair{
 			// retrieve tag using "localhost:26657/tx_search?query=\"epoch='1'\""
 			// remember to change tendermint config to use index_all_tags = true
 			// tags should come back in base64 encoding so pass a string as the Value
 			{Key: []byte("epoch"), Value: []byte("1")},
+		}
+		return true, &tags, nil
+
+	case byte(3): // KeyGenShareBFTTx
+		KeyGenShareTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
+		err := KeyGenShareTx.DecodeBFTTx(txNoSig)
+		if err != nil {
+			return false, nil, err
+		}
+		// TODO: verify keygen share?
+		fmt.Println("ATTACHING TAGS for keygenshare")
+		tags = []common.KVPair{
+			{Key: []byte("keygeneration.sharecollection"), Value: []byte("1")},
 		}
 		return true, &tags, nil
 

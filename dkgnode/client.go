@@ -241,10 +241,10 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 		} else {
 			fmt.Println("No nodes in list/could not get from eth")
 		}
-		time.Sleep(5000 * time.Millisecond)
+		time.Sleep(5 * time.Second)
 	}
 
-	// Run forever
+	// Run forever, blocks goroutine
 	select {}
 	return "Keygen complete.", nil
 }

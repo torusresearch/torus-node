@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -25,7 +26,6 @@ import (
 	tmnode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
-	tmproxy "github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
@@ -148,13 +148,10 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 				// fmt.Println("ETH PUB KEY: ", suite.EthSuite.NodePublicKey.X.Bytes())
 				// fmt.Println("TM PUB KEY: ", pv.PubKey().Bytes())
 
-				pvFile := &privval.FilePV{
-					Address:  pv.PubKey().Address(),
-					PubKey:   pv.PubKey(),
-					PrivKey:  pv,
-					LastStep: int8(0),
-					// filePath: defaultTmConfig.PrivValidatorFile(),
-				}
+				pvF := privval.GenFilePVFromPrivKey(pv, defaultTmConfig.PrivValidatorFile())
+				pvF.Save()
+				//to load it up just like in the config
+				// pvFile := privval.LoadFilePV(defaultTmConfig.PrivValidatorFile())
 
 				// pv := privval.GenFilePVSecp(defaultTmConfig.PrivValidatorFile())
 				nodeKey, err := p2p.LoadOrGenNodeKey(defaultTmConfig.NodeKeyFile())
@@ -164,24 +161,25 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 				}
 
 				genDoc := tmtypes.GenesisDoc{
-					ChainID:         fmt.Sprintf("test-chain-%v", "BLUBLU"),
-					GenesisTime:     time.Now(),
-					ConsensusParams: tmtypes.DefaultConsensusParams(),
+					ChainID:     fmt.Sprintf("test-chain-%v", "BLUBLU"),
+					GenesisTime: time.Now(),
+					// ConsensusParams: tmtypes.DefaultConsensusParams(),
 				}
-				//add validators
+				//add validators and persistant peers
 				var temp []tmtypes.GenesisValidator
-				defaultTmConfig.P2P.PersistentPeers = ""
+				var persistantPeersList []string
 				for i := range nodeList {
 					//convert pubkey X and Y to tmpubkey
 					pubkeyBytes := RawPointToTMPubKey(nodeList[i].PublicKey.X, nodeList[i].PublicKey.Y)
 					temp = append(temp, tmtypes.GenesisValidator{
 						Address: pubkeyBytes.Address(),
 						PubKey:  pubkeyBytes,
-						Power:   10,
+						Power:   1,
 					})
-					//TODO: cater for failed edge case of ,
-					defaultTmConfig.P2P.PersistentPeers = defaultTmConfig.P2P.PersistentPeers + nodeList[i].P2PConnection + ","
+					persistantPeersList = append(persistantPeersList, nodeList[i].P2PConnection)
 				}
+				defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
+
 				fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
 				genDoc.Validators = temp
 
@@ -192,25 +190,35 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 
 				defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
 				defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
+				//TODO: make config
 				defaultTmConfig.P2P.MaxNumInboundPeers = 300
 				defaultTmConfig.P2P.MaxNumOutboundPeers = 300
-				err = defaultTmConfig.ValidateBasic()
-				if err != nil {
-					fmt.Println("VALIDATEBASIC FAILED: ", err)
-				}
+				//TODO: change to true in production?
+				defaultTmConfig.P2P.AddrBookStrict = false
+				// defaultTmConfig.Consensus.CreateEmptyBlocks = false
+				// defaultTmConfig.LogLevel = "main:info,state:info,*:error"
+				// err = defaultTmConfig.ValidateBasic()
+				// if err != nil {
+				// 	fmt.Println("VALIDATEBASIC FAILED: ", err)
+				// }
 				fmt.Println("NODEKEY: ", nodeKey)
 				// fmt.Println(nodeKey.ID())
 				fmt.Println(nodeKey.PubKey().Address())
-				n, err := tmnode.NewNode(
-					defaultTmConfig,
-					pvFile,
-					nodeKey,
-					tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
-					ProvideGenDoc(&genDoc),
-					tmnode.DefaultDBProvider,
-					tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
-					logger,
-				)
+				//save config
+				tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
+
+				n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
+
+				// n, err := tmnode.NewNode(
+				// 	defaultTmConfig,
+				// 	pvFile,
+				// 	nodeKey,
+				// 	tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
+				// 	ProvideGenDoc(&genDoc),
+				// 	tmnode.DefaultDBProvider,
+				// 	tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
+				// 	logger,
+				// )
 
 				if err != nil {
 					log.Fatal("Failed to create tendermint node: %v", err)
@@ -224,7 +232,7 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 				}
 				logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
 
-				time.Sleep(4 * time.Second)
+				time.Sleep(20 * time.Second)
 
 				startKeyGeneration(suite, nodeList, bftRPC)
 				break
@@ -242,6 +250,15 @@ func keyGenerationPhase(suite *Suite, buildPath string) (string, error) {
 }
 
 func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC) error {
+	if suite.Config.MyPort == "8001" {
+		epochTxWrapper := DefaultBFTTxWrapper{
+			&EpochBFTTx{uint(1)},
+		}
+		_, err := bftRPC.Broadcast(epochTxWrapper)
+		if err != nil {
+			fmt.Println("error broadcasting epoch: ", err)
+		}
+	}
 	fmt.Println("Required number of nodes reached")
 	fmt.Println("Sending shares -----------")
 	numberOfShares := NumberOfShares

@@ -141,13 +141,13 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		}
 
 	*/
-
+	var nodeIP string
 	if production {
 		fmt.Println("//PRODUCTION MDOE ")
 		nodeIPAddress = suite.Config.HostName + ":" + string(suite.Config.MyPort)
 	} else {
 		fmt.Println("//DEVELOPMENT MDOE ")
-		nodeIP, err := findExternalIP()
+		nodeIP, err = findExternalIP()
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -158,7 +158,9 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	if register {
 		/* Register Node */
 		fmt.Println("Registering node...")
-		_, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
+		temp := p2p.IDAddressString(nodekey.ID(), nodeIP+suite.Config.P2PListenAddress[13:])
+		// _, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
+		_, err = suite.EthSuite.registerNode(nodeIPAddress, temp)
 		if err != nil {
 			log.Fatal(err)
 		}

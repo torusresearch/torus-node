@@ -24,8 +24,14 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		if err != nil {
 			return false, nil, err
 		}
+		tags = []common.KVPair{
+			// retrieve tag using "localhost:26657/tx_search?query=\"epoch='1'\""
+			// remember to change tendermint config to use index_all_tags = true
+			// tags should come back in base64 encoding so pass a string as the Value
+			{Key: []byte("pubpoy"), Value: []byte("1")},
+		}
 
-		return true, nil, nil
+		return true, &tags, nil
 		//verify share index has not yet been submitted for epoch
 
 	case byte(2): // EpochTx

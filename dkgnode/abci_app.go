@@ -141,7 +141,7 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 
 func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
 
-	return types.ResponseCheckTx{Code: code.CodeTypeOK, GasWanted: 1}
+	return types.ResponseCheckTx{Code: code.CodeTypeOK}
 }
 
 func (app *ABCIApp) Commit() types.ResponseCommit {

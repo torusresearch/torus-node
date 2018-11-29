@@ -18,15 +18,13 @@ type BftRPCWS struct {
 }
 
 func SetUpBft(suite *Suite) {
-	//TODO: keep server connection around for logging??
-	//commented out for testing purposes
+	// TODO: keep server connection around for logging??
+	// commented out for testing purposes
 	// go tmabci.RunABCIServer()
-	// var wg sync.WaitGroup
-	// wg.Add(1)
 
 	bftClient := client.NewHTTP(suite.Config.BftURI, "/websocket")
-	// fmt.Println("bftclientwseventsgetws,", bftClient.WSEvents.GetWS())
-	// bftClient.WSEvents.GetWS().SetCodec(bftClient.GetCodec())
+
+	// for subscribe and unsubscribe method calls, use this
 	bftClientWS := rpcclient.NewWSClient(suite.Config.BftURI, "/websocket")
 	go func() {
 		// TODO: waiting for bft to accept websocket connection
@@ -35,11 +33,9 @@ func SetUpBft(suite *Suite) {
 		if err != nil {
 			fmt.Println("COULDNOT START THE BFTWS", err)
 		}
-		// wg.Done()
 	}()
 	suite.BftSuite = &BftSuite{
 		BftRPC:   &BftRPC{bftClient},
 		BftRPCWS: bftClientWS,
 	}
-	// wg.Wait()
 }

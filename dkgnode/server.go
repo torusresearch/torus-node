@@ -3,6 +3,7 @@ package dkgnode
 /* All useful imports */
 import (
 	"context"
+	b64 "encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	"github.com/tidwall/gjson"
 )
 
 type (
@@ -334,15 +336,38 @@ func setUpServer(suite *Suite, port string) {
 		time.Sleep(time.Second * 10)
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
-		query := tmquery.MustParse("epoch = '1'")
+		query := tmquery.MustParse("epoch='1'")
 		fmt.Println("QUERY IS:", query)
 		// txs := make(chan interface{})
 		go func() {
+			// note: we also get back the initial "{}"
+			// data comes back in bytes of utf-8 which correspond
+			// to a base64 encoding of the original data
 			for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
-				fmt.Println("sub got ", e)
+				fmt.Println("sub got ", e.Result)
+				res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e.Result, "data.value.TxResult.tx").String())
+				if err != nil {
+					fmt.Println("error decoding b64", err)
+				} else {
+					fmt.Println(string(res[:]))
+				}
+				res, err = b64.StdEncoding.DecodeString(gjson.GetBytes(e.Result, "data.value.TxResult.result.tags.0.key").String())
+				if err != nil {
+					fmt.Println("error decoding b64", err)
+				} else {
+					fmt.Println(string(res[:]))
+				}
+				res, err = b64.StdEncoding.DecodeString(gjson.GetBytes(e.Result, "data.value.TxResult.result.tags.0.value").String())
+				if err != nil {
+					fmt.Println("error decoding b64", err)
+				} else {
+					fmt.Println(string(res[:]))
+				}
 			}
 		}()
+		fmt.Println("REACHED HERE1")
 		err := suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
+		fmt.Println("REACHED HERE2")
 		if err != nil {
 			fmt.Println("Error with subscription", err)
 		}

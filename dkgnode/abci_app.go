@@ -185,6 +185,6 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 }
 
 // Update the validator set
-func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
-	return types.ResponseEndBlock{ValidatorUpdates: app.state.ValSet}
-}
+// func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
+// 	return types.ResponseEndBlock{ValidatorUpdates: app.state.ValSet}
+// }

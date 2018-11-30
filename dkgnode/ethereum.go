@@ -24,7 +24,7 @@ type EthSuite struct {
 	NodeAddress      *common.Address
 	NodePrivateKey   *ecdsa.PrivateKey
 	Client           *ethclient.Client
-	NodeListInstance *nodelist.Nodelist
+	NodeListContract *nodelist.Nodelist
 	secp             elliptic.Curve
 }
 
@@ -62,11 +62,11 @@ func SetUpEth(suite *Suite) error {
 	fmt.Println("Node Public Key: ", nodeAddress.Hex())
 
 	/*Creating contract instances */
-	nodeListInstance, err := nodelist.NewNodelist(nodeListAddress, client)
+	NodeListContract, err := nodelist.NewNodelist(nodeListAddress, client)
 	if err != nil {
 		return err
 	}
-	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, nodeListInstance, secp256k1.Curve}
+	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, NodeListContract, secp256k1.Curve}
 	return nil
 }
 
@@ -87,7 +87,7 @@ func (suite EthSuite) registerNode(declaredIP string, TMP2PConnection string) (*
 	auth.GasLimit = uint64(4700000) // in units
 	auth.GasPrice = gasPrice
 
-	tx, err := suite.NodeListInstance.ListNode(auth, declaredIP, suite.NodePublicKey.X, suite.NodePublicKey.Y, TMP2PConnection)
+	tx, err := suite.NodeListContract.ListNode(auth, declaredIP, suite.NodePublicKey.X, suite.NodePublicKey.Y, TMP2PConnection)
 	if err != nil {
 		return nil, err
 	}

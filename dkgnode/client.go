@@ -71,6 +71,51 @@ type SigncryptedMessage struct {
 	ShareIndex  uint   `json:"shareindex"`
 }
 
+type NodeListUpdates struct {
+	Type    string
+	Payload interface{}
+}
+
+func monitorNodeList(suite *Suite, nodeListUpdates chan NodeListUpdates) {
+	for {
+		fmt.Println("Checking Node List...")
+		// Fetch Node List from contract address
+		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil)
+		// If we can't reach ethereum node, lets try next time
+		if err != nil {
+			fmt.Println("Could not View Nodes on ETH Network", err)
+		} else {
+			// Build count of nodes connected to
+			fmt.Println("Indexes", positions)
+			connectedNodes := 0
+			nodeList := make([]*NodeReference, len(ethList))
+			if len(ethList) > 0 {
+				for i := range ethList {
+					// Check if node is online by pinging
+					temp, err := connectToJSONRPCNode(suite, ethList[i])
+					if err != nil {
+						fmt.Println(err)
+					}
+
+					if temp != nil {
+						if nodeList[int(temp.Index.Int64())-1] == nil {
+							nodeList[int(temp.Index.Int64())-1] = temp
+						} else {
+							connectedNodes++
+						}
+					}
+				}
+			}
+
+			//if we've connected to all nodes we send back the most recent list
+			if connectedNodes == len(ethList) {
+				nodeListUpdates <- NodeListUpdates{"update", nodeList}
+			}
+		}
+		time.Sleep(1 * time.Second) //check node list every second for updates
+	}
+}
+
 func startTendermintCore(suite *Suite, buildPath string, nodeListPointer *[]*NodeReference, tmCoreMsgs chan string) (string, error) {
 	nodeList := *nodeListPointer
 	time.Sleep(5 * time.Second) // TODO: wait for servers to spin up
@@ -96,7 +141,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeListPointer *[]*Nod
 
 	for {
 		// Fetch Node List from contract address
-		ethList, positions, err := suite.EthSuite.NodeListInstance.ViewNodes(nil)
+		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil)
 		fmt.Println("Indexes", positions)
 		if err != nil {
 			fmt.Println(err)
@@ -520,7 +565,7 @@ func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *common.Point {
 }
 
 func connectToJSONRPCNode(suite *Suite, nodeAddress ethCommon.Address) (*NodeReference, error) {
-	details, err := suite.EthSuite.NodeListInstance.NodeDetails(nil, nodeAddress)
+	details, err := suite.EthSuite.NodeListContract.NodeDetails(nil, nodeAddress)
 	if err != nil {
 		return nil, err
 	}

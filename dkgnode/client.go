@@ -114,9 +114,7 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 	}
 }
 
-func startTendermintCore(suite *Suite, buildPath string, nodeListPointer *[]*NodeReference, tmCoreMsgs chan string) (string, error) {
-	nodeList := *nodeListPointer
-	time.Sleep(5 * time.Second) // TODO: wait for servers to spin up
+func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReference, tmCoreMsgs chan string) (string, error) {
 
 	bftRPC := suite.BftSuite.BftRPC
 	//for testing purposes
@@ -137,158 +135,113 @@ func startTendermintCore(suite *Suite, buildPath string, nodeListPointer *[]*Nod
 		}()
 	}
 
-	for {
-		// Fetch Node List from contract address
-		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil)
-		fmt.Println("Indexes", positions)
-		if err != nil {
-			fmt.Println(err)
-		}
-		if len(ethList) > 0 {
-			fmt.Println("Connecting to other nodes ------------------")
-			// Build count of nodes connected to
-			triggerSecretSharing := 0
-			for i := range ethList {
+	//Starts tendermint node here
+	//builds default config
+	defaultTmConfig := tmconfig.DefaultConfig()
+	defaultTmConfig.SetRoot(buildPath)
+	fmt.Println("TM BFT DATA ROOT STORE", defaultTmConfig.RootDir)
+	//build root folders, done in dkg node now
+	// os.MkdirAll(defaultTmConfig.RootDir+"/config", os.ModePerm)
+	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
+	// defaultTmConfig.NodeKey = "config/"
+	// defaultTmConfig.PrivValidator = "config/"
+	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
-				// Check if node is online
-				temp, err := connectToJSONRPCNode(suite, ethList[i])
-				if err != nil {
-					fmt.Println(err)
-				}
-
-				if temp != nil {
-					if nodeList[int(temp.Index.Int64())-1] == nil {
-						nodeList[int(temp.Index.Int64())-1] = temp
-					} else {
-						triggerSecretSharing++
-					}
-				}
-			}
-
-			if triggerSecretSharing > suite.Config.NumberOfNodes {
-				log.Fatal("There are more nodes in the eth node list than the required number of nodes... exiting...")
-			}
-
-			// if we have connected to all nodes
-			if triggerSecretSharing == suite.Config.NumberOfNodes {
-				//create genesis file
-				//Starts tendermint node here
-
-				//builds default config
-				defaultTmConfig := tmconfig.DefaultConfig()
-				defaultTmConfig.SetRoot(buildPath)
-				fmt.Println("TM BFT DATA ROOT STORE", defaultTmConfig.RootDir)
-				//build root folders, done in dkg node now
-				// os.MkdirAll(defaultTmConfig.RootDir+"/config", os.ModePerm)
-				logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
-				fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
-				// defaultTmConfig.NodeKey = "config/"
-				// defaultTmConfig.PrivValidator = "config/"
-				defaultTmConfig.ProxyApp = suite.Config.ABCIServer
-
-				//converts own pv to tendermint key TODO: Double check verification
-				var pv tmsecp.PrivKeySecp256k1
-				for i := 0; i < 32; i++ {
-					pv[i] = suite.EthSuite.NodePrivateKey.D.Bytes()[i]
-				}
-
-				pvF := privval.GenFilePVFromPrivKey(pv, defaultTmConfig.PrivValidatorFile())
-				pvF.Save()
-				//to load it up just like in the config
-				// pvFile := privval.LoadFilePV(defaultTmConfig.PrivValidatorFile())
-
-				// pv := privval.GenFilePVSecp(defaultTmConfig.PrivValidatorFile())
-				nodeKey, err := p2p.LoadOrGenNodeKey(defaultTmConfig.NodeKeyFile())
-				if err != nil {
-					fmt.Println("Node Key generation issue")
-					fmt.Println(err)
-				}
-
-				genDoc := tmtypes.GenesisDoc{
-					ChainID:     fmt.Sprintf("test-chain-%v", "BLUBLU"),
-					GenesisTime: time.Now(),
-					// ConsensusParams: tmtypes.DefaultConsensusParams(),
-				}
-				//add validators and persistant peers
-				var temp []tmtypes.GenesisValidator
-				var persistantPeersList []string
-				for i := range nodeList {
-					//convert pubkey X and Y to tmpubkey
-					pubkeyBytes := RawPointToTMPubKey(nodeList[i].PublicKey.X, nodeList[i].PublicKey.Y)
-					temp = append(temp, tmtypes.GenesisValidator{
-						Address: pubkeyBytes.Address(),
-						PubKey:  pubkeyBytes,
-						Power:   1,
-					})
-					persistantPeersList = append(persistantPeersList, nodeList[i].P2PConnection)
-				}
-				defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
-
-				fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
-				genDoc.Validators = temp
-
-				fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
-				if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
-					fmt.Print(err)
-				}
-
-				//Other changes to config go here
-				defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
-				defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
-				//TODO: make config
-				defaultTmConfig.P2P.MaxNumInboundPeers = 300
-				defaultTmConfig.P2P.MaxNumOutboundPeers = 300
-				//TODO: change to true in production?
-				defaultTmConfig.P2P.AddrBookStrict = false
-				// defaultTmConfig.Consensus.CreateEmptyBlocks = false
-				// defaultTmConfig.LogLevel = "main:info,state:info,*:error"
-				// err = defaultTmConfig.ValidateBasic()
-				// if err != nil {
-				// 	fmt.Println("VALIDATEBASIC FAILED: ", err)
-				// }
-				fmt.Println("NODEKEY: ", nodeKey)
-				// fmt.Println(nodeKey.ID())
-				fmt.Println(nodeKey.PubKey().Address())
-				//save config
-				tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
-
-				n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
-
-				// n, err := tmnode.NewNode(
-				// 	defaultTmConfig,
-				// 	pvFile,
-				// 	nodeKey,
-				// 	tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
-				// 	ProvideGenDoc(&genDoc),
-				// 	tmnode.DefaultDBProvider,
-				// 	tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
-				// 	logger,
-				// )
-
-				if err != nil {
-					log.Fatal("Failed to create tendermint node: %v", err)
-				}
-
-				//Start Tendermint Node
-				fmt.Println("Tendermint P2P Connection on: ", defaultTmConfig.P2P.ListenAddress)
-				fmt.Println("Tendermint Node RPC listening on: ", defaultTmConfig.RPC.ListenAddress)
-				if err := n.Start(); err != nil {
-					log.Fatal("Failed to start tendermint node: %v", err)
-				}
-				logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
-
-				//send back message saying ready
-				// startKeyGeneration(suite, nodeList, bftRPC)
-				tmCoreMsgs <- "Started Tendermint Core"
-
-				break
-			}
-
-		} else {
-			fmt.Println("No nodes in list/could not get from eth")
-		}
-		time.Sleep(5 * time.Second)
+	//converts own pv to tendermint key TODO: Double check verification
+	var pv tmsecp.PrivKeySecp256k1
+	for i := 0; i < 32; i++ {
+		pv[i] = suite.EthSuite.NodePrivateKey.D.Bytes()[i]
 	}
+
+	pvF := privval.GenFilePVFromPrivKey(pv, defaultTmConfig.PrivValidatorFile())
+	pvF.Save()
+	//to load it up just like in the config
+	// pvFile := privval.LoadFilePV(defaultTmConfig.PrivValidatorFile())
+
+	// pv := privval.GenFilePVSecp(defaultTmConfig.PrivValidatorFile())
+	nodeKey, err := p2p.LoadOrGenNodeKey(defaultTmConfig.NodeKeyFile())
+	if err != nil {
+		fmt.Println("Node Key generation issue")
+		fmt.Println(err)
+	}
+
+	genDoc := tmtypes.GenesisDoc{
+		ChainID:     fmt.Sprintf("test-chain-%v", "BLUBLU"),
+		GenesisTime: time.Now(),
+		// ConsensusParams: tmtypes.DefaultConsensusParams(),
+	}
+	//add validators and persistant peers
+	var temp []tmtypes.GenesisValidator
+	var persistantPeersList []string
+	for i := range nodeList {
+		//convert pubkey X and Y to tmpubkey
+		pubkeyBytes := RawPointToTMPubKey(nodeList[i].PublicKey.X, nodeList[i].PublicKey.Y)
+		temp = append(temp, tmtypes.GenesisValidator{
+			Address: pubkeyBytes.Address(),
+			PubKey:  pubkeyBytes,
+			Power:   1,
+		})
+		persistantPeersList = append(persistantPeersList, nodeList[i].P2PConnection)
+	}
+	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
+
+	fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
+	genDoc.Validators = temp
+
+	fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
+	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
+		fmt.Print(err)
+	}
+
+	//Other changes to config go here
+	defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
+	defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
+	//TODO: make config
+	defaultTmConfig.P2P.MaxNumInboundPeers = 300
+	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
+	//TODO: change to true in production?
+	defaultTmConfig.P2P.AddrBookStrict = false
+	// defaultTmConfig.Consensus.CreateEmptyBlocks = false
+	// defaultTmConfig.LogLevel = "main:info,state:info,*:error"
+	// err = defaultTmConfig.ValidateBasic()
+	// if err != nil {
+	// 	fmt.Println("VALIDATEBASIC FAILED: ", err)
+	// }
+	fmt.Println("NODEKEY: ", nodeKey)
+	// fmt.Println(nodeKey.ID())
+	fmt.Println(nodeKey.PubKey().Address())
+	//save config
+	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
+
+	n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
+
+	// n, err := tmnode.NewNode(
+	// 	defaultTmConfig,
+	// 	pvFile,
+	// 	nodeKey,
+	// 	tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
+	// 	ProvideGenDoc(&genDoc),
+	// 	tmnode.DefaultDBProvider,
+	// 	tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
+	// 	logger,
+	// )
+
+	if err != nil {
+		log.Fatal("Failed to create tendermint node: %v", err)
+	}
+
+	//Start Tendermint Node
+	fmt.Println("Tendermint P2P Connection on: ", defaultTmConfig.P2P.ListenAddress)
+	fmt.Println("Tendermint Node RPC listening on: ", defaultTmConfig.RPC.ListenAddress)
+	if err := n.Start(); err != nil {
+		log.Fatal("Failed to start tendermint node: %v", err)
+	}
+	logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
+
+	//send back message saying ready
+	// startKeyGeneration(suite, nodeList, bftRPC)
+	tmCoreMsgs <- "Started Tendermint Core"
 
 	// Run forever, blocks goroutine
 	select {}

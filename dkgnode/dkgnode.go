@@ -92,12 +92,11 @@ func New(configPath string, register bool, production bool, buildPath string) {
 			log.Fatal(err)
 		}
 	}
+
+	//Initialzie all necessary channels
+	tmCoreMsgs := make(chan string)
 	nodeListMonitorMsgs := make(chan NodeListUpdates)
 	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
-
-	tmCoreMsgs := make(chan string)
-	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
-	go startTendermintCore(&suite, buildPath, &nodeList, tmCoreMsgs)
 
 	//Set up standard server
 	go setUpServer(&suite, string(suite.Config.MyPort))
@@ -110,12 +109,20 @@ func New(configPath string, register bool, production bool, buildPath string) {
 				// fmt.Println("we got a message", nlMonitorMsg)
 				// fmt.Println("Suite is: ", suite.EthSuite.NodeList, cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList))
 
+				//Compoare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
 				if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
 					cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
 					cmpopts.IgnoreUnexported(big.Int{}),
 					cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
 					fmt.Println("NODE LIST IS UPDATED THANKS TO MONITOR", nlMonitorMsg.Payload)
 					suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
+
+					// here we trigger eithe... A new "ENDBLOCK" to update validators or an initial start key generation for epochs
+					if len(suite.EthSuite.NodeList) >= suite.Config.NumberOfNodes {
+						fmt.Print("Starting tendermint core...")
+						go startTendermintCore(&suite, buildPath, suite.EthSuite.NodeList, tmCoreMsgs)
+					}
+
 				}
 			}
 		case coreMsg := <-tmCoreMsgs:
@@ -123,8 +130,8 @@ func New(configPath string, register bool, production bool, buildPath string) {
 			if coreMsg == "Started Tendermint Core" {
 				time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
 				//Start key generation when bft is done setting up
-				fmt.Println("Started KEY GENERATION WITH:", nodeList, suite.BftSuite.BftRPC)
-				go startKeyGeneration(&suite, nodeList, suite.BftSuite.BftRPC)
+				fmt.Println("Started KEY GENERATION WITH:", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
+				go startKeyGeneration(&suite, suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
 			}
 		}
 		time.Sleep(1 * time.Second) //TODO: Is a time out necessary?

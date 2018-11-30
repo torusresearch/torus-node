@@ -2,12 +2,15 @@ package dkgnode
 
 //TODO: export all "tm" imports to common folder
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"math/big"
 	"os"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
@@ -89,6 +92,8 @@ func New(configPath string, register bool, production bool, buildPath string) {
 			log.Fatal(err)
 		}
 	}
+	nodeListMonitorMsgs := make(chan NodeListUpdates)
+	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
 
 	tmCoreMsgs := make(chan string)
 	nodeList := make([]*NodeReference, suite.Config.NumberOfNodes)
@@ -100,6 +105,19 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	// So it runs forever
 	for {
 		select {
+		case nlMonitorMsg := <-nodeListMonitorMsgs:
+			if nlMonitorMsg.Type == "update" {
+				// fmt.Println("we got a message", nlMonitorMsg)
+				// fmt.Println("Suite is: ", suite.EthSuite.NodeList, cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList))
+
+				if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
+					cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
+					cmpopts.IgnoreUnexported(big.Int{}),
+					cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
+					fmt.Println("NODE LIST IS UPDATED THANKS TO MONITOR", nlMonitorMsg.Payload)
+					suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
+				}
+			}
 		case coreMsg := <-tmCoreMsgs:
 			fmt.Println("received", coreMsg)
 			if coreMsg == "Started Tendermint Core" {

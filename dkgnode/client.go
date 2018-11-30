@@ -76,7 +76,7 @@ type NodeListUpdates struct {
 	Payload interface{}
 }
 
-func monitorNodeList(suite *Suite, nodeListUpdates chan NodeListUpdates) {
+func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 	for {
 		fmt.Println("Checking Node List...")
 		// Fetch Node List from contract address
@@ -100,13 +100,11 @@ func monitorNodeList(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 					if temp != nil {
 						if nodeList[int(temp.Index.Int64())-1] == nil {
 							nodeList[int(temp.Index.Int64())-1] = temp
-						} else {
-							connectedNodes++
 						}
+						connectedNodes++
 					}
 				}
 			}
-
 			//if we've connected to all nodes we send back the most recent list
 			if connectedNodes == len(ethList) {
 				nodeListUpdates <- NodeListUpdates{"update", nodeList}

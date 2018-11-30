@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/YZhenY/torus/secp256k1"
+	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
@@ -185,6 +186,17 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 }
 
 // Update the validator set
-// func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
-// 	return types.ResponseEndBlock{ValidatorUpdates: app.state.ValSet}
-// }
+func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
+	var valSet []types.ValidatorUpdate
+	for i := range app.Suite.EthSuite.NodeList {
+		pubkeyObject := tmbtcec.PublicKey{
+			X: app.Suite.EthSuite.NodeList[i].PublicKey.X,
+			Y: app.Suite.EthSuite.NodeList[i].PublicKey.Y,
+		}
+		valSet = append(valSet, types.ValidatorUpdate{
+			PubKey: types.PubKey{Type: "secp256k1", Data: pubkeyObject.SerializeCompressed()},
+			Power:  1,
+		})
+	}
+	return types.ResponseEndBlock{ValidatorUpdates: valSet}
+}

@@ -101,6 +101,8 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	//Set up standard server
 	go setUpServer(&suite, string(suite.Config.MyPort))
 
+	//TODO: remove, testing purposes
+	tmStarted := false
 	// So it runs forever
 	for {
 		select {
@@ -119,8 +121,16 @@ func New(configPath string, register bool, production bool, buildPath string) {
 
 					// here we trigger eithe... A new "ENDBLOCK" to update validators or an initial start key generation for epochs
 					if len(suite.EthSuite.NodeList) >= suite.Config.NumberOfNodes {
-						fmt.Print("Starting tendermint core...")
-						go startTendermintCore(&suite, buildPath, suite.EthSuite.NodeList, tmCoreMsgs)
+						fmt.Println("Starting tendermint core...")
+
+						//Update app.state or perhaps just reference suite ?
+
+						//TODO: Remove temp checks to differenciate between starting node and joining a network
+						if !tmStarted {
+							tmStarted = true
+							go startTendermintCore(&suite, buildPath, suite.EthSuite.NodeList, tmCoreMsgs)
+						}
+
 					}
 
 				}
@@ -131,7 +141,10 @@ func New(configPath string, register bool, production bool, buildPath string) {
 				time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
 				//Start key generation when bft is done setting up
 				fmt.Println("Started KEY GENERATION WITH:", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
-				go startKeyGeneration(&suite, suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
+				//TODO: For testing purposes, remove condition
+				if len(suite.EthSuite.NodeList) != 6 {
+					go startKeyGeneration(&suite, suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
+				}
 			}
 		}
 		time.Sleep(1 * time.Second) //TODO: Is a time out necessary?

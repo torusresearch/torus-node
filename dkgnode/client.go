@@ -31,7 +31,7 @@ import (
 )
 
 // TODO: pass in as config
-const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
+const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
 // const BftURI = "tcp://localhost:26657"
 
 //TODO: rename nodePort
@@ -47,15 +47,19 @@ type Message struct {
 	Message string `json:"message"`
 }
 
+// this appears in the form of map[int]SecretStore, shareindex => Z
+// called secretMapping
 type SecretStore struct {
-	Secret   *big.Int
+	Secret   *big.Int // this is Z, the first generated random number from pvss by the node during keygen
 	Assigned bool
 }
 
+// deprecated, we dont need this anymore since we are storing it on the bft
+// this appears in the form of map[string]SecretAssignment, email => userdata
 type SecretAssignment struct {
 	Secret     *big.Int
 	ShareIndex int
-	Share      *big.Int
+	Share      *big.Int // this the polynomial share Si given to you by the node when you send your oauth token over
 }
 
 type SigncryptedMessage struct {

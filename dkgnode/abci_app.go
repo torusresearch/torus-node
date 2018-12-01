@@ -19,15 +19,13 @@ var (
 	ProtocolVersion version.Protocol = 0x1
 )
 
-type TransientState struct {
-	State
-}
-
 // Nothing in state should be a pointer
 type State struct {
-	Epoch   uint   `json:"epoch"`
-	Height  int64  `json:"height"`
-	AppHash []byte `json:"app_hash"`
+	Epoch        uint            `json:"epoch"`
+	Height       int64           `json:"height"`
+	AppHash      []byte          `json:"app_hash"`
+	LastIndex    uint            `json:"last_index"`
+	EmailMapping map[string]uint `json:"email_mapping"`
 }
 
 type ABCITransaction struct {
@@ -44,7 +42,7 @@ func (app *ABCIApp) LoadState() State {
 			panic(err)
 		}
 	}
-	app.state = state
+	app.state = &state
 	return state
 }
 
@@ -54,7 +52,7 @@ func (app *ABCIApp) SaveState() State {
 		panic(err)
 	}
 	app.db.Set(stateKey, stateBytes)
-	return app.state
+	return *app.state
 }
 
 func prefixKey(key []byte) []byte {
@@ -67,18 +65,14 @@ var _ types.Application = (*ABCIApp)(nil)
 
 type ABCIApp struct {
 	types.BaseApplication
-	Suite          *Suite
-	state          State
-	db             dbm.DB
-	transientState TransientState
+	Suite *Suite
+	state *State
+	db    dbm.DB
 }
 
 func NewABCIApp(suite *Suite) *ABCIApp {
 	db := dbm.NewMemDB()
-	abciApp := ABCIApp{Suite: suite, db: db}
-
-	state := abciApp.LoadState()
-	abciApp.transientState = TransientState{state}
+	abciApp := ABCIApp{Suite: suite, db: db, state: &State{Epoch: 0, Height: 0, LastIndex: 0, EmailMapping: make(map[string]uint)}}
 	return &abciApp
 }
 
@@ -95,7 +89,7 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	fmt.Println("DELIVERINGTX", tx)
 
 	//Validate transaction here
-	correct, tags, err := app.ValidateBFTTx(tx) // TODO: doesnt just validate now.. break out update from validate?
+	correct, tags, err := app.ValidateAndUpdateBFTTx(tx) // TODO: doesnt just validate now.. break out update from validate?
 	if err != nil {
 		fmt.Println("could not validate BFTTx", err)
 	}
@@ -144,20 +138,36 @@ func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
 	return types.ResponseCheckTx{Code: code.CodeTypeOK}
 }
 
+// NOTE: Commit happens before DeliverTx
 func (app *ABCIApp) Commit() types.ResponseCommit {
 	fmt.Println("COMMITING... HEIGHT:", app.state.Height)
 	// retrieve state from memdb
-	app.LoadState()
+	if app.state == nil {
+		app.LoadState()
+	}
+
+	// init if does not exist
+	if app.state.EmailMapping == nil {
+		app.state.EmailMapping = make(map[string]uint)
+		fmt.Println("INITIALIZED APP STATE EMAIL MAPPING")
+	} else {
+		fmt.Println("app state email mapping has stuff", app.state.EmailMapping)
+	}
+
+	// update state
 	app.state.AppHash = secp256k1.Keccak256(app.db.Get(stateKey))
-	app.state.Epoch = app.transientState.Epoch
 	app.state.Height += 1
 	// commit to memdb
-	app.transientState = TransientState{app.SaveState()}
+	app.SaveState()
 	fmt.Println("APP STATE COMMITTED: ", app.state)
+
 	return types.ResponseCommit{Data: app.state.AppHash}
 }
 
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
+	fmt.Println("QUERY TO ABCIAPP", reqQuery.Data)
+	fmt.Println("app state", app.state)
+	fmt.Println("email mapping", app.state.EmailMapping)
 	// if reqQuery.Prove
 	// 	value := app.state.db.Get(prefixKey(reqQuery.Data))
 	// 	resQuery.Index = -1 // TODO make Proof return index
@@ -180,5 +190,23 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 	// 	}
 	// 	return
 	// }
+	switch reqQuery.Path {
+	case "GetEmailIndex":
+		fmt.Println("GOT A QUERY FOR GETEMAILINDEX")
+		val, found := app.state.EmailMapping[string(reqQuery.Data)]
+		if !found {
+			fmt.Println("val not found for query")
+			fmt.Println(reqQuery)
+			fmt.Println(reqQuery.Data)
+			fmt.Println(string(reqQuery.Data))
+			return types.ResponseQuery{Value: []byte("")}
+		}
+		fmt.Println("val found for query")
+		// uint -> string -> bytes, when receiving do bytes -> string -> uint
+		fmt.Println(fmt.Sprint(val))
+		return types.ResponseQuery{Value: []byte(fmt.Sprint(val))}
+	default:
+		return types.ResponseQuery{Log: fmt.Sprintf("Invalid query path. Expected hash or tx, got %v", reqQuery.Path)}
+	}
 	return
 }

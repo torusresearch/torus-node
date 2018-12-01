@@ -47,11 +47,16 @@ type DefaultBFTTxWrapper struct {
 	BFTTx BFTTx
 }
 
+type AssignmentBFTTx struct {
+	Email string
+}
+
 // mapping of name of struct to id
 var bftTxs = map[string]byte{
 	getType(PubPolyBFTTx{}):     byte(1),
 	getType(EpochBFTTx{}):       byte(2),
 	getType(KeyGenShareBFTTx{}): byte(3),
+	getType(AssignmentBFTTx{}):  byte(4),
 }
 
 func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {

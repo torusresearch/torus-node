@@ -10,9 +10,9 @@ import (
 
 //Validates transactions to be delivered to the BFT. is the master switch for all tx
 //TODO: create variables for types here and in bftrpc.go
-func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
+func (app *ABCIApp) ValidateAndUpdateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 	if bytes.Compare(tx[:len([]byte("mug00"))], []byte("mug00")) != 0 {
-		return false, nil, errors.New("Tx signature is not mug")
+		return false, nil, errors.New("Tx signature is not mug00")
 	}
 	var tags []common.KVPair
 	txNoSig := tx[len([]byte("mug00")):]
@@ -43,7 +43,7 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		if epochTx.EpochNumber != app.state.Epoch+1 {
 			return false, nil, errors.New("Invalid epoch number! was: " + fmt.Sprintf("%d", app.state.Epoch) + "now: " + fmt.Sprintf("%d", epochTx.EpochNumber))
 		} else {
-			app.transientState.Epoch = epochTx.EpochNumber
+			app.state.Epoch = epochTx.EpochNumber
 		}
 		fmt.Println("ATTACHING TAGS for epoch")
 		tags = []common.KVPair{
@@ -67,6 +67,30 @@ func (app *ABCIApp) ValidateBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 		}
 		return true, &tags, nil
 
+	case byte(4): // AssignmentBFTTx
+		fmt.Println("assignmentbfttx happening")
+		AssignmentTx := DefaultBFTTxWrapper{&AssignmentBFTTx{}}
+		err := AssignmentTx.DecodeBFTTx(txNoSig)
+		if err != nil {
+			fmt.Println("assignmentbfttx failed with error", err)
+			return false, nil, err
+		}
+		assignmentTx := AssignmentTx.BFTTx.(*AssignmentBFTTx)
+		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok {
+			fmt.Println("assignmentbfttx failed with email already assigned")
+			return false, nil, errors.New("Email " + assignmentTx.Email + " has already been assigned")
+		}
+		// assign user email to key index
+		app.state.EmailMapping[assignmentTx.Email] = uint(app.state.LastIndex + 1)
+		fmt.Println("assignmentbfttx happened with app state emailmapping now equal to", app.state.EmailMapping)
+		// increment counter
+		app.state.LastIndex = uint(app.state.LastIndex + 1)
+		tags = []common.KVPair{
+			{Key: []byte("assignment"), Value: []byte("1")},
+		}
+		return true, &tags, nil
+
 	}
+
 	return false, &tags, errors.New("Tx type not recognised")
 }

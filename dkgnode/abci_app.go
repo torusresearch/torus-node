@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/YZhenY/torus/secp256k1"
+	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
@@ -78,8 +79,10 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 
 func (app *ABCIApp) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
 	return types.ResponseInfo{
-		Version:    version.ABCIVersion,
-		AppVersion: ProtocolVersion.Uint64(),
+		Version:          version.ABCIVersion,
+		AppVersion:       ProtocolVersion.Uint64(),
+		LastBlockAppHash: app.state.AppHash,
+		LastBlockHeight:  app.state.Height,
 	}
 }
 
@@ -208,5 +211,45 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 	default:
 		return types.ResponseQuery{Log: fmt.Sprintf("Invalid query path. Expected hash or tx, got %v", reqQuery.Path)}
 	}
-	return
+	return types.ResponseQuery{Height: int64(0)}
+}
+
+// Update the validator set
+func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
+	//TODO: add condition so that validator set is not dialed/updated constantly
+	//Here we go through our nodelist in EthSuite, create the validator set and set it in "EndBlock" where we edit the validator set
+	if app.Suite.BftSuite.UpdateVal == true {
+		var valSet []types.ValidatorUpdate
+		for i := range app.Suite.EthSuite.NodeList {
+			//Here we add the node as a persistent peer too
+			// addr, err := p2p.NewNetAddressString(app.Suite.EthSuite.NodeList[i].P2PConnection)
+			// if err != nil {
+			// 	fmt.Println("Not able to add peer", err)
+			// }
+			//check if existing peer is dialed
+			// if !app.Suite.BftSuite.BftNode.Switch().IsDialingOrExistingAddress(addr) {
+			// 	fmt.Println("DIALING ADDRESS: ", addr)
+			// 	err = app.Suite.BftSuite.BftNode.Switch().DialPeerWithAddress(addr, true) //if not add peer
+			// 	if err != nil {
+			// 		fmt.Println("Could not add peer: ", err)
+			// 	}
+			// }
+
+			//"address" for secp256k1 needs to bbe in some serialized method
+
+			pubkeyObject := tmbtcec.PublicKey{
+				X: app.Suite.EthSuite.NodeList[i].PublicKey.X,
+				Y: app.Suite.EthSuite.NodeList[i].PublicKey.Y,
+			}
+			valSet = append(valSet, types.ValidatorUpdate{
+				PubKey: types.PubKey{Type: "secp256k1", Data: pubkeyObject.SerializeCompressed()},
+				Power:  1,
+			})
+		}
+		app.Suite.BftSuite.UpdateVal = false
+		fmt.Println("PEER SET: ", app.Suite.BftSuite.BftNode.Switch().Peers())
+		fmt.Println("VALIDATOR SET: ", valSet)
+		return types.ResponseEndBlock{ValidatorUpdates: valSet}
+	}
+	return types.ResponseEndBlock{}
 }

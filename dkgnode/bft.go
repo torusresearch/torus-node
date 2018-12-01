@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 type BftSuite struct {
-	BftRPC   *BftRPC
-	BftRPCWS *rpcclient.WSClient
+	BftRPC    *BftRPC
+	BftRPCWS  *rpcclient.WSClient
+	BftNode   *node.Node
+	UpdateVal bool
 }
 
 type BftRPCWS struct {

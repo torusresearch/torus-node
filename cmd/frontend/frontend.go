@@ -84,19 +84,19 @@ func main() {
 	}
 
 	/*Creating contract instances */
-	nodeListInstance, err := nodelist.NewNodelist(ethCommon.HexToAddress(config.NodeListAddress), client)
+	NodeListContract, err := nodelist.NewNodelist(ethCommon.HexToAddress(config.NodeListAddress), client)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	list, _, err := nodeListInstance.ViewNodes(nil)
+	list, _, err := NodeListContract.ViewNodes(nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	nodeList := make([]*NodeReference, len(list))
 	for i := range list {
-		nodeList[i], err = connectToJSONRPCNode(nodeListInstance, list[i])
+		nodeList[i], err = connectToJSONRPCNode(NodeListContract, list[i])
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -223,8 +223,8 @@ func loadConfig(path string) *Config {
 	return &conf
 }
 
-func connectToJSONRPCNode(nodeListInstance *nodelist.Nodelist, nodeAddress ethCommon.Address) (*NodeReference, error) {
-	details, err := nodeListInstance.NodeDetails(nil, nodeAddress)
+func connectToJSONRPCNode(NodeListContract *nodelist.Nodelist, nodeAddress ethCommon.Address) (*NodeReference, error) {
+	details, err := NodeListContract.NodeDetails(nil, nodeAddress)
 	if err != nil {
 		return nil, err
 	}

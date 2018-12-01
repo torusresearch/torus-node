@@ -187,7 +187,8 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
 	fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
-	genDoc.Validators = temp
+	//TODO: CHange back, for testing purposes we limit to 5
+	genDoc.Validators = temp[:5]
 
 	fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
@@ -195,15 +196,15 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	}
 
 	//Other changes to config go here
+	defaultTmConfig.FastSync = false
 	defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
 	defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
-	//TODO: make config
 	defaultTmConfig.P2P.MaxNumInboundPeers = 300
 	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
 	// defaultTmConfig.Consensus.CreateEmptyBlocks = false
-	// defaultTmConfig.LogLevel = "main:info,state:info,*:error"
+	// defaultTmConfig.LogLevel = "*:error"
 	// err = defaultTmConfig.ValidateBasic()
 	// if err != nil {
 	// 	fmt.Println("VALIDATEBASIC FAILED: ", err)
@@ -216,6 +217,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 
 	n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
 
+	suite.BftSuite.BftNode = n
 	// n, err := tmnode.NewNode(
 	// 	defaultTmConfig,
 	// 	pvFile,

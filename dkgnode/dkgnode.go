@@ -18,17 +18,6 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
-//old imports
-// tmbtcec "github.com/tendermint/btcd/btcec"
-// tmconfig "github.com/tendermint/tendermint/config"
-// tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
-// tmlog "github.com/tendermint/tendermint/libs/log"
-// tmnode "github.com/tendermint/tendermint/node"
-// "github.com/tendermint/tendermint/p2p"
-// "github.com/tendermint/tendermint/privval"
-// tmproxy "github.com/tendermint/tendermint/proxy"
-// tmtypes "github.com/tendermint/tendermint/types"
-
 type Suite struct {
 	EthSuite   *EthSuite
 	BftSuite   *BftSuite
@@ -121,9 +110,12 @@ func New(configPath string, register bool, production bool, buildPath string) {
 
 					// here we trigger eithe... A new "ENDBLOCK" to update validators or an initial start key generation for epochs
 					if len(suite.EthSuite.NodeList) >= suite.Config.NumberOfNodes {
-						fmt.Println("Starting tendermint core...")
+						fmt.Println("Starting tendermint core... NodeList:", suite.EthSuite.NodeList)
 
-						//Update app.state or perhaps just reference suite ?
+						//Update app.state or perhaps just reference suite?
+						if tmStarted {
+							suite.BftSuite.UpdateVal = true
+						}
 
 						//TODO: Remove temp checks to differenciate between starting node and joining a network
 						if !tmStarted {

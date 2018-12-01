@@ -178,7 +178,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
 	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here"}
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
 	}
 	siMapping := tmpSi.(map[int]common.PrimaryShare)
 	if _, ok := siMapping[p.Index]; !ok {
@@ -186,7 +186,6 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 	tmpInt := siMapping[p.Index].Value
 	if p.IDToken == "blublu" {
-
 		fmt.Println("Share requested")
 		fmt.Println("SHARE: ", tmpInt.Text(16))
 
@@ -208,12 +207,12 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
 	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here"}
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}
 	}
 
 	userIndex, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
 	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Cannot parse uint for user index here"}
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Cannot parse uint for user index here: " + err.Error()}
 	}
 
 	return ShareRequestResult{
@@ -242,7 +241,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// try to get get email index
 	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
 	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists"}
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists: " + err.Error()}
 	}
 
 	fmt.Println("CHECKING IF ALREADY ASSIGNED")
@@ -251,7 +250,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 		previouslyAssignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for previous assign, res.Response.Value: " + string(res.Response.Value)}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for previous assign, res.Response.Value: " + string(res.Response.Value) + " Error: " + err.Error()}
 		}
 		previouslyAssignedIndex := uint(previouslyAssignedIndex64)
 
@@ -272,7 +271,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// broadcast assignment transaction
 	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{Email: p.Email}})
 	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast"}
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast: " + err.Error()}
 	}
 
 	fmt.Println("CHECKING IF SUBSCRIBE TO UPDATES")
@@ -296,15 +295,15 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		}
 		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment"}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment: " + err.Error()}
 		}
 		if string(res.Response.Value) == "" {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned"}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned: " + err.Error()}
 		}
 		assignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
 		assignedIndex = uint(assignedIndex64)
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for returned assignment index: " + fmt.Sprint(res)}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for returned assignment index: " + fmt.Sprint(res) + " Error: " + err.Error()}
 		}
 		break
 	}

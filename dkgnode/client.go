@@ -31,7 +31,7 @@ import (
 )
 
 // TODO: pass in as config
-const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
+const NumberOfShares = 1 // potentially 1.35 mm, assuming 7.5k uniques a day
 // const BftURI = "tcp://localhost:26657"
 
 //TODO: rename nodePort
@@ -246,7 +246,6 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
 
 	//send back message saying ready
-	// startKeyGeneration(suite, nodeList, bftRPC)
 	tmCoreMsgs <- "Started Tendermint Core"
 
 	// Run forever, blocks goroutine

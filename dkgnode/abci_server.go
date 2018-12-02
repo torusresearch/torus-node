@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/tendermint/tendermint/abci/server"
-	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"
 )
@@ -13,16 +12,16 @@ func RunABCIServer(suite *Suite) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 
 	// Create the application - in memory or persisted to disk
-	var app types.Application
 	// if flagPersist == "" {
-	app = NewABCIApp(suite)
+
+	suite.ABCIApp = NewABCIApp(suite)
 	// } else {
 	// 	app = kvstore.NewPersistentKVStoreApplication(flagPersist)
 	// 	app.(*kvstore.PersistentKVStoreApplication).SetLogger(logger.With("module", "kvstore"))
 	// }
 
 	// Start the listener
-	srv, err := server.NewServer(suite.Config.ABCIServer, "socket", app)
+	srv, err := server.NewServer(suite.Config.ABCIServer, "socket", suite.ABCIApp)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
+	tmbtcec "github.com/tendermint/btcd/btcec"
+	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 )
 
@@ -89,8 +93,54 @@ func (app *ABCIApp) ValidateAndUpdateBFTTx(tx []byte) (bool, *[]common.KVPair, e
 			{Key: []byte("assignment"), Value: []byte("1")},
 		}
 		return true, &tags, nil
-
+	case byte(6): // ValidatorUpdateBFTTx
+		fmt.Println("Validator update tx sent")
+		ValidatorUpdateTx := DefaultBFTTxWrapper{&ValidatorUpdateBFTTx{}}
+		err := ValidatorUpdateTx.DecodeBFTTx(txNoSig)
+		if err != nil {
+			return false, nil, err
+		}
+		validatorUpdateTx := ValidatorUpdateTx.BFTTx.(*ValidatorUpdateBFTTx)
+		//check if lengths are equal
+		if len(validatorUpdateTx.ValidatorPower) != len(validatorUpdateTx.ValidatorPubKey) {
+			return false, nil, errors.New("Lenghts not equal in validator update")
+		}
+		//convert to validator update struct
+		validatorUpdateStruct := make([]types.ValidatorUpdate, len(validatorUpdateTx.ValidatorPower))
+		for i := range validatorUpdateTx.ValidatorPower {
+			tempKey := tmbtcec.PublicKey{
+				X: &validatorUpdateTx.ValidatorPubKey[i].X,
+				Y: &validatorUpdateTx.ValidatorPubKey[i].Y,
+			}
+			validatorUpdateStruct[i] = types.ValidatorUpdate{
+				PubKey: types.PubKey{
+					Type: "secp256k1",
+					Data: tempKey.SerializeCompressed(),
+				},
+				Power: int64(validatorUpdateTx.ValidatorPower[i]),
+			}
+		}
+		fmt.Println("comparint validator structs", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
+		fmt.Println("it was:  ", cmp.Equal(validatorUpdateStruct,
+			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
+			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")))
+		//check agasint internal nodelist
+		if cmp.Equal(validatorUpdateStruct,
+			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
+			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")) {
+			//update internal app state for next commit
+			app.state.ValidatorSet = validatorUpdateStruct
+			//set val update to true to trigger endblock
+			app.state.UpdateValidators = true
+			fmt.Println("update validator set to true")
+		} else {
+			//validators not accepted, might trigger cause nodelist not completely updated? perhpas call node list first
+			return false, nil, errors.New("Validator update not accepted")
+		}
+		tags = []common.KVPair{
+			{Key: []byte("updatevalidator"), Value: []byte("1")},
+		}
+		return true, &tags, nil
 	}
-
 	return false, &tags, errors.New("Tx type not recognised")
 }

@@ -1,7 +1,7 @@
 pragma solidity ^0.4.24;
 
 contract NodeList {
-  event NodeListed(address publicKey, uint256 position);
+  event NodeListed(address publicKey, uint256 epoch, uint256 position);
 
   struct Details {
     string declaredIp;
@@ -11,34 +11,49 @@ contract NodeList {
     string nodePort;
   }
 
-  mapping (address => Details) public nodeDetails;
-  address[] public nodeList;
+  mapping (address => mapping (uint256 => Details)) public addressToNodeDetailsLog; //mapping of address => epoch => nodeDetailsLog
+  mapping (uint256 => address[]) public nodeList; // mapping of epoch => list of nodes in epoch
+  uint256 latestEpoch = 0; //count of number of epochs
 
   constructor() public {
   }
 
-
-  function viewNodes() external view  returns (address[], uint256[]) {
-    uint256[] memory positions = new uint256[](nodeList.length);
-    for (uint256 i = 0; i < nodeList.length; i++) {
-      positions[i] = nodeDetails[nodeList[i]].position;
+  //views nodes in the epoch, now requires specified epochs
+  function viewNodes(uint256 epoch) external view  returns (address[], uint256[]) {
+    uint256[] memory positions = new uint256[](nodeList[epoch].length);
+    for (uint256 i = 0; i < nodeList[epoch].length; i++) {
+      positions[i] = addressToNodeDetailsLog[nodeList[epoch][i]][epoch].position;
     }
-    return (nodeList, positions);
+    return (nodeList[epoch], positions);
   }
 
-  function viewNodeListCount() external view  returns (uint256) {
-    return nodeList.length;
+  function viewNodeListCount(uint256 epoch) external view  returns (uint256) {
+    return nodeList[epoch].length;
   }
 
-  function viewNodeDetails(address node) external view  returns (string declaredIp, uint256 position, string nodePort) {
-    declaredIp = nodeDetails[node].declaredIp;
-    position = nodeDetails[node].position;
-    nodePort = nodeDetails[node].nodePort;
+  function viewLatestEpoch() external view returns (uint256) {
+    return latestEpoch;
   }
 
-  function listNode(string declaredIp, uint256 pubKx, uint256 pubKy, string nodePort) external {
-    nodeList.push(msg.sender);
-    nodeDetails[msg.sender] = Details({declaredIp: declaredIp, position: nodeList.length, pubKx: pubKx, pubKy: pubKy, nodePort: nodePort});
-    emit NodeListed(msg.sender, nodeList.length);
+  function viewNodeDetails(uint256 epoch, address node) external view  returns (string declaredIp, uint256 position, string nodePort) {
+    declaredIp = addressToNodeDetailsLog[node][epoch].declaredIp;
+    position = addressToNodeDetailsLog[node][epoch].position;
+    nodePort = addressToNodeDetailsLog[node][epoch].nodePort;
+  }
+
+  function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string nodePort) external {
+    nodeList[epoch].push(msg.sender); 
+    addressToNodeDetailsLog[msg.sender][epoch] = Details({
+      declaredIp: declaredIp,
+      position: nodeList[epoch].length, //so that Position (or node index) starts from 1
+      pubKx: pubKx,
+      pubKy: pubKy,
+      nodePort: nodePort
+      });
+    //for now latest epoch is simply the highest epoch registered TODO: only we should be able to call this function
+    if (latestEpoch < epoch) {
+      latestEpoch = epoch;
+    }
+    emit NodeListed(msg.sender, epoch, nodeList[epoch].length);
   }
 }

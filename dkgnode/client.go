@@ -84,19 +84,21 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 	for {
 		fmt.Println("Checking Node List...")
 		// Fetch Node List from contract address
-		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil)
+		//TODO: make epoch vairable
+		epoch := big.NewInt(int64(0))
+		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil, epoch)
 		// If we can't reach ethereum node, lets try next time
 		if err != nil {
 			fmt.Println("Could not View Nodes on ETH Network", err)
 		} else {
 			// Build count of nodes connected to
-			fmt.Println("Indexes", positions)
+			fmt.Println("Indexes", positions, ethList)
 			connectedNodes := 0
 			nodeList := make([]*NodeReference, len(ethList))
 			if len(ethList) > 0 {
 				for i := range ethList {
 					// Check if node is online by pinging
-					temp, err := connectToJSONRPCNode(suite, ethList[i])
+					temp, err := connectToJSONRPCNode(suite, *epoch, ethList[i])
 					if err != nil {
 						fmt.Println(err)
 					}
@@ -520,8 +522,8 @@ func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *common.Point {
 	return &common.Point{X: *ecdsaPt.X, Y: *ecdsaPt.Y}
 }
 
-func connectToJSONRPCNode(suite *Suite, nodeAddress ethCommon.Address) (*NodeReference, error) {
-	details, err := suite.EthSuite.NodeListContract.NodeDetails(nil, nodeAddress)
+func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address) (*NodeReference, error) {
+	details, err := suite.EthSuite.NodeListContract.AddressToNodeDetailsLog(nil, nodeAddress, &epoch)
 	if err != nil {
 		return nil, err
 	}

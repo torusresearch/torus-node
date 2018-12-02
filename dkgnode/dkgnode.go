@@ -45,9 +45,11 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	go RunABCIServer(&suite)
 	SetUpBft(&suite)
 	SetUpCache(&suite)
+
 	var nodeIPAddress string
 
 	//build folders for tendermint logs
@@ -78,7 +80,8 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		fmt.Println("Registering node...")
 		temp := p2p.IDAddressString(nodekey.ID(), nodeIP+suite.Config.P2PListenAddress[13:])
 		// _, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
-		_, err = suite.EthSuite.registerNode(nodeIPAddress, temp)
+		//TODO: Make epoch variable
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), nodeIPAddress, temp)
 		if err != nil {
 			log.Fatal(err)
 		}

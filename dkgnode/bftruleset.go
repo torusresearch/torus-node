@@ -123,15 +123,45 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		// update LocalStatus
 		// TODO: make epoch variable
 		for _, nodeI := range app.Suite.EthSuite.NodeList {
-			fmt.Println()
 			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] == "Y" {
+				counter++
+			}
+		}
+
+		// everyone broadcasts keygen_complete
+		if counter == len(app.Suite.EthSuite.NodeList) {
+			// TODO: make epoch variable
+			app.state.LocalStatus["all_keygen_complete_epoch_0"] = "Y"
+
+			// reset initiate_keygen
+			for _, nodeI := range app.Suite.EthSuite.NodeList {
+				if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "" {
+					counter++
+				}
+			}
+			app.state.LocalStatus["all_initiate_keygen"] = ""
+		}
+
+		counter = 0
+		for _, nodeI := range app.Suite.EthSuite.NodeList {
+			fmt.Println()
+			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "Y" {
+				stopIndex := string(statusTx.Data)
+				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastUnassignedIndex)) {
+					continue
+				}
+				percent := 100 * (app.state.LastUnassignedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
+				if percent <= 60 {
+					continue
+				}
 				counter++
 			}
 		}
 		if counter == len(app.Suite.EthSuite.NodeList) {
 			// TODO: make epoch variable
-			app.state.LocalStatus["keygen_all_complete_epoch_0"] = "Y"
+			app.state.LocalStatus["all_initiate_keygen"] = "Y"
 		}
+
 		tags = []common.KVPair{
 			{Key: []byte("status"), Value: []byte("1")},
 		}
@@ -185,6 +215,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			{Key: []byte("updatevalidator"), Value: []byte("1")},
 		}
 		return true, &tags, nil
+
 	}
 	return false, &tags, errors.New("Tx type not recognised")
 }

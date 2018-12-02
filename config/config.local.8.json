@@ -1,5 +1,4 @@
 {
-  "makemasteronerror": false,
   "myport": "8007",
   "ethconnection": "http://127.0.0.1:8545",
   "ethprivatekey": "c605a67c38a0e6169e8d86cc4b4fba6fea217a25193b094094e8625a1f4b69f8",
@@ -9,5 +8,6 @@
   "threshold": 3,
   "hostname": "dkg6.tetrator.us",
   "abciserver": "tcp://0.0.0.0:8017",
-  "p2plistenaddress": "tcp://0.0.0.0:26671"
+  "p2plistenaddress": "tcp://0.0.0.0:26671",
+  "keysperepoch": 10
 }

@@ -27,6 +27,7 @@ type State struct {
 	Height              int64                      `json:"height"`
 	AppHash             []byte                     `json:"app_hash"`
 	LastUnassignedIndex uint                       `json:"last_unassigned_index"`
+	LastCreatedIndex    uint                       `json:"last_created_index`
 	EmailMapping        map[string]uint            `json:"email_mapping"`
 	NodeStatus          map[uint]map[string]string `json:"node_status"` // Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
 	LocalStatus         map[string]string          `json:"-"`           //
@@ -84,6 +85,7 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 			Epoch:               0,
 			Height:              0,
 			LastUnassignedIndex: 0,
+			LastCreatedIndex:    0,
 			EmailMapping:        make(map[string]uint),
 			NodeStatus:          make(map[uint]map[string]string),
 			LocalStatus:         make(map[string]string),
@@ -122,32 +124,6 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	}
 
 	return types.ResponseDeliverTx{Code: code.CodeTypeOK, Tags: *tags}
-
-	// var p Message
-	// if err := rlp.DecodeBytes(tx, p); err != nil {
-	// 	fmt.Println("ERROR DECODING RLP")
-	// }
-	// var p ABCITransaction
-	// if err := json.Unmarshal(tx, &p); err != nil {
-	// 	fmt.Println("transaction parse error", err)
-	// 	// return types.ResponseDeliverTx{Code: code.CodeTypeEncodingError}
-	// }
-
-	// switch p.Type {
-	// case "publicpoly":
-	// 	fmt.Println("this is a public polyyyyyy")
-	// }
-
-	// var key, value []byte
-	// parts := bytes.Split(tx, []byte("="))
-	// if len(parts) == 2 {
-	// 	key, value = parts[0], parts[1]
-	// } else {
-	// 	key, value = tx, tx
-	// }
-	// app.state.db.Set(prefixKey(key), value)
-	// app.state.Size += 1
-
 }
 
 func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
@@ -205,7 +181,7 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 		fmt.Println("GOT A QUERY FOR GETKEYGENCOMPLETE")
 		fmt.Println("for Epoch: ", string(reqQuery.Data))
 		return types.ResponseQuery{
-			Value: []byte(app.state.LocalStatus["keygen_all_complete_epoch_"+string(reqQuery.Data)]),
+			Value: []byte(app.state.LocalStatus["all_keygen_complete_epoch_"+string(reqQuery.Data)]),
 		}
 
 	default:
@@ -232,22 +208,7 @@ func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
 func convertNodeListToValidatorUpdate(nodeList []*NodeReference) []types.ValidatorUpdate {
 	var valSet []types.ValidatorUpdate
 	for i := range nodeList {
-		//Here we add the node as a persistent peer too
-		// addr, err := p2p.NewNetAddressString(nodeList[i].P2PConnection)
-		// if err != nil {
-		// 	fmt.Println("Not able to add peer", err)
-		// }
-		//check if existing peer is dialed
-		// if !app.Suite.BftSuite.BftNode.Switch().IsDialingOrExistingAddress(addr) {
-		// 	fmt.Println("DIALING ADDRESS: ", addr)
-		// 	err = app.Suite.BftSuite.BftNode.Switch().DialPeerWithAddress(addr, true) //if not add peer
-		// 	if err != nil {
-		// 		fmt.Println("Could not add peer: ", err)
-		// 	}
-		// }
-
 		//"address" for secp256k1 needs to bbe in some serialized method
-
 		pubkeyObject := tmbtcec.PublicKey{
 			X: nodeList[i].PublicKey.X,
 			Y: nodeList[i].PublicKey.Y,

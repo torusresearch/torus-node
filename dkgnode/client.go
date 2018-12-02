@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,10 +30,6 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
-
-// TODO: pass in as config
-const NumberOfShares = 10 // potentially 1.35 mm, assuming 7.5k uniques a day
-// const BftURI = "tcp://localhost:26657"
 
 //TODO: rename nodePort
 type NodeReference struct {
@@ -81,6 +78,56 @@ type NodeListUpdates struct {
 	Payload interface{}
 }
 
+type KeyGenUpdates struct {
+	Type    string
+	Payload interface{}
+}
+
+func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
+	for {
+		time.Sleep(1 * time.Second)
+		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "in_progress" {
+			continue
+		}
+		percent := 100 * (suite.ABCIApp.state.LastUnassignedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
+		if percent <= 60 {
+			continue
+		}
+		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex) + 1
+		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex) + 1
+
+		initiateKeyGenerationStatusWrapper := DefaultBFTTxWrapper{
+			StatusBFTTx{
+				FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
+				FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
+				StatusType:  "initiate_keygen",
+				StatusValue: "Y",
+				Data:        []byte(strconv.Itoa(endingIndex)),
+			},
+		}
+		_, err := suite.BftSuite.BftRPC.Broadcast(initiateKeyGenerationStatusWrapper)
+		if err != nil {
+			fmt.Println("coudl not broadcast initiateKeygeneration", err)
+			continue
+		}
+
+		for {
+			time.Sleep(1 * time.Second)
+			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
+				//reset keygen flag
+				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "in_progress"
+				//report back to main process
+				keyGenMonitorUpdates <- KeyGenUpdates{
+					Type:    "start_keygen",
+					Payload: []int{startingIndex, endingIndex},
+				}
+				break
+			}
+		}
+
+	}
+}
+
 func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 	for {
 		fmt.Println("Checking Node List...")
@@ -121,6 +168,23 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 	}
 }
 
+type NoLogger struct {
+	tmlog.Logger
+}
+
+func (NoLogger) Debug(msg string, keyvals ...interface{}) {
+}
+
+func (NoLogger) Info(msg string, keyvals ...interface{}) {
+}
+
+func (NoLogger) Error(msg string, keyvals ...interface{}) {
+}
+
+func (NoLogger) With(keyvals ...interface{}) tmlog.Logger {
+	return NoLogger{}
+}
+
 func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReference, tmCoreMsgs chan string) (string, error) {
 
 	bftRPC := suite.BftSuite.BftRPC
@@ -150,6 +214,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//build root folders, done in dkg node now
 	// os.MkdirAll(defaultTmConfig.RootDir+"/config", os.ModePerm)
 	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	// logger := NoLogger{}
 	fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
 	// defaultTmConfig.NodeKey = "config/"
 	// defaultTmConfig.PrivValidator = "config/"
@@ -211,7 +276,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
 	// defaultTmConfig.Consensus.CreateEmptyBlocks = false
-	// defaultTmConfig.LogLevel = "*:error"
+	defaultTmConfig.LogLevel = "*:error"
 	// err = defaultTmConfig.ValidateBasic()
 	// if err != nil {
 	// 	fmt.Println("VALIDATEBASIC FAILED: ", err)
@@ -249,14 +314,16 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
 
 	//send back message saying ready
-	tmCoreMsgs <- "Started Tendermint Core"
+	tmCoreMsgs <- "started_tmcore"
 
 	// Run forever, blocks goroutine
 	select {}
 	return "Keygen complete.", nil
 }
 
-func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC) error {
+func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex int) error {
+	nodeList := suite.EthSuite.NodeList
+	bftRPC := suite.BftSuite.BftRPC
 	if suite.Config.MyPort == "8001" {
 		epochTxWrapper := DefaultBFTTxWrapper{
 			&EpochBFTTx{uint(1)},
@@ -268,10 +335,10 @@ func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC)
 	}
 	fmt.Println("Required number of nodes reached")
 	fmt.Println("Sending shares -----------")
-	numberOfShares := NumberOfShares
+
 	secretMapping := make(map[int]SecretStore)
 	siMapping := make(map[int]common.PrimaryShare)
-	for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
+	for shareIndex := shareStartingIndex; shareIndex < shareEndingIndex; shareIndex++ {
 		nodes := make([]common.Node, suite.Config.NumberOfNodes)
 
 		for i := 0; i < suite.Config.NumberOfNodes; i++ {
@@ -403,7 +470,7 @@ func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC)
 	// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
 	// we retrieve the broadcasted signature via the broadcastID for each share and verify its correct
 	// we then addmod all shares and get our actual final share
-	for shareIndex := 0; shareIndex < numberOfShares; shareIndex++ {
+	for shareIndex := shareStartingIndex; shareIndex < shareEndingIndex; shareIndex++ {
 		var unsigncryptedShares []*big.Int
 		var broadcastIdArray [][]byte
 		var nodePubKeyArray []*ecdsa.PublicKey

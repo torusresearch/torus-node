@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/YZhenY/torus/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	tmbtcec "github.com/tendermint/btcd/btcec"
@@ -90,74 +89,51 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	//Initialzie all necessary channels
 	tmCoreMsgs := make(chan string)
 	nodeListMonitorMsgs := make(chan NodeListUpdates)
+	keyGenMonitorMsgs := make(chan KeyGenUpdates)
 	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
 
 	//Set up standard server
 	go setUpServer(&suite, string(suite.Config.MyPort))
 
-	//TODO: remove, testing purposes
-	tmStarted := false
 	// So it runs forever
 	for {
 		select {
 		case nlMonitorMsg := <-nodeListMonitorMsgs:
 			if nlMonitorMsg.Type == "update" {
-				// fmt.Println("we got a message", nlMonitorMsg)
-				// fmt.Println("Suite is: ", suite.EthSuite.NodeList, cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList))
-
 				//Compoare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
 				if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
 					cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
 					cmpopts.IgnoreUnexported(big.Int{}),
 					cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
-					fmt.Println("NODE LIST IS UPDATED THANKS TO MONITOR", nlMonitorMsg.Payload)
+					fmt.Println("Node Monitor updating node list...", nlMonitorMsg.Payload)
 					suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
 
-					// here we trigger eithe... A new "ENDBLOCK" to update validators or an initial start key generation for epochs
-					if len(suite.EthSuite.NodeList) >= suite.Config.NumberOfNodes {
+					if len(suite.EthSuite.NodeList) == suite.Config.NumberOfNodes {
 						fmt.Println("Starting tendermint core... NodeList:", suite.EthSuite.NodeList)
-
-						//Update app.state or perhaps just reference suite? change for testing
-						if tmStarted && len(suite.EthSuite.NodeList) > 9 {
-							// suite.BftSuite.UpdateVal = true
-							//check so that only 1 transaction is submitted
-							valTx := ValidatorUpdateBFTTx{
-								make([]common.Point, len(suite.EthSuite.NodeList)),
-								make([]uint, len(suite.EthSuite.NodeList)),
-							}
-							for i := range suite.EthSuite.NodeList {
-								valTx.ValidatorPower[i] = uint(1)
-								valTx.ValidatorPubKey[i] = common.Point{X: *suite.EthSuite.NodeList[i].PublicKey.X, Y: *suite.EthSuite.NodeList[i].PublicKey.Y}
-							}
-							updateValTx := DefaultBFTTxWrapper{valTx}
-							time.Sleep(3 * time.Second) //wait for all nodes to update their node lists
-							suite.BftSuite.BftRPC.Broadcast(updateValTx)
-						}
-
-						//TODO: Remove temp checks to differenciate between starting node and joining a network?
-						if !tmStarted {
-							tmStarted = true
-							//initialize app val set for the first time and update validators to false
-							suite.ABCIApp.state.UpdateValidators = false
-							//todo: change this when we edit nodelist for epochs
-							suite.ABCIApp.state.ValidatorSet = convertNodeListToValidatorUpdate(suite.EthSuite.NodeList)
-							go startTendermintCore(&suite, buildPath, suite.EthSuite.NodeList, tmCoreMsgs)
-						}
+						//initialize app val set for the first time and update validators to false
+						go startTendermintCore(&suite, buildPath, suite.EthSuite.NodeList, tmCoreMsgs)
+					} else {
+						fmt.Println("ethlist not equal in length to nodelist")
 					}
 				}
 			}
+
 		case coreMsg := <-tmCoreMsgs:
 			fmt.Println("received", coreMsg)
-			if coreMsg == "Started Tendermint Core" {
+			if coreMsg == "started_tmcore" {
 				time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
-				//Start key generation when bft is done setting up
-				fmt.Println("Started KEY GENERATION WITH:", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
-				//TODO: For testing purposes, remove condition
-				if len(suite.EthSuite.NodeList) != 6 {
-					go startKeyGeneration(&suite, suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
-				}
+				//Start key generation monitor when bft is done setting up
+				fmt.Println("Start Key generation monitor:", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
+				go startKeyGenerationMonitor(&suite, keyGenMonitorMsgs)
+			}
+
+		case keyGenMonitorMsg := <-keyGenMonitorMsgs:
+			if keyGenMonitorMsg.Type == "start_keygen" {
+				//starts keygeneration with starting and ending index
+				go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 			}
 		}
+
 		time.Sleep(1 * time.Second) //TODO: Is a time out necessary?
 	}
 }

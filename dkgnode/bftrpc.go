@@ -43,6 +43,13 @@ type KeyGenShareBFTTx struct {
 	SigncryptedMessage
 }
 
+// type InitiateKeyGenerationBFTTx struct {
+// 	// TODO: implement signed message from node
+// 	FromPubKeyX string
+// 	FromPubKeyY string
+// 	StopIndex   uint
+// }
+
 type DefaultBFTTxWrapper struct {
 	BFTTx BFTTx
 }
@@ -58,6 +65,7 @@ type StatusBFTTx struct {
 	Epoch       uint
 	FromPubKeyX string
 	FromPubKeyY string
+	Data        []byte
 }
 
 type ValidatorUpdateBFTTx struct {
@@ -73,6 +81,7 @@ var bftTxs = map[string]byte{
 	getType(AssignmentBFTTx{}):      byte(4),
 	getType(StatusBFTTx{}):          byte(5),
 	getType(ValidatorUpdateBFTTx{}): byte(6),
+	// getType(InitiateKeyGenerationBFTTx{}): byte(7),
 }
 
 func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {

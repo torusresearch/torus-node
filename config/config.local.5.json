@@ -1,6 +1,6 @@
 {
   "makemasteronerror": false,
-  "myport": "8005",
+  "myport": "8004",
   "ethconnection": "http://127.0.0.1:8545",
   "ethprivatekey": "83781f4a87b3a1fd7473652afc441f4abb111a46c44b404ec640f43b89202387",
   "bfturi": "tcp://0.0.0.0:26666",

@@ -254,6 +254,10 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		}
 		previouslyAssignedIndex := uint(previouslyAssignedIndex64)
 
+		if secretMapping[int(previouslyAssignedIndex)].Secret == nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
+		}
+
 		pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[int(previouslyAssignedIndex)].Secret.Bytes())
 
 		return SecretAssignResult{
@@ -306,6 +310,10 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for returned assignment index: " + fmt.Sprint(res) + " Error: " + err.Error()}
 		}
 		break
+	}
+
+	if secretMapping[int(assignedIndex)].Secret == nil {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
 	}
 
 	pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[int(assignedIndex)].Secret.Bytes())

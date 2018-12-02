@@ -6,7 +6,11 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
+	tmbtcec "github.com/tendermint/btcd/btcec"
+	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 )
 
@@ -83,10 +87,10 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, errors.New("Email " + assignmentTx.Email + " has already been assigned")
 		}
 		// assign user email to key index
-		app.state.EmailMapping[assignmentTx.Email] = uint(app.state.LastIndex + 1)
+		app.state.EmailMapping[assignmentTx.Email] = uint(app.state.LastUnassignedIndex)
 		fmt.Println("assignmentbfttx happened with app state emailmapping now equal to", app.state.EmailMapping)
 		// increment counter
-		app.state.LastIndex = uint(app.state.LastIndex + 1)
+		app.state.LastUnassignedIndex = uint(app.state.LastUnassignedIndex + 1)
 		tags = []common.KVPair{
 			{Key: []byte("assignment"), Value: []byte("1")},
 		}
@@ -115,18 +119,16 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 
 		app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
 		counter := 0
-		fmt.Println("REACHED HERE1")
 
 		// update LocalStatus
+		// TODO: make epoch variable
 		for _, nodeI := range app.Suite.EthSuite.NodeList {
 			fmt.Println()
 			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] == "Y" {
 				counter++
 			}
 		}
-		fmt.Println("REACHED HERE2", counter)
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			fmt.Println("REACHED HERE3")
 			// TODO: make epoch variable
 			app.state.LocalStatus["keygen_all_complete_epoch_0"] = "Y"
 		}
@@ -134,8 +136,56 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			{Key: []byte("status"), Value: []byte("1")},
 		}
 		return true, &tags, nil
-	}
 
+	case byte(6): // ValidatorUpdateBFTTx
+		fmt.Println("Validator update tx sent")
+		ValidatorUpdateTx := DefaultBFTTxWrapper{&ValidatorUpdateBFTTx{}}
+		err := ValidatorUpdateTx.DecodeBFTTx(txNoSig)
+		if err != nil {
+			return false, nil, err
+		}
+		validatorUpdateTx := ValidatorUpdateTx.BFTTx.(*ValidatorUpdateBFTTx)
+		//check if lengths are equal
+		if len(validatorUpdateTx.ValidatorPower) != len(validatorUpdateTx.ValidatorPubKey) {
+			return false, nil, errors.New("Lenghts not equal in validator update")
+		}
+		//convert to validator update struct
+		validatorUpdateStruct := make([]types.ValidatorUpdate, len(validatorUpdateTx.ValidatorPower))
+		for i := range validatorUpdateTx.ValidatorPower {
+			tempKey := tmbtcec.PublicKey{
+				X: &validatorUpdateTx.ValidatorPubKey[i].X,
+				Y: &validatorUpdateTx.ValidatorPubKey[i].Y,
+			}
+			validatorUpdateStruct[i] = types.ValidatorUpdate{
+				PubKey: types.PubKey{
+					Type: "secp256k1",
+					Data: tempKey.SerializeCompressed(),
+				},
+				Power: int64(validatorUpdateTx.ValidatorPower[i]),
+			}
+		}
+		fmt.Println("comparint validator structs", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
+		fmt.Println("it was:  ", cmp.Equal(validatorUpdateStruct,
+			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
+			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")))
+		//check agasint internal nodelist
+		if cmp.Equal(validatorUpdateStruct,
+			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
+			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")) {
+			//update internal app state for next commit
+			app.state.ValidatorSet = validatorUpdateStruct
+			//set val update to true to trigger endblock
+			app.state.UpdateValidators = true
+			fmt.Println("update validator set to true")
+		} else {
+			//validators not accepted, might trigger cause nodelist not completely updated? perhpas call node list first
+			return false, nil, errors.New("Validator update not accepted")
+		}
+		tags = []common.KVPair{
+			{Key: []byte("updatevalidator"), Value: []byte("1")},
+		}
+		return true, &tags, nil
+	}
 	return false, &tags, errors.New("Tx type not recognised")
 }
 

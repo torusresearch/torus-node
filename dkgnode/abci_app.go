@@ -23,14 +23,15 @@ var (
 // Nothing in state should be a pointer
 // Remember to initialize mappings in NewABCIApp()
 type State struct {
-	Epoch        uint            `json:"epoch"`
-	Height       int64           `json:"height"`
-	AppHash      []byte          `json:"app_hash"`
-	LastIndex    uint            `json:"last_index"`
-	EmailMapping map[string]uint `json:"email_mapping"`
-	// Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
-	NodeStatus  map[uint]map[string]string `json:"node_status"`
-	LocalStatus map[string]string          `json:"local_status"`
+	Epoch               uint                       `json:"epoch"`
+	Height              int64                      `json:"height"`
+	AppHash             []byte                     `json:"app_hash"`
+	LastUnassignedIndex uint                       `json:"last_unassigned_index"`
+	EmailMapping        map[string]uint            `json:"email_mapping"`
+	NodeStatus          map[uint]map[string]string `json:"node_status"` // Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
+	LocalStatus         map[string]string          `json:"-"`           //
+	ValidatorSet        []types.ValidatorUpdate    `json:"-"`           // `json:"validator_set"`
+	UpdateValidators    bool                       `json:"-"`           // `json:"update_validators"`
 }
 
 type ABCITransaction struct {
@@ -80,12 +81,12 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 	abciApp := ABCIApp{
 		Suite: suite, db: db,
 		state: &State{
-			Epoch:        0,
-			Height:       0,
-			LastIndex:    0,
-			EmailMapping: make(map[string]uint),
-			NodeStatus:   make(map[uint]map[string]string),
-			LocalStatus:  make(map[string]string),
+			Epoch:               0,
+			Height:              0,
+			LastUnassignedIndex: 0,
+			EmailMapping:        make(map[string]uint),
+			NodeStatus:          make(map[uint]map[string]string),
+			LocalStatus:         make(map[string]string),
 		}}
 	return &abciApp
 }
@@ -182,7 +183,7 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
 	fmt.Println(app.state)
-	fmt.Println("QUERY TO ABCIAPP", reqQuery.Data)
+	fmt.Println("QUERY TO ABCIAPP", reqQuery.Data, string(reqQuery.Data))
 	switch reqQuery.Path {
 
 	case "GetEmailIndex":
@@ -217,38 +218,44 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
 	//TODO: add condition so that validator set is not dialed/updated constantly
 	//Here we go through our nodelist in EthSuite, create the validator set and set it in "EndBlock" where we edit the validator set
-	if app.Suite.BftSuite.UpdateVal == true {
-		var valSet []types.ValidatorUpdate
-		for i := range app.Suite.EthSuite.NodeList {
-			//Here we add the node as a persistent peer too
-			// addr, err := p2p.NewNetAddressString(app.Suite.EthSuite.NodeList[i].P2PConnection)
-			// if err != nil {
-			// 	fmt.Println("Not able to add peer", err)
-			// }
-			//check if existing peer is dialed
-			// if !app.Suite.BftSuite.BftNode.Switch().IsDialingOrExistingAddress(addr) {
-			// 	fmt.Println("DIALING ADDRESS: ", addr)
-			// 	err = app.Suite.BftSuite.BftNode.Switch().DialPeerWithAddress(addr, true) //if not add peer
-			// 	if err != nil {
-			// 		fmt.Println("Could not add peer: ", err)
-			// 	}
-			// }
-
-			//"address" for secp256k1 needs to bbe in some serialized method
-
-			pubkeyObject := tmbtcec.PublicKey{
-				X: app.Suite.EthSuite.NodeList[i].PublicKey.X,
-				Y: app.Suite.EthSuite.NodeList[i].PublicKey.Y,
-			}
-			valSet = append(valSet, types.ValidatorUpdate{
-				PubKey: types.PubKey{Type: "secp256k1", Data: pubkeyObject.SerializeCompressed()},
-				Power:  1,
-			})
-		}
-		app.Suite.BftSuite.UpdateVal = false
+	if app.state.UpdateValidators == true {
+		valSet := app.state.ValidatorSet
+		//set update val back to false
+		app.state.UpdateValidators = false
 		fmt.Println("PEER SET: ", app.Suite.BftSuite.BftNode.Switch().Peers())
 		fmt.Println("VALIDATOR SET: ", valSet)
 		return types.ResponseEndBlock{ValidatorUpdates: valSet}
 	}
 	return types.ResponseEndBlock{}
+}
+
+func convertNodeListToValidatorUpdate(nodeList []*NodeReference) []types.ValidatorUpdate {
+	var valSet []types.ValidatorUpdate
+	for i := range nodeList {
+		//Here we add the node as a persistent peer too
+		// addr, err := p2p.NewNetAddressString(nodeList[i].P2PConnection)
+		// if err != nil {
+		// 	fmt.Println("Not able to add peer", err)
+		// }
+		//check if existing peer is dialed
+		// if !app.Suite.BftSuite.BftNode.Switch().IsDialingOrExistingAddress(addr) {
+		// 	fmt.Println("DIALING ADDRESS: ", addr)
+		// 	err = app.Suite.BftSuite.BftNode.Switch().DialPeerWithAddress(addr, true) //if not add peer
+		// 	if err != nil {
+		// 		fmt.Println("Could not add peer: ", err)
+		// 	}
+		// }
+
+		//"address" for secp256k1 needs to bbe in some serialized method
+
+		pubkeyObject := tmbtcec.PublicKey{
+			X: nodeList[i].PublicKey.X,
+			Y: nodeList[i].PublicKey.Y,
+		}
+		valSet = append(valSet, types.ValidatorUpdate{
+			PubKey: types.PubKey{Type: "secp256k1", Data: pubkeyObject.SerializeCompressed()},
+			Power:  1,
+		})
+	}
+	return valSet
 }

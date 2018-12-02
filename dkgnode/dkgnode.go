@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/YZhenY/torus/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	tmbtcec "github.com/tendermint/btcd/btcec"
@@ -24,6 +25,7 @@ type Suite struct {
 	CacheSuite *CacheSuite
 	Config     *Config
 	Flags      *Flags
+	ABCIApp    *ABCIApp
 }
 
 type Flags struct {
@@ -43,9 +45,11 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	go RunABCIServer(&suite)
 	SetUpBft(&suite)
 	SetUpCache(&suite)
+
 	var nodeIPAddress string
 
 	//build folders for tendermint logs
@@ -76,7 +80,8 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		fmt.Println("Registering node...")
 		temp := p2p.IDAddressString(nodekey.ID(), nodeIP+suite.Config.P2PListenAddress[13:])
 		// _, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
-		_, err = suite.EthSuite.registerNode(nodeIPAddress, temp)
+		//TODO: Make epoch variable
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), nodeIPAddress, temp)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -112,19 +117,33 @@ func New(configPath string, register bool, production bool, buildPath string) {
 					if len(suite.EthSuite.NodeList) >= suite.Config.NumberOfNodes {
 						fmt.Println("Starting tendermint core... NodeList:", suite.EthSuite.NodeList)
 
-						//Update app.state or perhaps just reference suite?
-						if tmStarted {
-							suite.BftSuite.UpdateVal = true
+						//Update app.state or perhaps just reference suite? change for testing
+						if tmStarted && len(suite.EthSuite.NodeList) > 9 {
+							// suite.BftSuite.UpdateVal = true
+							//check so that only 1 transaction is submitted
+							valTx := ValidatorUpdateBFTTx{
+								make([]common.Point, len(suite.EthSuite.NodeList)),
+								make([]uint, len(suite.EthSuite.NodeList)),
+							}
+							for i := range suite.EthSuite.NodeList {
+								valTx.ValidatorPower[i] = uint(1)
+								valTx.ValidatorPubKey[i] = common.Point{X: *suite.EthSuite.NodeList[i].PublicKey.X, Y: *suite.EthSuite.NodeList[i].PublicKey.Y}
+							}
+							updateValTx := DefaultBFTTxWrapper{valTx}
+							time.Sleep(3 * time.Second) //wait for all nodes to update their node lists
+							suite.BftSuite.BftRPC.Broadcast(updateValTx)
 						}
 
-						//TODO: Remove temp checks to differenciate between starting node and joining a network
+						//TODO: Remove temp checks to differenciate between starting node and joining a network?
 						if !tmStarted {
 							tmStarted = true
+							//initialize app val set for the first time and update validators to false
+							suite.ABCIApp.state.UpdateValidators = false
+							//todo: change this when we edit nodelist for epochs
+							suite.ABCIApp.state.ValidatorSet = convertNodeListToValidatorUpdate(suite.EthSuite.NodeList)
 							go startTendermintCore(&suite, buildPath, suite.EthSuite.NodeList, tmCoreMsgs)
 						}
-
 					}
-
 				}
 			}
 		case coreMsg := <-tmCoreMsgs:

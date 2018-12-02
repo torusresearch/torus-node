@@ -51,12 +51,22 @@ type AssignmentBFTTx struct {
 	Email string
 }
 
+type StatusBFTTx struct {
+	// TODO: implement signed message from node
+	StatusType  string
+	StatusValue string
+	Epoch       uint
+	FromPubKeyX string
+	FromPubKeyY string
+}
+
 // mapping of name of struct to id
 var bftTxs = map[string]byte{
 	getType(PubPolyBFTTx{}):     byte(1),
 	getType(EpochBFTTx{}):       byte(2),
 	getType(KeyGenShareBFTTx{}): byte(3),
 	getType(AssignmentBFTTx{}):  byte(4),
+	getType(StatusBFTTx{}):      byte(5),
 }
 
 func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
@@ -89,27 +99,6 @@ func getType(myvar interface{}) string {
 		return t.Name()
 	}
 }
-
-// func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
-// 	//type byte
-// 	txType := make([]byte, 1)
-// 	txType[0] = byte(uint8(1))
-
-// 	data, err := rlp.EncodeToBytes(tx)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	preparedMsg := append(txType[:], data[:]...)
-// 	return preparedMsg, nil
-// }
-
-// func (tx *PubPolyBFTTx) DecodeBFTTx(data []byte) error {
-// 	err := rlp.DecodeBytes(data[1:], tx)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
 
 //BroadcastTxSync Wrapper (input should be RLP encoded) to tendermint.
 //All transactions are appended to a torus signature hexbytes(mug00 + versionNo)
@@ -158,6 +147,27 @@ func (bftrpc BftRPC) Retrieve(hash []byte, txStruct BFTTxWrapper) (err error) {
 
 	return nil
 }
+
+// func (tx PubPolyBFTTx) PrepareBFTTx() ([]byte, error) {
+// 	//type byte
+// 	txType := make([]byte, 1)
+// 	txType[0] = byte(uint8(1))
+
+// 	data, err := rlp.EncodeToBytes(tx)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	preparedMsg := append(txType[:], data[:]...)
+// 	return preparedMsg, nil
+// }
+
+// func (tx *PubPolyBFTTx) DecodeBFTTx(data []byte) error {
+// 	err := rlp.DecodeBytes(data[1:], tx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 // func (tx PubPolyTransaction) ValidatePubPolyTransaction(epoch int, shareIndex int) bool {
 

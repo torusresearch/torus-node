@@ -10,10 +10,11 @@ import (
 )
 
 type BftSuite struct {
-	BftRPC    *BftRPC
-	BftRPCWS  *rpcclient.WSClient
-	BftNode   *node.Node
-	UpdateVal bool
+	BftRPC         *BftRPC
+	BftRPCWS       *rpcclient.WSClient
+	BftNode        *node.Node
+	BftRPCWSStatus string
+	UpdateVal      bool
 }
 
 type BftRPCWS struct {
@@ -31,14 +32,20 @@ func SetUpBft(suite *Suite) {
 	bftClientWS := rpcclient.NewWSClient(suite.Config.BftURI, "/websocket")
 	go func() {
 		// TODO: waiting for bft to accept websocket connection
-		time.Sleep(time.Second * 30)
-		err := bftClientWS.Start()
-		if err != nil {
-			fmt.Println("COULDNOT START THE BFTWS", err)
+		for {
+			time.Sleep(1 * time.Second)
+			err := bftClientWS.Start()
+			if err != nil {
+				fmt.Println("COULDNOT START THE BFTWS", err)
+			} else {
+				suite.BftSuite.BftRPCWSStatus = "up"
+				break
+			}
 		}
 	}()
 	suite.BftSuite = &BftSuite{
-		BftRPC:   &BftRPC{bftClient},
-		BftRPCWS: bftClientWS,
+		BftRPC:         &BftRPC{bftClient},
+		BftRPCWS:       bftClientWS,
+		BftRPCWSStatus: "down",
 	}
 }

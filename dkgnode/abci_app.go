@@ -21,12 +21,16 @@ var (
 )
 
 // Nothing in state should be a pointer
+// Remember to initialize mappings in NewABCIApp()
 type State struct {
 	Epoch        uint            `json:"epoch"`
 	Height       int64           `json:"height"`
 	AppHash      []byte          `json:"app_hash"`
 	LastIndex    uint            `json:"last_index"`
 	EmailMapping map[string]uint `json:"email_mapping"`
+	// Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
+	NodeStatus  map[uint]map[string]string `json:"node_status"`
+	LocalStatus map[string]string          `json:"local_status"`
 }
 
 type ABCITransaction struct {
@@ -73,7 +77,16 @@ type ABCIApp struct {
 
 func NewABCIApp(suite *Suite) *ABCIApp {
 	db := dbm.NewMemDB()
-	abciApp := ABCIApp{Suite: suite, db: db, state: &State{Epoch: 0, Height: 0, LastIndex: 0, EmailMapping: make(map[string]uint)}}
+	abciApp := ABCIApp{
+		Suite: suite, db: db,
+		state: &State{
+			Epoch:        0,
+			Height:       0,
+			LastIndex:    0,
+			EmailMapping: make(map[string]uint),
+			NodeStatus:   make(map[uint]map[string]string),
+			LocalStatus:  make(map[string]string),
+		}}
 	return &abciApp
 }
 
@@ -92,7 +105,7 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	fmt.Println("DELIVERINGTX", tx)
 
 	//Validate transaction here
-	correct, tags, err := app.ValidateAndUpdateBFTTx(tx) // TODO: doesnt just validate now.. break out update from validate?
+	correct, tags, err := app.ValidateAndUpdateAndTagBFTTx(tx) // TODO: doesnt just validate now.. break out update from validate?
 	if err != nil {
 		fmt.Println("could not validate BFTTx", err)
 	}
@@ -168,32 +181,10 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 }
 
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
+	fmt.Println(app.state)
 	fmt.Println("QUERY TO ABCIAPP", reqQuery.Data)
-	fmt.Println("app state", app.state)
-	fmt.Println("email mapping", app.state.EmailMapping)
-	// if reqQuery.Prove
-	// 	value := app.state.db.Get(prefixKey(reqQuery.Data))
-	// 	resQuery.Index = -1 // TODO make Proof return index
-	// 	resQuery.Key = reqQuery.Data
-	// 	resQuery.Value = value
-	// 	if value != nil {
-	// 		resQuery.Log = "exists"
-	// 	} else {
-	// 		resQuery.Log = "does not exist"
-	// 	}
-	// 	return
-	// } else {
-	// 	resQuery.Key = reqQuery.Data
-	// 	value := app.state.db.Get(prefixKey(reqQuery.Data))
-	// 	resQuery.Value = value
-	// 	if value != nil {
-	// 		resQuery.Log = "exists"
-	// 	} else {
-	// 		resQuery.Log = "does not exist"
-	// 	}
-	// 	return
-	// }
 	switch reqQuery.Path {
+
 	case "GetEmailIndex":
 		fmt.Println("GOT A QUERY FOR GETEMAILINDEX")
 		val, found := app.state.EmailMapping[string(reqQuery.Data)]
@@ -208,6 +199,14 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 		// uint -> string -> bytes, when receiving do bytes -> string -> uint
 		fmt.Println(fmt.Sprint(val))
 		return types.ResponseQuery{Value: []byte(fmt.Sprint(val))}
+
+	case "GetKeyGenComplete":
+		fmt.Println("GOT A QUERY FOR GETKEYGENCOMPLETE")
+		fmt.Println("for Epoch: ", string(reqQuery.Data))
+		return types.ResponseQuery{
+			Value: []byte(app.state.LocalStatus["keygen_all_complete_epoch_"+string(reqQuery.Data)]),
+		}
+
 	default:
 		return types.ResponseQuery{Log: fmt.Sprintf("Invalid query path. Expected hash or tx, got %v", reqQuery.Path)}
 	}

@@ -59,7 +59,8 @@ type SecretStore struct {
 type SecretAssignment struct {
 	Secret     *big.Int
 	ShareIndex int
-	Share      *big.Int // this the polynomial share Si given to you by the node when you send your oauth token over
+	// this the polynomial share Si given to you by the node when you send your oauth token over
+	Share *big.Int
 }
 
 type SigncryptedMessage struct {
@@ -359,11 +360,42 @@ func startKeyGeneration(suite *Suite, nodeList []*NodeReference, bftRPC *BftRPC)
 			fmt.Println(errArr)
 		}
 		secretMapping[shareIndex] = SecretStore{secret, false}
+		statusTx := StatusBFTTx{
+			StatusType:  "keygen_complete",
+			StatusValue: "Y",
+			// TODO: make epoch variable
+			Epoch:       uint(0),
+			FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
+			FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
+		}
+		suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&statusTx})
+	}
+
+	// wait for websocket to be up
+	for suite.BftSuite.BftRPCWSStatus != "up" {
+		time.Sleep(1 * time.Second)
+		fmt.Println("bftsuite websocket connection is not up")
+	}
+
+	for {
+		time.Sleep(1 * time.Second)
+		// TODO: make epoch variable
+		res, err := suite.BftSuite.BftRPC.ABCIQuery("GetKeyGenComplete", []byte("0"))
+		if err != nil {
+			fmt.Println("Error encountered when querying abci: ", err.Error())
+			continue
+		}
+		if string(res.Response.Value) != "Y" {
+			fmt.Println("nodes have not finished sending shares for epoch 0")
+			continue
+		}
+		fmt.Println("all nodes have finished sending shares for epoch 0")
+		break
 	}
 
 	// Signcrypted shares are received by the other nodes and handled in server.go
 
-	time.Sleep(60 * time.Second) // TODO: Check for communication termination from all other nodes
+	// time.Sleep(60 * time.Second) // TODO: Check for communication termination from all other nodes
 	fmt.Println("STARTING TO GATHER SHARES AND PUT THEM TOGETHER")
 	// gather shares, decrypt and verify with pubpoly
 	// - check if shares are here

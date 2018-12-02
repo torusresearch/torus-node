@@ -426,7 +426,9 @@ func setUpServer(suite *Suite, port string) {
 
 	go func() {
 		// TODO: waiting for websocket connection to be ready
-		time.Sleep(time.Second * 30)
+		for suite.BftSuite.BftRPCWSStatus != "up" {
+			time.Sleep(1 * time.Second)
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		query := tmquery.MustParse("keygeneration.sharecollection='1'")

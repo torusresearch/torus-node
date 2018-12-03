@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "ganache-cli": "^6.2.3",
     "truffle-hdwallet-provider": "0.0.6"
   }
 }

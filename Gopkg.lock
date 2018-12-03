@@ -228,6 +228,20 @@
   revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
+  digest = "1:d2754cafcab0d22c13541618a8029a70a8959eb3525ff201fe971637e2274cd0"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/cmpopts",
+    "cmp/internal/diff",
+    "cmp/internal/function",
+    "cmp/internal/value",
+  ]
+  pruneopts = "UT"
+  revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
+  version = "v0.2.0"
+
+[[projects]]
   digest = "1:236d7e1bdb50d8f68559af37dbcf9d142d56b431c9b2176d41e2a009b664cda8"
   name = "github.com/google/uuid"
   packages = ["."]
@@ -781,6 +795,8 @@
     "github.com/ethereum/go-ethereum/event",
     "github.com/ethereum/go-ethereum/rlp",
     "github.com/fatih/structs",
+    "github.com/google/go-cmp/cmp",
+    "github.com/google/go-cmp/cmp/cmpopts",
     "github.com/intel-go/fastjson",
     "github.com/jinzhu/copier",
     "github.com/mattn/go-sqlite3",
@@ -791,15 +807,22 @@
     "github.com/pkg/errors",
     "github.com/rs/cors",
     "github.com/stretchr/testify/assert",
+    "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/tendermint/abci/example/code",
     "github.com/tendermint/tendermint/abci/server",
     "github.com/tendermint/tendermint/abci/types",
+    "github.com/tendermint/tendermint/config",
+    "github.com/tendermint/tendermint/crypto/secp256k1",
     "github.com/tendermint/tendermint/libs/common",
     "github.com/tendermint/tendermint/libs/db",
     "github.com/tendermint/tendermint/libs/log",
     "github.com/tendermint/tendermint/libs/pubsub/query",
+    "github.com/tendermint/tendermint/node",
+    "github.com/tendermint/tendermint/p2p",
+    "github.com/tendermint/tendermint/privval",
     "github.com/tendermint/tendermint/rpc/client",
     "github.com/tendermint/tendermint/rpc/lib/client",
+    "github.com/tendermint/tendermint/types",
     "github.com/tendermint/tendermint/version",
     "github.com/tidwall/gjson",
     "github.com/xlab-si/emmy/crypto/common",

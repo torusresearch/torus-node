@@ -1,6 +1,77 @@
 pragma solidity ^0.4.24;
 
-contract NodeList {
+/**
+ * @title Ownable
+ * @dev The Ownable contract has an owner address, and provides basic authorization control
+ * functions, this simplifies the implementation of "user permissions".
+ */
+contract Ownable {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /**
+     * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+     * account.
+     */
+    constructor () internal {
+        _owner = msg.sender;
+        emit OwnershipTransferred(address(0), _owner);
+    }
+
+    /**
+     * @return the address of the owner.
+     */
+    function owner() public view returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(isOwner());
+        _;
+    }
+
+    /**
+     * @return true if `msg.sender` is the owner of the contract.
+     */
+    function isOwner() public view returns (bool) {
+        return msg.sender == _owner;
+    }
+
+    /**
+     * @dev Allows the current owner to relinquish control of the contract.
+     * @notice Renouncing to ownership will leave the contract without an owner.
+     * It will not be possible to call the functions with the `onlyOwner`
+     * modifier anymore.
+     */
+    function renounceOwnership() public onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
+    }
+
+    /**
+     * @dev Allows the current owner to transfer control of the contract to a newOwner.
+     * @param newOwner The address to transfer ownership to.
+     */
+    function transferOwnership(address newOwner) public onlyOwner {
+        _transferOwnership(newOwner);
+    }
+
+    /**
+     * @dev Transfers control of the contract to a newOwner.
+     * @param newOwner The address to transfer ownership to.
+     */
+    function _transferOwnership(address newOwner) internal {
+        require(newOwner != address(0));
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
+    }
+}
+
+contract NodeList is Ownable {
   event NodeListed(address publicKey, uint256 epoch, uint256 position);
 
   struct Details {
@@ -10,6 +81,8 @@ contract NodeList {
     uint256 pubKy;
     string nodePort;
   }
+
+  mapping (uint256 => mapping (address => bool)) whitelist;
 
   mapping (address => mapping (uint256 => Details)) public addressToNodeDetailsLog; //mapping of address => epoch => nodeDetailsLog
   mapping (uint256 => address[]) public nodeList; // mapping of epoch => list of nodes in epoch
@@ -41,7 +114,16 @@ contract NodeList {
     nodePort = addressToNodeDetailsLog[node][epoch].nodePort;
   }
 
-  function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string nodePort) external {
+  modifier whitelisted(uint256 epoch) {
+    require(whitelist[epoch][msg.sender]);
+    _;
+  }
+
+  function updateWhiteList(uint256 epoch, address nodeAddress, bool allowed) public onlyOwner {
+    whitelist[epoch][nodeAddress] = allowed;
+  }
+
+  function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string nodePort) external whitelisted(epoch) {
     nodeList[epoch].push(msg.sender); 
     addressToNodeDetailsLog[msg.sender][epoch] = Details({
       declaredIp: declaredIp,

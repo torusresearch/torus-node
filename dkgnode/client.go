@@ -268,6 +268,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	}
 
 	//Other changes to config go here
+	defaultTmConfig.BaseConfig.DBBackend = "cleveldb"
 	defaultTmConfig.FastSync = false
 	defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
 	defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
@@ -354,10 +355,8 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		if err != nil {
 			fmt.Println(err)
 		}
-
+		fmt.Println("Shares created", shares)
 		// commit pubpoly by signing it and broadcasting it
-
-		//TODO: Make epoch variable
 		pubPolyTx := PubPolyBFTTx{
 			PubPoly:    *pubpoly,
 			Epoch:      uint(0),

@@ -79,6 +79,14 @@
   revision = "67e573d211ace594f1366b4ce9d39726c4b19bd0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:f5a785a2836dce1d5a46a313275fe868c332090a3709b5aa58b84e1368ae006f"
+  name = "github.com/btcsuite/fastsha256"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "637e656429416087660c84436a2a035d69d54e2e"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -521,11 +529,12 @@
   revision = "f9080354173f192dfc8821931eacf9cfd6819253"
 
 [[projects]]
-  digest = "1:605b6546f3f43745695298ec2d342d3e952b6d91cdf9f349bea9315f677d759f"
+  digest = "1:8a41a4a7a586f32f920e88491c00f71ffef4b222c654905d2a9874ee5f45c767"
   name = "github.com/tendermint/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "e5840949ff4fff0c56f9b6a541e22b63581ea9df"
+  revision = "cea5d3c1cc16eb07a1686c557db23004655ae11b"
+  version = "BTCD_0_12_0_BETA"
 
 [[projects]]
   branch = "master"
@@ -540,15 +549,15 @@
   revision = "d8387025d2b9d158cf4efb07e7ebf814bcce2057"
 
 [[projects]]
-  digest = "1:2c971a45c89ca2ccc735af50919cdee05fbdc54d4bf50625073693300e31ead8"
+  digest = "1:e9113641c839c21d8eaeb2c907c7276af1eddeed988df8322168c56b7e06e0e1"
   name = "github.com/tendermint/go-amino"
   packages = ["."]
   pruneopts = "UT"
-  revision = "faa6e731944e2b7b6a46ad202902851e8ce85bee"
-  version = "v0.12.0"
+  revision = "2106ca61d91029c931fd54968c2bb02dc96b1412"
+  version = "0.10.1"
 
 [[projects]]
-  digest = "1:ad2b545160ed69c8c4886903eb33d65b02fc47b690b0550c5f701d09c3db9557"
+  digest = "1:f2dc8b9a0547f37ec62cf3f6d562455c3535965246a2d9dee4ac5c3828d16b47"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -564,8 +573,6 @@
     "crypto/ed25519",
     "crypto/encoding/amino",
     "crypto/merkle",
-    "crypto/multisig",
-    "crypto/multisig/bitarray",
     "crypto/secp256k1",
     "crypto/tmhash",
     "evidence",
@@ -573,7 +580,6 @@
     "libs/clist",
     "libs/common",
     "libs/db",
-    "libs/errors",
     "libs/events",
     "libs/flowrate",
     "libs/log",
@@ -584,6 +590,7 @@
     "p2p",
     "p2p/conn",
     "p2p/pex",
+    "p2p/upnp",
     "privval",
     "proxy",
     "rpc/client",
@@ -599,12 +606,11 @@
     "state/txindex/kv",
     "state/txindex/null",
     "types",
-    "types/time",
     "version",
   ]
   pruneopts = "UT"
-  revision = "0c9c3292c918617624f6f3fbcd95eceade18bcd5"
-  version = "v0.25.0"
+  revision = "9e940b95ad4d27efab60d0d49278db5acb2a3b7e"
+  version = "v0.23.1"
 
 [[projects]]
   digest = "1:2cab41f59638fdb77dda96ab4f9b5860ef30f48967557254eba127e43c756f2e"

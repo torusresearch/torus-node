@@ -25,6 +25,10 @@
 #   unused-packages = true
 
 [[constraint]]
+  name = "github.com/tendermint/btcd"
+  version = "BTCD_0_12_0_BETA"
+
+[[constraint]]
   name = "github.com/google/go-cmp"
   version = "0.2.0"
 

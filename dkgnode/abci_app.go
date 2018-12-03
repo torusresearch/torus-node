@@ -181,7 +181,7 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 		fmt.Println("GOT A QUERY FOR GETKEYGENCOMPLETE")
 		fmt.Println("for Epoch: ", string(reqQuery.Data))
 		return types.ResponseQuery{
-			Value: []byte(app.state.LocalStatus["all_keygen_complete_epoch_"+string(reqQuery.Data)]),
+			Value: []byte(app.state.LocalStatus["all_keygen_complete"]),
 		}
 
 	default:

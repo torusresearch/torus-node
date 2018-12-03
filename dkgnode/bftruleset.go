@@ -99,6 +99,9 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 	case byte(5): // StatusBFTTx
 		fmt.Println("Status broadcast")
 		StatusTx := DefaultBFTTxWrapper{&StatusBFTTx{}}
+
+		// validation
+
 		err := StatusTx.DecodeBFTTx(txNoSig)
 		if err != nil {
 			fmt.Println("Statustx decoding failed with error", err)
@@ -110,56 +113,71 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, err
 		}
 
-		// valid status update from node
+		if statusTx.Epoch != app.state.Epoch {
+			return false, &tags, errors.New("Epoch mismatch for tx")
+		}
 
 		// initialize inner mapping if it does not exist
 		if app.state.NodeStatus[uint(nodeIndex)] == nil {
 			app.state.NodeStatus[uint(nodeIndex)] = make(map[string]string)
 		}
 
-		app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
-		counter := 0
+		// set status
 
-		// update LocalStatus
-		// TODO: make epoch variable
-		for _, nodeI := range app.Suite.EthSuite.NodeList {
+		app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
+
+		// Update LocalStatus based on rules
+		// check if all nodes have broadcasted keygen_complete == "Y"
+		counter := 0
+		for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
 			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] == "Y" {
 				counter++
 			}
 		}
-
-		// everyone broadcasts keygen_complete
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			// TODO: make epoch variable
-			app.state.LocalStatus["all_keygen_complete_epoch_0"] = "Y"
-
-			// reset initiate_keygen
-			for _, nodeI := range app.Suite.EthSuite.NodeList {
-				if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "" {
-					counter++
-				}
+			// set all_keygen_complete to Y
+			app.state.LocalStatus["all_keygen_complete"] = "Y" // TODO: make epoch variable
+			// reset all other nodes' keygen completion status
+			for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
+				app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] = ""
 			}
+			// update total number of available keys
+			app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
+
+			// start listening again for the next time we initiate a keygen
 			app.state.LocalStatus["all_initiate_keygen"] = ""
+			app.state.Epoch = app.state.Epoch + uint(1)
+		} else {
+			fmt.Println("Number of keygen initiation messages does not match number of nodes")
 		}
 
+		// check if all nodes have broadcasted initiate_keygen == "Y"
 		counter = 0
 		for _, nodeI := range app.Suite.EthSuite.NodeList {
-			fmt.Println()
 			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "Y" {
 				stopIndex := string(statusTx.Data)
-				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastUnassignedIndex)) {
+				fmt.Println("here1", stopIndex)
+				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
+					fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
 					continue
 				}
-				percent := 100 * (app.state.LastUnassignedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
-				if percent <= 60 {
+				percentLeft := 100 * (app.state.LastCreatedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
+				if percentLeft > 40 {
+					fmt.Println("here3")
 					continue
 				}
+				fmt.Println("here4")
 				counter++
 			}
 		}
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			// TODO: make epoch variable
-			app.state.LocalStatus["all_initiate_keygen"] = "Y"
+			fmt.Println("here5")
+			app.state.LocalStatus["all_initiate_keygen"] = "Y" // TODO: make epoch variable
+			for _, nodeI := range app.Suite.EthSuite.NodeList {
+				app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
+			}
+		} else {
+			fmt.Println("Number of keygen initiation messages does not match number of nodes")
 		}
 
 		tags = []common.KVPair{

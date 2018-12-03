@@ -85,21 +85,24 @@ type KeyGenUpdates struct {
 
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
+		fmt.Println("in start keygen monitor")
 		time.Sleep(1 * time.Second)
-		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "in_progress" {
+		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
+			fmt.Println("WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS")
 			continue
 		}
-		percent := 100 * (suite.ABCIApp.state.LastUnassignedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
-		if percent <= 60 {
+		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
+		if percentLeft > 40 {
 			continue
 		}
-		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex) + 1
-		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex) + 1
+		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
+		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex)
 
 		initiateKeyGenerationStatusWrapper := DefaultBFTTxWrapper{
 			StatusBFTTx{
 				FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
 				FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
+				Epoch:       suite.ABCIApp.state.Epoch,
 				StatusType:  "initiate_keygen",
 				StatusValue: "Y",
 				Data:        []byte(strconv.Itoa(endingIndex)),
@@ -112,10 +115,12 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 		}
 
 		for {
+			fmt.Println("WAITING FOR ALL INITIATE KEYGEN TO BE Y")
+			fmt.Println(suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
 			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
 				//reset keygen flag
-				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "in_progress"
+				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "IP"
 				//report back to main process
 				keyGenMonitorUpdates <- KeyGenUpdates{
 					Type:    "start_keygen",
@@ -324,15 +329,15 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex int) error {
 	nodeList := suite.EthSuite.NodeList
 	bftRPC := suite.BftSuite.BftRPC
-	if suite.Config.MyPort == "8001" {
-		epochTxWrapper := DefaultBFTTxWrapper{
-			&EpochBFTTx{uint(1)},
-		}
-		_, err := bftRPC.Broadcast(epochTxWrapper)
-		if err != nil {
-			fmt.Println("error broadcasting epoch: ", err)
-		}
-	}
+	// if suite.Config.MyPort == "8001" {
+	// 	epochTxWrapper := DefaultBFTTxWrapper{
+	// 		&EpochBFTTx{uint(1)},
+	// 	}
+	// 	_, err := bftRPC.Broadcast(epochTxWrapper)
+	// 	if err != nil {
+	// 		fmt.Println("error broadcasting epoch: ", err)
+	// 	}
+	// }
 	fmt.Println("Required number of nodes reached")
 	fmt.Println("Sending shares -----------")
 
@@ -432,7 +437,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			StatusType:  "keygen_complete",
 			StatusValue: "Y",
 			// TODO: make epoch variable
-			Epoch:       uint(0),
+			Epoch:       suite.ABCIApp.state.Epoch,
 			FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
 			FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
 		}
@@ -448,16 +453,13 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	for {
 		time.Sleep(1 * time.Second)
 		// TODO: make epoch variable
-		res, err := suite.BftSuite.BftRPC.ABCIQuery("GetKeyGenComplete", []byte("0"))
-		if err != nil {
-			fmt.Println("Error encountered when querying abci: ", err.Error())
-			continue
-		}
-		if string(res.Response.Value) != "Y" {
+		allKeygenComplete := suite.ABCIApp.state.LocalStatus["all_keygen_complete"]
+		if allKeygenComplete != "Y" {
 			fmt.Println("nodes have not finished sending shares for epoch 0")
 			continue
 		}
 		fmt.Println("all nodes have finished sending shares for epoch 0")
+		suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
 		break
 	}
 

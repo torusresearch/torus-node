@@ -40,13 +40,18 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	fmt.Println(configPath)
 	loadConfig(&suite, configPath)
 	//TODO: Dont die on failure but retry
+
+	// set up connection to ethereum blockchain
 	err := SetUpEth(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// run tendermint ABCI server
 	go RunABCIServer(&suite)
+	// setup connection to tendermint BFT
 	SetUpBft(&suite)
+	// setup local caching
 	SetUpCache(&suite)
 
 	var nodeIPAddress string
@@ -62,10 +67,10 @@ func New(configPath string, register bool, production bool, buildPath string) {
 
 	var nodeIP string
 	if production {
-		fmt.Println("//PRODUCTION MDOE ")
+		fmt.Println("---PRODUCTION MODE---")
 		nodeIPAddress = suite.Config.HostName + ":" + string(suite.Config.MyPort)
 	} else {
-		fmt.Println("//DEVELOPMENT MDOE ")
+		fmt.Println("---DEVELOPMENT MODE---")
 		nodeIP, err = findExternalIP()
 		if err != nil {
 			fmt.Println(err)
@@ -75,7 +80,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 
 	fmt.Println("Node IP Address: " + nodeIPAddress)
 	if register {
-		/* Register Node */
+		// register Node
 		fmt.Println("Registering node...")
 		temp := p2p.IDAddressString(nodekey.ID(), nodeIP+suite.Config.P2PListenAddress[13:])
 		// _, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
@@ -86,13 +91,13 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		}
 	}
 
-	//Initialzie all necessary channels
+	// Initialize all necessary channels
 	tmCoreMsgs := make(chan string)
 	nodeListMonitorMsgs := make(chan NodeListUpdates)
 	keyGenMonitorMsgs := make(chan KeyGenUpdates)
 	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
 
-	//Set up standard server
+	// Set up standard server
 	go setUpServer(&suite, string(suite.Config.MyPort))
 
 	// So it runs forever
@@ -100,7 +105,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		select {
 		case nlMonitorMsg := <-nodeListMonitorMsgs:
 			if nlMonitorMsg.Type == "update" {
-				//Compoare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
+				// Compare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
 				if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
 					cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
 					cmpopts.IgnoreUnexported(big.Int{}),

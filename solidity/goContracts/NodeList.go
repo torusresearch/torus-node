@@ -28,7 +28,7 @@ var (
 )
 
 // NodelistABI is the input ABI used to generate the binding from.
-const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"},{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"addressToNodeDetailsLog\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"nodeAddress\",\"type\":\"address\"},{\"name\":\"allowed\",\"type\":\"bool\"}],\"name\":\"updateWhiteList\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewLatestEpoch\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"epoch\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"}]"
+const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"},{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"addressToNodeDetailsLog\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"nodeAddress\",\"type\":\"address\"}],\"name\":\"viewWhitelist\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"nodeAddress\",\"type\":\"address\"},{\"name\":\"allowed\",\"type\":\"bool\"}],\"name\":\"updateWhitelist\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewLatestEpoch\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"epoch\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"}]"
 
 // Nodelist is an auto generated Go binding around an Ethereum contract.
 type Nodelist struct {
@@ -420,6 +420,32 @@ func (_Nodelist *NodelistCallerSession) ViewNodes(epoch *big.Int) ([]common.Addr
 	return _Nodelist.Contract.ViewNodes(&_Nodelist.CallOpts, epoch)
 }
 
+// ViewWhitelist is a free data retrieval call binding the contract method 0x22d1b9db.
+//
+// Solidity: function viewWhitelist(epoch uint256, nodeAddress address) constant returns(bool)
+func (_Nodelist *NodelistCaller) ViewWhitelist(opts *bind.CallOpts, epoch *big.Int, nodeAddress common.Address) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _Nodelist.contract.Call(opts, out, "viewWhitelist", epoch, nodeAddress)
+	return *ret0, err
+}
+
+// ViewWhitelist is a free data retrieval call binding the contract method 0x22d1b9db.
+//
+// Solidity: function viewWhitelist(epoch uint256, nodeAddress address) constant returns(bool)
+func (_Nodelist *NodelistSession) ViewWhitelist(epoch *big.Int, nodeAddress common.Address) (bool, error) {
+	return _Nodelist.Contract.ViewWhitelist(&_Nodelist.CallOpts, epoch, nodeAddress)
+}
+
+// ViewWhitelist is a free data retrieval call binding the contract method 0x22d1b9db.
+//
+// Solidity: function viewWhitelist(epoch uint256, nodeAddress address) constant returns(bool)
+func (_Nodelist *NodelistCallerSession) ViewWhitelist(epoch *big.Int, nodeAddress common.Address) (bool, error) {
+	return _Nodelist.Contract.ViewWhitelist(&_Nodelist.CallOpts, epoch, nodeAddress)
+}
+
 // ListNode is a paid mutator transaction binding the contract method 0xcde54917.
 //
 // Solidity: function listNode(epoch uint256, declaredIp string, pubKx uint256, pubKy uint256, nodePort string) returns()
@@ -483,25 +509,25 @@ func (_Nodelist *NodelistTransactorSession) TransferOwnership(newOwner common.Ad
 	return _Nodelist.Contract.TransferOwnership(&_Nodelist.TransactOpts, newOwner)
 }
 
-// UpdateWhiteList is a paid mutator transaction binding the contract method 0x292b77c4.
+// UpdateWhitelist is a paid mutator transaction binding the contract method 0x3d4602a9.
 //
-// Solidity: function updateWhiteList(epoch uint256, nodeAddress address, allowed bool) returns()
-func (_Nodelist *NodelistTransactor) UpdateWhiteList(opts *bind.TransactOpts, epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
-	return _Nodelist.contract.Transact(opts, "updateWhiteList", epoch, nodeAddress, allowed)
+// Solidity: function updateWhitelist(epoch uint256, nodeAddress address, allowed bool) returns()
+func (_Nodelist *NodelistTransactor) UpdateWhitelist(opts *bind.TransactOpts, epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
+	return _Nodelist.contract.Transact(opts, "updateWhitelist", epoch, nodeAddress, allowed)
 }
 
-// UpdateWhiteList is a paid mutator transaction binding the contract method 0x292b77c4.
+// UpdateWhitelist is a paid mutator transaction binding the contract method 0x3d4602a9.
 //
-// Solidity: function updateWhiteList(epoch uint256, nodeAddress address, allowed bool) returns()
-func (_Nodelist *NodelistSession) UpdateWhiteList(epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
-	return _Nodelist.Contract.UpdateWhiteList(&_Nodelist.TransactOpts, epoch, nodeAddress, allowed)
+// Solidity: function updateWhitelist(epoch uint256, nodeAddress address, allowed bool) returns()
+func (_Nodelist *NodelistSession) UpdateWhitelist(epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
+	return _Nodelist.Contract.UpdateWhitelist(&_Nodelist.TransactOpts, epoch, nodeAddress, allowed)
 }
 
-// UpdateWhiteList is a paid mutator transaction binding the contract method 0x292b77c4.
+// UpdateWhitelist is a paid mutator transaction binding the contract method 0x3d4602a9.
 //
-// Solidity: function updateWhiteList(epoch uint256, nodeAddress address, allowed bool) returns()
-func (_Nodelist *NodelistTransactorSession) UpdateWhiteList(epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
-	return _Nodelist.Contract.UpdateWhiteList(&_Nodelist.TransactOpts, epoch, nodeAddress, allowed)
+// Solidity: function updateWhitelist(epoch uint256, nodeAddress address, allowed bool) returns()
+func (_Nodelist *NodelistTransactorSession) UpdateWhitelist(epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
+	return _Nodelist.Contract.UpdateWhitelist(&_Nodelist.TransactOpts, epoch, nodeAddress, allowed)
 }
 
 // NodelistNodeListedIterator is returned from FilterNodeListed and is used to iterate over the raw logs and unpacked data for NodeListed events raised by the Nodelist contract.

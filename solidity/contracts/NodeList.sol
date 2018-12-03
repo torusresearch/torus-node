@@ -100,7 +100,7 @@ contract NodeList is Ownable {
     return (nodeList[epoch], positions);
   }
 
-  function viewNodeListCount(uint256 epoch) external view  returns (uint256) {
+  function viewNodeListCount(uint256 epoch) external view returns (uint256) {
     return nodeList[epoch].length;
   }
 
@@ -114,12 +114,16 @@ contract NodeList is Ownable {
     nodePort = addressToNodeDetailsLog[node][epoch].nodePort;
   }
 
+  function viewWhitelist(uint256 epoch, address nodeAddress) public view returns (bool) {
+    return whitelist[epoch][nodeAddress];
+  }
+
   modifier whitelisted(uint256 epoch) {
     require(whitelist[epoch][msg.sender]);
     _;
   }
 
-  function updateWhiteList(uint256 epoch, address nodeAddress, bool allowed) public onlyOwner {
+  function updateWhitelist(uint256 epoch, address nodeAddress, bool allowed) public onlyOwner {
     whitelist[epoch][nodeAddress] = allowed;
   }
 

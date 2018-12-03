@@ -80,7 +80,22 @@ func New(configPath string, register bool, production bool, buildPath string) {
 	}
 
 	fmt.Println("Node IP Address: " + nodeIPAddress)
-	if register {
+	whitelisted := false
+
+	for !whitelisted {
+		isWhitelisted, err := suite.EthSuite.NodeListContract.ViewWhitelist(nil, big.NewInt(0), *suite.EthSuite.NodeAddress)
+		if err != nil {
+			fmt.Println("Could not check ethereum whitelist", err.Error())
+		}
+		if isWhitelisted {
+			whitelisted = true
+			break
+		}
+		fmt.Println("Node is not whitelisted")
+		time.Sleep(10 * time.Second)
+	}
+
+	if register && whitelisted {
 		// register Node
 		fmt.Println("Registering node...")
 		temp := p2p.IDAddressString(nodekey.ID(), nodeIP+suite.Config.P2PListenAddress[13:])

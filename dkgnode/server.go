@@ -64,6 +64,7 @@ type (
 		ShareIndex int    `json:"id"`
 		PubShareX  string `json:pubshare`
 		PubShareY  string `json:pubshare`
+		Address    string `json:"address`
 	}
 )
 
@@ -323,12 +324,39 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
 	}
 
-	pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[int(assignedIndex)].Secret.Bytes())
+	resultPubPolys, err := h.suite.BftSuite.BftRPC.TxSearch("share_index="+strconv.Itoa(int(assignedIndex)), false, 10, 10)
+	if err != nil {
+		fmt.Println("txsearch failed", err)
+	}
+
+	//create users publicKey
+	finalUserPubKey := common.Point{*big.NewInt(int64(0)), *big.NewInt(int64(0))} //initialize empty pubkey to fill
+	for i := 0; i < resultPubPolys.TotalCount; i++ {
+		var PubPolyTx PubPolyBFTTx
+		defaultWrapper := DefaultBFTTxWrapper{&PubPolyTx}
+		//get rid of signature on bft
+		err = defaultWrapper.DecodeBFTTx(resultPubPolys.Txs[0].Tx[len([]byte("mug00")):])
+		if err != nil {
+			fmt.Println("Could not decode pubpolybfttx", err)
+		}
+		pubPolyTx := defaultWrapper.BFTTx.(*PubPolyBFTTx)
+		//get g^z and add
+		tempX, tempY := h.suite.EthSuite.secp.Add(&finalUserPubKey.X, &finalUserPubKey.Y, &pubPolyTx.PubPoly[0].X, &pubPolyTx.PubPoly[0].Y)
+		finalUserPubKey = common.Point{*tempX, *tempY}
+	}
+
+	//form address eth
+	addr, err := common.PointToAddress(finalUserPubKey)
+	if err != nil {
+		fmt.Println("derived user pub key has issues with address")
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
+	}
 
 	return SecretAssignResult{
 		ShareIndex: int(assignedIndex),
-		PubShareX:  pubShareX.Text(16),
-		PubShareY:  pubShareY.Text(16),
+		PubShareX:  finalUserPubKey.X.Text(16),
+		PubShareY:  finalUserPubKey.Y.Text(16),
+		Address:    addr,
 	}, nil
 
 	// TODO: wait for websocket connection to be ready before allowing this to be called

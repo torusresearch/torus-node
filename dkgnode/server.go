@@ -239,25 +239,14 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email is empty"}
 	}
 	fmt.Println("CHECKING IF CAN GET EMAIL ADDRESS")
-	//deprecated, checking state directly from state in memory
-	// res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
-	// if err != nil {
-	// 	return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists: " + err.Error()}
-	// }
 
 	// try to get get email index
 	fmt.Println("CHECKING IF ALREADY ASSIGNED")
 	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
 	// already assigned
 	if ok {
-
-		// previouslyAssignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
-		// if err != nil {
-		// 	return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for previous assign, res.Response.Value: " + string(res.Response.Value) + " Error: " + err.Error()}
-		// }
-		// previouslyAssignedIndex := uint(previouslyAssignedIndex64)
-
 		//create users publicKey
+		fmt.Println("previouslyAssignedIndex: ", previouslyAssignedIndex)
 		finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
@@ -351,124 +340,35 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		PubShareY:  finalUserPubKey.Y.Text(16),
 		Address:    addr.String(),
 	}, nil
-
-	// TODO: wait for websocket connection to be ready before allowing this to be called
-	// ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	// defer cancel()
-	// query := tmquery.MustParse("assignment='1'")
-	// fmt.Println("QUERY IS:", query)
-	// go func() {
-	// 	// note: we also get back the initial "{}"
-	// 	// data comes back in bytes of utf-8 which correspond
-	// 	// to a base64 encoding of the original data
-	// 	for e := range h.suite.BftSuite.BftRPCWS.ResponsesCh {
-	// 		if gjson.GetBytes(e.Result, "query").String() != "assignment='1'" {
-	// 			continue
-	// 		}
-	// 		fmt.Println("sub got ", string(e.Result[:]))
-	// 		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e.Result, "data.value.TxResult.tx").String())
-	// 		if err != nil {
-	// 			fmt.Println("error decoding b64", err)
-	// 			continue
-	// 		}
-	// 		// valid messages should start with mug00
-	// 		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
-	// 			fmt.Println("Message not prefixed with mug00")
-	// 			continue
-	// 		}
-	// 		keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
-	// 		err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
-	// 		if err != nil {
-	// 			fmt.Println("error decoding bfttx", err)
-	// 			continue
-	// 		}
-	// 		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
-	// 		err = HandleSigncryptedShare(h.suite, *keyGenShareTx)
-	// 		if err != nil {
-	// 			fmt.Println("failed to handle signcrypted share", err)
-	// 			continue
-	// 		}
-	// 	}
-	// }()
-	// err = h.suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
-	// if err != nil {
-	// 	fmt.Println("Error with subscription", err)
-	// }
-
-	// // deprecated, was assigning directly from a cache, when it should be decided via the bft.
-	// // assigning directly from a cache gives no ordering guarantees and can mess up the indexing
-	// // for secret shares across nodes
-	// if err := jsonrpc.Unmarshal(params, &p); err != nil {
-	// 	return nil, err
-	// }
-	// tmpSecretAssignment, found := h.suite.CacheSuite.CacheInstance.Get("Secret_ASSIGNMENT")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// tmpSiMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// tmpAssigned, found := h.suite.CacheSuite.CacheInstance.Get("LAST_ASSIGNED")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// lastAssigned := tmpAssigned.(int)
-	// siMAPPING := tmpSiMAPPING.(map[int]common.PrimaryShare)
-	// secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
-	// secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
-
-	// // was previously assigned
-	// if val, ok := secretAssignment[p.Email]; ok {
-	// 	pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(val.Secret.Bytes())
-	// 	return SecretAssignResult{
-	// 		ShareIndex: val.ShareIndex,
-	// 		PubShareX:  pubShareX.Text(16),
-	// 		PubShareY:  pubShareY.Text(16),
-	// 	}, nil
-	// }
-
-	// // new assignment
-	// temp := siMAPPING[lastAssigned].Value
-	// secretAssignment[p.Email] = SecretAssignment{secretMapping[lastAssigned].Secret, lastAssigned, &temp}
-	// pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[lastAssigned].Secret.Bytes())
-	// secretMapping[lastAssigned] = SecretStore{secretMapping[lastAssigned].Secret, true}
-	// h.suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
-	// h.suite.CacheSuite.CacheInstance.Set("LAST_ASSIGNED", lastAssigned+1, -1)
-	// h.suite.CacheSuite.CacheInstance.Set("Secret_ASSIGNMENT", secretAssignment, -1)
-
-	// return SecretAssignResult{
-	// 	ShareIndex: lastAssigned,
-	// 	PubShareX:  pubShareX.Text(16),
-	// 	PubShareY:  pubShareY.Text(16),
-	// }, nil
 }
 
+//gets assigned index and returns users public key
 func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) {
 
 	resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index="+strconv.Itoa(assignedIndex), false, 10, 10)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("SEARCH RESULT NUMBER", resultPubPolys.TotalCount)
 
 	//create users publicKey
-	finalUserPubKey := common.Point{*big.NewInt(int64(0)), *big.NewInt(int64(0))} //initialize empty pubkey to fill
+	var finalUserPubKey common.Point //initialize empty pubkey to fill
 	for i := 0; i < resultPubPolys.TotalCount; i++ {
 		var PubPolyTx PubPolyBFTTx
 		defaultWrapper := DefaultBFTTxWrapper{&PubPolyTx}
 		//get rid of signature on bft
-		err = defaultWrapper.DecodeBFTTx(resultPubPolys.Txs[0].Tx[len([]byte("mug00")):])
+		err = defaultWrapper.DecodeBFTTx(resultPubPolys.Txs[i].Tx[len([]byte("mug00")):])
 		if err != nil {
 			fmt.Println("Could not decode pubpolybfttx", err)
 		}
 		pubPolyTx := defaultWrapper.BFTTx.(*PubPolyBFTTx)
-		//get g^z and add
-		tempX, tempY := suite.EthSuite.secp.Add(&finalUserPubKey.X, &finalUserPubKey.Y, &pubPolyTx.PubPoly[0].X, &pubPolyTx.PubPoly[0].Y)
-		finalUserPubKey = common.Point{*tempX, *tempY}
+		if i == 0 {
+			finalUserPubKey = common.Point{pubPolyTx.PubPoly[0].X, pubPolyTx.PubPoly[0].Y}
+		} else {
+			//get g^z and add
+			tempX, tempY := suite.EthSuite.secp.Add(&finalUserPubKey.X, &finalUserPubKey.Y, &pubPolyTx.PubPoly[0].X, &pubPolyTx.PubPoly[0].Y)
+			finalUserPubKey = common.Point{*tempX, *tempY}
+		}
 	}
 
 	return &finalUserPubKey, nil

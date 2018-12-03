@@ -349,7 +349,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// commit pubpoly by signing it and broadcasting it
 		pubPolyTx := PubPolyBFTTx{
 			PubPoly:    *pubpoly,
-			Epoch:      uint(0),
+			Epoch:      suite.ABCIApp.state.Epoch,
 			ShareIndex: uint(shareIndex),
 		}
 

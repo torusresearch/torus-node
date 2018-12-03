@@ -58,6 +58,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 
 	//build folders for tendermint logs
 	os.MkdirAll(buildPath+"/config", os.ModePerm)
+	os.MkdirAll(buildPath+"/data", os.ModePerm)
 	// we generate nodekey first cause we need it in node list TODO: find a better way
 	nodekey, err := p2p.LoadOrGenNodeKey(buildPath + "/config/node_key.json")
 	if err != nil {
@@ -135,6 +136,7 @@ func New(configPath string, register bool, production bool, buildPath string) {
 		case keyGenMonitorMsg := <-keyGenMonitorMsgs:
 			if keyGenMonitorMsg.Type == "start_keygen" {
 				//starts keygeneration with starting and ending index
+				fmt.Println("starting keygen with indexes: ", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 				go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 			}
 		}

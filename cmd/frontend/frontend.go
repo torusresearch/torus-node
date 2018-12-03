@@ -4,9 +4,11 @@ package main
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/YZhenY/torus/common"
 	"github.com/YZhenY/torus/pvss"
+	"github.com/YZhenY/torus/secp256k1"
 	"github.com/YZhenY/torus/solidity/goContracts"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -75,7 +77,7 @@ type Config struct {
 func main() {
 
 	authToken := "blublu"
-	config := loadConfig("../config/config.json")
+	config := loadConfig("./config/config.frontend.json")
 
 	/* Connect to Ethereum */
 	client, err := ethclient.Dial(config.EthConnection)
@@ -89,7 +91,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	list, _, err := NodeListContract.ViewNodes(nil)
+	list, _, err := NodeListContract.ViewNodes(nil, big.NewInt(int64(0)))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -104,7 +106,7 @@ func main() {
 
 	correctCount := 0
 
-	for shareIndex := 6; shareIndex < 7; shareIndex++ {
+	for shareIndex := 0; shareIndex < 10; shareIndex++ {
 		//get shares
 		shareList := make([]common.PrimaryShare, len(nodeList))
 		for i := range nodeList {
@@ -113,7 +115,7 @@ func main() {
 				fmt.Println("ERROR CALLING")
 				fmt.Println(err)
 			}
-			fmt.Println(response)
+			// fmt.Println(response)
 			var tmpShare ShareRequestResult
 			err = response.GetObject(&tmpShare)
 			if err != nil {
@@ -132,46 +134,46 @@ func main() {
 		temppp[0] = shareList[0]
 		equal := true
 		final := pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[2]), 0) // nodes: 0, 1, 2
-		// fmt.Println("123: ", final.Text(16))
+		fmt.Println("123: ", final.Text(16))
 		testFinal := final
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[3]), 0) // nodes: 0, 1, 3
-		// fmt.Println("124: ", final.Text(16))
+		fmt.Println("124: ", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[1]), shareList[4]), 0) // nodes: 0, 1, 4
-		// fmt.Println("125", final.Text(16))
+		fmt.Println("125", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3]), 0) // nodes: 0, 2, 3
-		// fmt.Println("134", final.Text(16))
+		fmt.Println("134", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4]), 0) // nodes: 0, 2, 4
-		// fmt.Println("135", final.Text(16))
+		fmt.Println("135", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4]), 0) // nodes: 0, 3, 4
-		// fmt.Println("145", final.Text(16))
+		fmt.Println("145", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		temppp[0] = shareList[1]
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[3]), 0) // nodes: 1, 2, 3
-		// fmt.Println("234", final.Text(16))
+		fmt.Println("234", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[2]), shareList[4]), 0) // nodes: 1, 2, 4
-		// fmt.Println("235", final.Text(16))
+		fmt.Println("235", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
 		final = pvss.LagrangeScalar(append(append(temppp, shareList[3]), shareList[4]), 0) // nodes: 1, 3, 4
-		// fmt.Println("245", final.Text(16))
+		fmt.Println("245", final.Text(16))
 		if testFinal.Cmp(final) != 0 {
 			equal = false
 		}
@@ -186,6 +188,15 @@ func main() {
 
 		if equal {
 			correctCount++
+			tempX, tempY := secp256k1.Curve.ScalarBaseMult(final.Bytes())
+			addr, err := common.PointToEthAddress(common.Point{*tempX, *tempY})
+			if err != nil {
+				fmt.Println("Could not transform to address", err)
+			} else {
+				fmt.Println("PubShareX: ", tempX.Text(16))
+				fmt.Println("Address for "+strconv.Itoa(shareIndex)+": ", addr.String())
+			}
+
 		}
 
 	}
@@ -224,7 +235,7 @@ func loadConfig(path string) *Config {
 }
 
 func connectToJSONRPCNode(NodeListContract *nodelist.Nodelist, nodeAddress ethCommon.Address) (*NodeReference, error) {
-	details, err := NodeListContract.NodeDetails(nil, nodeAddress)
+	details, err := NodeListContract.AddressToNodeDetailsLog(nil, nodeAddress, big.NewInt(int64(0)))
 	if err != nil {
 		return nil, err
 	}

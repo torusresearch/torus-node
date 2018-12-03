@@ -64,6 +64,7 @@ type (
 		ShareIndex int    `json:"id"`
 		PubShareX  string `json:pubshare`
 		PubShareY  string `json:pubshare`
+		Address    string `json:"address`
 	}
 )
 
@@ -233,47 +234,51 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, err
 	}
 	fmt.Println("CHECKING IF EMAIL IS PROVIDED")
-	// no email provided
+	// no email provided TODO: email validation/ ddos protection
 	if p.Email == "" {
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email is empty"}
 	}
 	fmt.Println("CHECKING IF CAN GET EMAIL ADDRESS")
+
 	// try to get get email index
-	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists: " + err.Error()}
-	}
-
 	fmt.Println("CHECKING IF ALREADY ASSIGNED")
+	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
 	// already assigned
-	if string(res.Response.Value) != "" {
-
-		previouslyAssignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
+	if ok {
+		//create users publicKey
+		fmt.Println("previouslyAssignedIndex: ", previouslyAssignedIndex)
+		finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for previous assign, res.Response.Value: " + string(res.Response.Value) + " Error: " + err.Error()}
-		}
-		previouslyAssignedIndex := uint(previouslyAssignedIndex64)
-
-		if secretMapping[int(previouslyAssignedIndex)].Secret == nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
 		}
 
-		pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[int(previouslyAssignedIndex)].Secret.Bytes())
+		//form address eth
+		addr, err := common.PointToEthAddress(*finalUserPubKey)
+		if err != nil {
+			fmt.Println("derived user pub key has issues with address")
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
+		}
 
 		return SecretAssignResult{
 			ShareIndex: int(previouslyAssignedIndex),
-			PubShareX:  pubShareX.Text(16),
-			PubShareY:  pubShareY.Text(16),
+			PubShareX:  finalUserPubKey.X.Text(16),
+			PubShareY:  finalUserPubKey.Y.Text(16),
+			Address:    addr.String(),
 		}, nil
 
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email exists"}
+	}
+
+	//if all indexes have been assigned, bounce request. threshold at 20% TODO: Make  percentage variable
+	if 80*h.suite.ABCIApp.state.LastCreatedIndex/100 < h.suite.ABCIApp.state.LastUnassignedIndex {
+		return nil, &jsonrpc.Error{Code: 429, Message: "System is under heavy load for assignments, please try again later"}
 	}
 
 	fmt.Println("CHECKING IF REACHED NEW ASSIGNMENT")
 	// new assignment
 
 	// broadcast assignment transaction
-	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{Email: p.Email}})
+	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{Email: p.Email, Epoch: h.suite.ABCIApp.state.Epoch}})
 	if err != nil {
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast: " + err.Error()}
 	}
@@ -316,108 +321,57 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
 	}
 
-	pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[int(assignedIndex)].Secret.Bytes())
+	//create users publicKey
+	finalUserPubKey, err := retrieveUserPubKey(h.suite, int(assignedIndex))
+	if err != nil {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
+	}
+
+	//form address eth
+	addr, err := common.PointToEthAddress(*finalUserPubKey)
+	if err != nil {
+		fmt.Println("derived user pub key has issues with address")
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
+	}
 
 	return SecretAssignResult{
 		ShareIndex: int(assignedIndex),
-		PubShareX:  pubShareX.Text(16),
-		PubShareY:  pubShareY.Text(16),
+		PubShareX:  finalUserPubKey.X.Text(16),
+		PubShareY:  finalUserPubKey.Y.Text(16),
+		Address:    addr.String(),
 	}, nil
+}
 
-	// TODO: wait for websocket connection to be ready before allowing this to be called
-	// ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	// defer cancel()
-	// query := tmquery.MustParse("assignment='1'")
-	// fmt.Println("QUERY IS:", query)
-	// go func() {
-	// 	// note: we also get back the initial "{}"
-	// 	// data comes back in bytes of utf-8 which correspond
-	// 	// to a base64 encoding of the original data
-	// 	for e := range h.suite.BftSuite.BftRPCWS.ResponsesCh {
-	// 		if gjson.GetBytes(e.Result, "query").String() != "assignment='1'" {
-	// 			continue
-	// 		}
-	// 		fmt.Println("sub got ", string(e.Result[:]))
-	// 		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e.Result, "data.value.TxResult.tx").String())
-	// 		if err != nil {
-	// 			fmt.Println("error decoding b64", err)
-	// 			continue
-	// 		}
-	// 		// valid messages should start with mug00
-	// 		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
-	// 			fmt.Println("Message not prefixed with mug00")
-	// 			continue
-	// 		}
-	// 		keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
-	// 		err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
-	// 		if err != nil {
-	// 			fmt.Println("error decoding bfttx", err)
-	// 			continue
-	// 		}
-	// 		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
-	// 		err = HandleSigncryptedShare(h.suite, *keyGenShareTx)
-	// 		if err != nil {
-	// 			fmt.Println("failed to handle signcrypted share", err)
-	// 			continue
-	// 		}
-	// 	}
-	// }()
-	// err = h.suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
-	// if err != nil {
-	// 	fmt.Println("Error with subscription", err)
-	// }
+//gets assigned index and returns users public key
+func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) {
 
-	// // deprecated, was assigning directly from a cache, when it should be decided via the bft.
-	// // assigning directly from a cache gives no ordering guarantees and can mess up the indexing
-	// // for secret shares across nodes
-	// if err := jsonrpc.Unmarshal(params, &p); err != nil {
-	// 	return nil, err
-	// }
-	// tmpSecretAssignment, found := h.suite.CacheSuite.CacheInstance.Get("Secret_ASSIGNMENT")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// tmpSiMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// tmpAssigned, found := h.suite.CacheSuite.CacheInstance.Get("LAST_ASSIGNED")
-	// if !found {
-	// 	return nil, jsonrpc.ErrInternal()
-	// }
-	// lastAssigned := tmpAssigned.(int)
-	// siMAPPING := tmpSiMAPPING.(map[int]common.PrimaryShare)
-	// secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
-	// secretAssignment := tmpSecretAssignment.(map[string]SecretAssignment)
+	resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index="+strconv.Itoa(assignedIndex), false, 10, 10)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("SEARCH RESULT NUMBER", resultPubPolys.TotalCount)
 
-	// // was previously assigned
-	// if val, ok := secretAssignment[p.Email]; ok {
-	// 	pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(val.Secret.Bytes())
-	// 	return SecretAssignResult{
-	// 		ShareIndex: val.ShareIndex,
-	// 		PubShareX:  pubShareX.Text(16),
-	// 		PubShareY:  pubShareY.Text(16),
-	// 	}, nil
-	// }
+	//create users publicKey
+	var finalUserPubKey common.Point //initialize empty pubkey to fill
+	for i := 0; i < resultPubPolys.TotalCount; i++ {
+		var PubPolyTx PubPolyBFTTx
+		defaultWrapper := DefaultBFTTxWrapper{&PubPolyTx}
+		//get rid of signature on bft
+		err = defaultWrapper.DecodeBFTTx(resultPubPolys.Txs[i].Tx[len([]byte("mug00")):])
+		if err != nil {
+			fmt.Println("Could not decode pubpolybfttx", err)
+		}
+		pubPolyTx := defaultWrapper.BFTTx.(*PubPolyBFTTx)
+		if i == 0 {
+			finalUserPubKey = common.Point{pubPolyTx.PubPoly[0].X, pubPolyTx.PubPoly[0].Y}
+		} else {
+			//get g^z and add
+			tempX, tempY := suite.EthSuite.secp.Add(&finalUserPubKey.X, &finalUserPubKey.Y, &pubPolyTx.PubPoly[0].X, &pubPolyTx.PubPoly[0].Y)
+			finalUserPubKey = common.Point{*tempX, *tempY}
+		}
+	}
 
-	// // new assignment
-	// temp := siMAPPING[lastAssigned].Value
-	// secretAssignment[p.Email] = SecretAssignment{secretMapping[lastAssigned].Secret, lastAssigned, &temp}
-	// pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[lastAssigned].Secret.Bytes())
-	// secretMapping[lastAssigned] = SecretStore{secretMapping[lastAssigned].Secret, true}
-	// h.suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
-	// h.suite.CacheSuite.CacheInstance.Set("LAST_ASSIGNED", lastAssigned+1, -1)
-	// h.suite.CacheSuite.CacheInstance.Set("Secret_ASSIGNMENT", secretAssignment, -1)
-
-	// return SecretAssignResult{
-	// 	ShareIndex: lastAssigned,
-	// 	PubShareX:  pubShareX.Text(16),
-	// 	PubShareY:  pubShareY.Text(16),
-	// }, nil
+	return &finalUserPubKey, nil
 }
 
 func setUpServer(suite *Suite, port string) {

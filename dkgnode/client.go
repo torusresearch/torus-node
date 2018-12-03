@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -215,14 +214,8 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
-	fmt.Println("TM BFT DATA ROOT STORE", defaultTmConfig.RootDir)
-	//build root folders, done in dkg node now
-	// os.MkdirAll(defaultTmConfig.RootDir+"/config", os.ModePerm)
-	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
-	// logger := NoLogger{}
-	fmt.Println("Node key file: ", defaultTmConfig.NodeKeyFile())
-	// defaultTmConfig.NodeKey = "config/"
-	// defaultTmConfig.PrivValidator = "config/"
+	// logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	logger := NoLogger{}
 	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
 	//converts own pv to tendermint key TODO: Double check verification
@@ -264,8 +257,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
 	fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
-	//TODO: CHange back, for testing purposes we limit to 5
-	genDoc.Validators = temp[:5]
+	genDoc.Validators = temp
 
 	fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
@@ -281,15 +273,8 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
-	// defaultTmConfig.Consensus.CreateEmptyBlocks = false
 	defaultTmConfig.LogLevel = "*:error"
-	// err = defaultTmConfig.ValidateBasic()
-	// if err != nil {
-	// 	fmt.Println("VALIDATEBASIC FAILED: ", err)
-	// }
-	fmt.Println("NODEKEY: ", nodeKey)
-	// fmt.Println(nodeKey.ID())
-	fmt.Println(nodeKey.PubKey().Address())
+	fmt.Println("NodeKey ID: ", nodeKey.ID())
 	//save config
 	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
 
@@ -364,7 +349,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// commit pubpoly by signing it and broadcasting it
 		pubPolyTx := PubPolyBFTTx{
 			PubPoly:    *pubpoly,
-			Epoch:      uint(0),
+			Epoch:      suite.ABCIApp.state.Epoch,
 			ShareIndex: uint(shareIndex),
 		}
 

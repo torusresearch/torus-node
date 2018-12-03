@@ -26,14 +26,16 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 	// we use the first byte to denote message type
 	switch txNoSig[0] {
 	case byte(1): //PubpolyTx
-		pubPolyTx := DefaultBFTTxWrapper{&PubPolyBFTTx{}}
-		err := pubPolyTx.DecodeBFTTx(txNoSig)
+		PubPolyTx := DefaultBFTTxWrapper{&PubPolyBFTTx{}}
+		err := PubPolyTx.DecodeBFTTx(txNoSig)
 		if err != nil {
 			return false, &tags, err
 		}
+		pubPolyTx := PubPolyTx.BFTTx.(*PubPolyBFTTx)
 		fmt.Println("ATTACHING TAGS for pubpoly")
 		tags = []common.KVPair{
 			{Key: []byte("pubpoly"), Value: []byte("1")},
+			{Key: []byte("share_index"), Value: []byte(strconv.Itoa(int(pubPolyTx.ShareIndex)))},
 		}
 		return true, &tags, nil
 		//verify share index has not yet been submitted for epoch
@@ -82,18 +84,22 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, err
 		}
 		assignmentTx := AssignmentTx.BFTTx.(*AssignmentBFTTx)
-		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok {
+		if assignmentTx.Epoch != app.state.Epoch { //check if epoch is correct
+			return false, &tags, errors.New("Epoch mismatch for tx")
+		}
+
+		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok { //check if user has been assigned before
 			fmt.Println("assignmentbfttx failed with email already assigned")
 			return false, &tags, errors.New("Email " + assignmentTx.Email + " has already been assigned")
 		}
 		// assign user email to key index
 		app.state.EmailMapping[assignmentTx.Email] = uint(app.state.LastUnassignedIndex)
 		fmt.Println("assignmentbfttx happened with app state emailmapping now equal to", app.state.EmailMapping)
-		// increment counter
-		app.state.LastUnassignedIndex = uint(app.state.LastUnassignedIndex + 1)
 		tags = []common.KVPair{
 			{Key: []byte("assignment"), Value: []byte("1")},
 		}
+		// increment counter
+		app.state.LastUnassignedIndex = uint(app.state.LastUnassignedIndex + 1)
 		return true, &tags, nil
 
 	case byte(5): // StatusBFTTx

@@ -245,8 +245,8 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// }
 
 	// try to get get email index
-	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
 	fmt.Println("CHECKING IF ALREADY ASSIGNED")
+	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
 	// already assigned
 	if ok {
 
@@ -257,7 +257,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		// previouslyAssignedIndex := uint(previouslyAssignedIndex64)
 
 		if secretMapping[int(previouslyAssignedIndex)].Secret == nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "assigned secret but could not retrieve secret, please try again"}
 		}
 
 		pubShareX, pubShareY := h.suite.EthSuite.secp.ScalarBaseMult(secretMapping[int(previouslyAssignedIndex)].Secret.Bytes())
@@ -269,6 +269,11 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		}, nil
 
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email exists"}
+	}
+
+	//if all indexes have been assigned, bounce request
+	if h.suite.ABCIApp.state.LastCreatedIndex < h.suite.ABCIApp.state.LastUnassignedIndex {
+		return nil, &jsonrpc.Error{Code: 429, Message: "System is under heavy load for assignments, please try again later"}
 	}
 
 	fmt.Println("CHECKING IF REACHED NEW ASSIGNMENT")

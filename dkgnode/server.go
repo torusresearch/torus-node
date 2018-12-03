@@ -233,26 +233,28 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, err
 	}
 	fmt.Println("CHECKING IF EMAIL IS PROVIDED")
-	// no email provided
+	// no email provided TODO: email validation/ ddos protection
 	if p.Email == "" {
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email is empty"}
 	}
 	fmt.Println("CHECKING IF CAN GET EMAIL ADDRESS")
-	// try to get get email index
-	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists: " + err.Error()}
-	}
+	//deprecated, checking state directly from state in memory
+	// res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
+	// if err != nil {
+	// 	return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists: " + err.Error()}
+	// }
 
+	// try to get get email index
+	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
 	fmt.Println("CHECKING IF ALREADY ASSIGNED")
 	// already assigned
-	if string(res.Response.Value) != "" {
+	if ok {
 
-		previouslyAssignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
-		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for previous assign, res.Response.Value: " + string(res.Response.Value) + " Error: " + err.Error()}
-		}
-		previouslyAssignedIndex := uint(previouslyAssignedIndex64)
+		// previouslyAssignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
+		// if err != nil {
+		// 	return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for previous assign, res.Response.Value: " + string(res.Response.Value) + " Error: " + err.Error()}
+		// }
+		// previouslyAssignedIndex := uint(previouslyAssignedIndex64)
 
 		if secretMapping[int(previouslyAssignedIndex)].Secret == nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}

@@ -82,7 +82,11 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, err
 		}
 		assignmentTx := AssignmentTx.BFTTx.(*AssignmentBFTTx)
-		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok {
+		if assignmentTx.Epoch != app.state.Epoch { //check if epoch is correct
+			return false, &tags, errors.New("Epoch mismatch for tx")
+		}
+
+		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok { //check if user has been assined before
 			fmt.Println("assignmentbfttx failed with email already assigned")
 			return false, &tags, errors.New("Email " + assignmentTx.Email + " has already been assigned")
 		}

@@ -271,8 +271,8 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email exists"}
 	}
 
-	//if all indexes have been assigned, bounce request
-	if h.suite.ABCIApp.state.LastCreatedIndex < h.suite.ABCIApp.state.LastUnassignedIndex {
+	//if all indexes have been assigned, bounce request. threshold at 20% TODO: Make  percentage variable
+	if 80*h.suite.ABCIApp.state.LastCreatedIndex/100 < h.suite.ABCIApp.state.LastUnassignedIndex {
 		return nil, &jsonrpc.Error{Code: 429, Message: "System is under heavy load for assignments, please try again later"}
 	}
 
@@ -280,7 +280,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// new assignment
 
 	// broadcast assignment transaction
-	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{Email: p.Email}})
+	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{Email: p.Email, Epoch: h.suite.ABCIApp.state.Epoch}})
 	if err != nil {
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast: " + err.Error()}
 	}

@@ -43,19 +43,13 @@ type KeyGenShareBFTTx struct {
 	SigncryptedMessage
 }
 
-// type InitiateKeyGenerationBFTTx struct {
-// 	// TODO: implement signed message from node
-// 	FromPubKeyX string
-// 	FromPubKeyY string
-// 	StopIndex   uint
-// }
-
 type DefaultBFTTxWrapper struct {
 	BFTTx BFTTx
 }
 
 type AssignmentBFTTx struct {
 	Email string
+	Epoch uint //implemented to allow retries for assignments on the bft
 }
 
 type StatusBFTTx struct {

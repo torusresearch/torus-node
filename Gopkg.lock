@@ -500,6 +500,14 @@
   version = "v1.2.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:383e656d30a7bd2c663514940748c189307134c65ec8c7b2070ed01abb93e73d"
+  name = "github.com/streadway/quantile"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b0c588724d25ae13f5afb3d90efec0edc636432b"
+
+[[projects]]
   digest = "1:18752d0b95816a1b777505a97f71c7467a8445b8ffb55631a7bf779f6ba4fa83"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
@@ -557,62 +565,6 @@
   version = "0.10.1"
 
 [[projects]]
-  digest = "1:f2dc8b9a0547f37ec62cf3f6d562455c3535965246a2d9dee4ac5c3828d16b47"
-  name = "github.com/tendermint/tendermint"
-  packages = [
-    "abci/client",
-    "abci/example/code",
-    "abci/example/kvstore",
-    "abci/server",
-    "abci/types",
-    "blockchain",
-    "config",
-    "consensus",
-    "consensus/types",
-    "crypto",
-    "crypto/ed25519",
-    "crypto/encoding/amino",
-    "crypto/merkle",
-    "crypto/secp256k1",
-    "crypto/tmhash",
-    "evidence",
-    "libs/autofile",
-    "libs/clist",
-    "libs/common",
-    "libs/db",
-    "libs/events",
-    "libs/flowrate",
-    "libs/log",
-    "libs/pubsub",
-    "libs/pubsub/query",
-    "mempool",
-    "node",
-    "p2p",
-    "p2p/conn",
-    "p2p/pex",
-    "p2p/upnp",
-    "privval",
-    "proxy",
-    "rpc/client",
-    "rpc/core",
-    "rpc/core/types",
-    "rpc/grpc",
-    "rpc/lib",
-    "rpc/lib/client",
-    "rpc/lib/server",
-    "rpc/lib/types",
-    "state",
-    "state/txindex",
-    "state/txindex/kv",
-    "state/txindex/null",
-    "types",
-    "version",
-  ]
-  pruneopts = "UT"
-  revision = "9e940b95ad4d27efab60d0d49278db5acb2a3b7e"
-  version = "v0.23.1"
-
-[[projects]]
   digest = "1:2cab41f59638fdb77dda96ab4f9b5860ef30f48967557254eba127e43c756f2e"
   name = "github.com/tidwall/gjson"
   packages = ["."]
@@ -627,6 +579,14 @@
   pruneopts = "UT"
   revision = "1731857f09b1f38450e2c12409748407822dc6be"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:c03a197b97eae238b5295cfb2f33bb410be0d97ede25a41b910f3666e70f1cbc"
+  name = "github.com/tsenart/vegeta"
+  packages = ["lib"]
+  pruneopts = "UT"
+  revision = "9f28db162ce19bb52817af4fd9b5801b1f2772c5"
+  version = "v6.3.0"
 
 [[projects]]
   branch = "master"
@@ -831,6 +791,7 @@
     "github.com/tendermint/tendermint/types",
     "github.com/tendermint/tendermint/version",
     "github.com/tidwall/gjson",
+    "github.com/tsenart/vegeta/lib",
     "github.com/xlab-si/emmy/crypto/common",
     "github.com/xlab-si/emmy/crypto/qr",
     "github.com/ybbus/jsonrpc",

@@ -29,5 +29,6 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus
 
 
-    
-    
+CMD ["bin/bash"]
+
+EXPOSE 8000 26656 26657

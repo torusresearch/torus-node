@@ -118,13 +118,13 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 			break
 		}
 		fmt.Println("Node is not whitelisted")
-		time.Sleep(10 * time.Second)
+		time.Sleep(4 * time.Second)
 	}
 
 	if register && whitelisted {
 		// register Node
 		fmt.Println("Registering node...")
-		temp := p2p.IDAddressString(nodekey.ID(), strings.Split(suite.Config.P2PListenAddress, ":")[2]) //get port
+		temp := p2p.IDAddressString(nodekey.ID(), nodeIP+":"+strings.Split(suite.Config.P2PListenAddress, ":")[2]) //get port
 		// _, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
 		//TODO: Make epoch variable when needeed
 		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), nodeIPAddress, temp)

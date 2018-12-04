@@ -22,9 +22,6 @@ type BftRPCWS struct {
 }
 
 func SetUpBft(suite *Suite) {
-	// TODO: keep server connection around for logging??
-	// commented out for testing purposes
-	// go tmabci.RunABCIServer()
 
 	bftClient := client.NewHTTP(suite.Config.BftURI, "/websocket")
 

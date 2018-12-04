@@ -11,15 +11,7 @@ import (
 func RunABCIServer(suite *Suite) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 
-	// Create the application - in memory or persisted to disk
-	// if flagPersist == "" {
-
 	suite.ABCIApp = NewABCIApp(suite)
-	// } else {
-	// 	app = kvstore.NewPersistentKVStoreApplication(flagPersist)
-	// 	app.(*kvstore.PersistentKVStoreApplication).SetLogger(logger.With("module", "kvstore"))
-	// }
-
 	// Start the listener
 	srv, err := server.NewServer(suite.Config.ABCIServer, "socket", suite.ABCIApp)
 	if err != nil {

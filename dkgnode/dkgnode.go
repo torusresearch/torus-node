@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -32,7 +33,31 @@ type Flags struct {
 }
 
 /* The entry point for our System */
-func New(configPath string, register bool, production bool, buildPath string) {
+func New(configPath string, register bool, production bool, buildPath string, cpuProfile string) {
+	if cpuProfile != "" {
+		f, err := os.Create(cpuProfile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		go func() {
+			time.Sleep(5 * time.Minute)
+			pprof.StopCPUProfile()
+		}()
+	}
+
+	// Stop upon receiving SIGTERM or CTRL-C
+	// c := make(chan os.Signal, 1)
+	// signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	// go func() {
+	// 	for sig := range c {
+	// 		fmt.Println("Ending Process", sig)
+	// 		//TODO: Exit process not working when abci dies first
+	// 		// pprof.StopCPUProfile()
+	// 		time.Sleep(5 * time.Second)
+	// 		os.Exit(1)
+	// 	}
+	// }()
 
 	//Main suite of functions used in node
 	suite := Suite{}

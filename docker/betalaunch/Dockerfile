@@ -2,15 +2,21 @@ FROM ubuntu:18.04
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get update && apt-get install wget && apt-get install git && apt-get install make && apt install build-essential && \
+RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-get install -y make && apt-get install -y build-essential && \
+    echo "Ubuntu is ready!" && \
+    sed "s/mesg n || true/test -t 0 \&\& mesg n/" $HOME/.profile && \
     wget https://dl.google.com/go/go1.11.2.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.11.2.linux-amd64.tar.gz && \
-    echo "export PATH=$PATH:/usr/local/go/bin" >> $HOME/.profile && echo "export GOPATH=$HOME/go" >> $HOME/.profile && rm go1.11.2.linux-amd64.tar.gz && source $HOME/.profile && \
-    cd $GOPATH && go get github.com/YZhenY/torus && mkdir $GOPATH/src/github.com/tendermint && cd $GOPATH/src/github.com/tendermint && \
-    echo "export PATH=$PATH:$GOPATH/bin" >> $HOME/.profile && source $HOME/.profile && \
+    echo "export PATH=$PATH:/usr/local/go/bin" >> $HOME/.profile && echo "export GOPATH=$HOME/go" >> $HOME/.profile && rm go1.11.2.linux-amd64.tar.gz && . $HOME/.profile && \
+    echo "Go Installed!" && \
+    mkdir $GOPATH && mkdir $GOPATH/src && mkdir $GOPATH/src/github.com &&  mkdir $GOPATH/src/github.com/YZhenY && mkdir $GOPATH/bin && \
+    cd $GOPATH/src/github.com/YZhenY && git clone https://github.com/YZhenY/torus && mkdir $GOPATH/src/github.com/tendermint && cd $GOPATH/src/github.com/tendermint && \
+    echo "Standared files cloned!" && \
+    echo "export PATH=$PATH:$GOPATH/bin" >> $HOME/.profile && . $HOME/.profile && \
     # wget https://raw.githubusercontent.com/golang/dep/master/install.sh && chmod +x ./install.sh && ./install.sh && \
     git clone https://github.com/YZhenY/tendermint && cd $GOPATH/src/github.com/tendermint/tendermint && \
     make get_tools && make get_vendor_deps && \
-    apt-get install libsnappy-dev && \
+    echo "Dependencies Built!" && \
+    apt-get install -y libsnappy-dev && \
     wget https://github.com/google/leveldb/archive/v1.20.tar.gz && \
     tar -zxvf v1.20.tar.gz && \
     cd leveldb-1.20/ && \
@@ -19,6 +25,7 @@ RUN apt-get update && apt-get install wget && apt-get install git && apt-get ins
     cd include/ && \
     cp -r leveldb /usr/local/include/ && \
     ldconfig && \
+    echo "Built CLevelDB!" && \
     rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus
 
 

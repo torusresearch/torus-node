@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"os"
 	"runtime/pprof"
-	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,7 +33,7 @@ type Flags struct {
 }
 
 /* The entry point for our System */
-func New(configPath string, register bool, production bool, buildPath string, cpuProfile string) {
+func New(configPath string, register bool, production bool, buildPath string, cpuProfile string, nodeIPAddress string, privateKey string) {
 	if cpuProfile != "" {
 		f, err := os.Create(cpuProfile)
 		if err != nil {
@@ -64,7 +63,7 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 	suite := Suite{}
 	suite.Flags = &Flags{production}
 	fmt.Println(configPath)
-	loadConfig(&suite, configPath)
+	loadConfig(&suite, configPath, nodeIPAddress, privateKey)
 	//TODO: Dont die on failure but retry
 
 	// set up connection to ethereum blockchain
@@ -80,8 +79,6 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 	// setup local caching
 	SetUpCache(&suite)
 
-	var nodeIPAddress string
-
 	//build folders for tendermint logs
 	os.MkdirAll(buildPath+"/config", os.ModePerm)
 	os.MkdirAll(buildPath+"/data", os.ModePerm)
@@ -91,21 +88,16 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 		fmt.Println("Node Key generation issue")
 		fmt.Println(err)
 	}
-
-	var nodeIP string
+	var mainServerIPAddress string
 	if production {
 		fmt.Println("---PRODUCTION MODE---")
-		nodeIPAddress = suite.Config.HostName + ":" + string(suite.Config.MyPort)
+		mainServerIPAddress = suite.Config.HostName + ":" + string(suite.Config.MyPort)
 	} else {
 		fmt.Println("---DEVELOPMENT MODE---")
-		nodeIP, err = findExternalIP()
-		if err != nil {
-			fmt.Println(err)
-		}
-		nodeIPAddress = nodeIP + ":" + string(suite.Config.MyPort)
+		mainServerIPAddress = suite.Config.MainServerAddress
 	}
 
-	fmt.Println("Node IP Address: " + nodeIPAddress)
+	fmt.Println("Node IP Address: " + mainServerIPAddress)
 	whitelisted := false
 
 	for !whitelisted {
@@ -124,10 +116,8 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 	if register && whitelisted {
 		// register Node
 		fmt.Println("Registering node...")
-		temp := p2p.IDAddressString(nodekey.ID(), nodeIP+":"+strings.Split(suite.Config.P2PListenAddress, ":")[2]) //get port
-		// _, err = suite.EthSuite.registerNode(nodeIPAddress, nodekey.PubKey().Address().String()+"@"+suite.Config.P2PListenAddress[6:])
 		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), nodeIPAddress, temp)
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), mainServerIPAddress, p2p.IDAddressString(nodekey.ID(), suite.Config.P2PListenAddress))
 		if err != nil {
 			log.Fatal(err)
 		}

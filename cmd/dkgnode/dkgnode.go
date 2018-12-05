@@ -1,9 +1,7 @@
 package main
 
 import (
-	"errors"
 	"flag"
-	"log"
 
 	"github.com/YZhenY/torus/dkgnode"
 )
@@ -14,14 +12,10 @@ func main() {
 	production := flag.Bool("production", false, "defaults to false")
 	configPath := flag.String("configPath", "", "provide path to config file")
 	buildPath := flag.String("buildPath", "./.build", "provide path to build file")
+	privateKey := flag.String("privateKey", "", "provide private key here to run node on")
+	nodeIPAddress := flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
 	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
-
 	flag.Parse()
 
-	if *configPath == "" {
-		log.Fatal(errors.New("No configuration path provided, aborting"))
-	} else {
-		dkgnode.New(*configPath, *register, *production, *buildPath, *cpuProfile)
-	}
-
+	dkgnode.New(*configPath, *register, *production, *buildPath, *cpuProfile, *nodeIPAddress, *privateKey)
 }

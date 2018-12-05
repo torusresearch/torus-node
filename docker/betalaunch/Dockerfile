@@ -1,6 +1,6 @@
 FROM ubuntu:18.04
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV IPADDRESS klajefiaheiuhq PRIVATEKEY kldajsklfdjl DEBIAN_FRONTEND noninteractive 
 
 RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-get install -y make && apt-get install -y build-essential && \
     echo "Ubuntu is ready!" && \
@@ -28,7 +28,4 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     echo "Built CLevelDB!" && \
     rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus
 
-
-CMD ["bin/bash"]
-
-EXPOSE 8000 26656 26657
+EXPOSE 443 80 26656 26657

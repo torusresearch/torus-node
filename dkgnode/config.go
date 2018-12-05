@@ -33,6 +33,7 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 	}
 
 	if path != "" {
+		fmt.Println("Running on Configuration File")
 		/* Load Config */
 		config.Load(file.NewSource(
 			file.WithPath(path),
@@ -41,6 +42,7 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
 		// retrieve map[string]interface{}
 	} else if nodeAddress != "" {
+		fmt.Println("Running on Specified IP Address")
 		//Specified for docker configurations
 		conf.BftURI = "tcp://" + nodeAddress + ":" + strings.Split(conf.BftURI, ":")[2]
 		conf.ABCIServer = "tcp://" + nodeAddress + ":" + strings.Split(conf.ABCIServer, ":")[2]
@@ -69,7 +71,7 @@ func defaultConfigSettings() Config {
 	return Config{
 		MyPort:            "80",
 		MainServerAddress: "127.0.0.1:80",
-		EthConnection:     "https://ropsten.infura.io/v3/1cd8ab320edc46dd81f09a048dca1e50",
+		EthConnection:     "https://136.24.35.81:8545",
 		EthPrivateKey:     "29909a750dc6abc3e3c83de9c6da9d6faf9fde4eebb61fa21221415557de5a0b",
 		BftURI:            "tcp://127.0.0.1:26657",
 		ABCIServer:        "tcp://127.0.0.1:8010",

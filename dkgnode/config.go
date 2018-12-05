@@ -41,15 +41,17 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
 		// retrieve map[string]interface{}
 	} else if nodeAddress != "" {
-		conf.BftURI = "tcp:" + nodeAddress + ":" + strings.Split(conf.BftURI, ":")[2]
-		conf.ABCIServer = "tcp:" + nodeAddress + ":" + strings.Split(conf.ABCIServer, ":")[2]
-		conf.P2PListenAddress = "tcp:" + nodeAddress + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
+		//Specified for docker configurations
+		conf.BftURI = "tcp://" + nodeAddress + ":" + strings.Split(conf.BftURI, ":")[2]
+		conf.ABCIServer = "tcp://" + nodeAddress + ":" + strings.Split(conf.ABCIServer, ":")[2]
+		conf.P2PListenAddress = "tcp://" + nodeAddress + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
 		conf.MainServerAddress = nodeAddress + ":" + conf.MyPort
 	} else {
 		fmt.Println("Running on Default Configurations")
-		conf.BftURI = "tcp:" + nodeIP + ":" + strings.Split(conf.BftURI, ":")[2]
-		conf.ABCIServer = "tcp:" + nodeIP + ":" + strings.Split(conf.ABCIServer, ":")[2]
-		conf.P2PListenAddress = "tcp:" + nodeIP + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
+		//In default configurations we find server IP
+		conf.BftURI = "tcp://" + nodeIP + ":" + strings.Split(conf.BftURI, ":")[2]
+		conf.ABCIServer = "tcp://" + nodeIP + ":" + strings.Split(conf.ABCIServer, ":")[2]
+		conf.P2PListenAddress = "tcp://" + nodeIP + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
 		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
 	}
 

@@ -1,6 +1,6 @@
 FROM ubuntu:18.04
 
-ENV IPADDRESS klajefiaheiuhq PRIVATEKEY kldajsklfdjl DEBIAN_FRONTEND noninteractive 
+# ENV ENV="$HOME/.profile" 
 
 RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-get install -y make && apt-get install -y build-essential && \
     echo "Ubuntu is ready!" && \
@@ -26,7 +26,9 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     cp -r leveldb /usr/local/include/ && \
     ldconfig && \
     echo "Built CLevelDB!" && \
-    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus/cmd/dkgnode && go install && cd $HOME \
-
+    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc \
 EXPOSE 443 80 26656 26657
-CMD ["dkgnode", "-privateKey somethingsomething", "-ipAddress 123.1231.231"]
+# CMD  . ~/.profile | /bin/bash
+# ENTRYPOINT [ "/root/go/src/github.com/YZhenY/torus/docker/betalaunch/wrapper.sh" ]
+# CMD ["-private"]
+CMD ["/root/go/bin/dkgnode", "-privateKey", "somethingsomething", "-ipAddress", "23.1231.231"]

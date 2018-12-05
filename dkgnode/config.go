@@ -44,9 +44,9 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 	} else if nodeAddress != "" {
 		fmt.Println("Running on Specified IP Address")
 		//Specified for docker configurations
-		conf.BftURI = "tcp://" + nodeAddress + ":" + strings.Split(conf.BftURI, ":")[2]
-		conf.ABCIServer = "tcp://" + nodeAddress + ":" + strings.Split(conf.ABCIServer, ":")[2]
-		conf.P2PListenAddress = "tcp://" + nodeAddress + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
+		// conf.BftURI = "tcp://" + nodeAddress + ":" + strings.Split(conf.BftURI, ":")[2]
+		// conf.ABCIServer = "tcp://" + nodeAddress + ":" + strings.Split(conf.ABCIServer, ":")[2]
+		// conf.P2PListenAddress = "tcp://" + nodeAddress + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
 		conf.MainServerAddress = nodeAddress + ":" + conf.MyPort
 	} else {
 		fmt.Println("Running on Default Configurations")
@@ -73,10 +73,10 @@ func defaultConfigSettings() Config {
 		MainServerAddress: "127.0.0.1:80",
 		EthConnection:     "http://178.128.178.162:8545",
 		EthPrivateKey:     "29909a750dc6abc3e3c83de9c6da9d6faf9fde4eebb61fa21221415557de5a0b",
-		BftURI:            "tcp://127.0.0.1:26657",
-		ABCIServer:        "tcp://127.0.0.1:8010",
-		P2PListenAddress:  "tcp://127.0.0.1:26656",
-		NodeListAddress:   "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
+		BftURI:            "tcp://0.0.0.0:26657",
+		ABCIServer:        "tcp://0.0.0.0:8010",
+		P2PListenAddress:  "tcp://0.0.0.0:26656",
+		NodeListAddress:   "0x35e47457b49ff23c8cb241f422bc79d78efb6a13",
 		HostName:          "",
 		NumberOfNodes:     5,
 		Threshold:         3,

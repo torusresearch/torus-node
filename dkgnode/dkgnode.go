@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"runtime/pprof"
+	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -117,7 +118,8 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 		// register Node
 		fmt.Println("Registering node...")
 		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), mainServerIPAddress, p2p.IDAddressString(nodekey.ID(), suite.Config.P2PListenAddress))
+		externalAddr := "tcp://" + nodeIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), mainServerIPAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		if err != nil {
 			log.Fatal(err)
 		}

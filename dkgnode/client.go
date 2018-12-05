@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -214,8 +215,8 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
-	// logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
-	logger := NoLogger{}
+	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	// logger := NoLogger{}
 	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
 	//converts own pv to tendermint key TODO: Double check verification

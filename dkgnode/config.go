@@ -74,7 +74,7 @@ func defaultConfigSettings() Config {
 		BftURI:            "tcp://127.0.0.1:26657",
 		ABCIServer:        "tcp://127.0.0.1:8010",
 		P2PListenAddress:  "tcp://127.0.0.1:26656",
-		NodeListAddress:   "0x0bc49456298b2612daa6db930b015968d5f833a7",
+		NodeListAddress:   "0x5622c5B1d239668F07C7352778C865B8b9ca11Ac",
 		HostName:          "",
 		NumberOfNodes:     5,
 		Threshold:         3,

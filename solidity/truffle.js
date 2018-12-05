@@ -12,6 +12,14 @@
  *   },
  */
 
+// provider: function () {
+//   var wallet = new HDWalletProvider(mnemonic, `https://ropsten.infura.io/${infuraKey}`);
+//   var nonceTracker = new NonceTrackerSubprovider();
+//   wallet.engine._providers.unshift(nonceTracker);
+//   nonceTracker.setEngine(wallet.engine);
+//   return wallet;
+// },
+var NonceTrackerSubprovider = require("web3-provider-engine/subproviders/nonce-tracker")
 const HDWalletProvider = require("truffle-hdwallet-provider");
 const private = require('../private.json');
 const mnemonic = private.funds;
@@ -28,10 +36,10 @@ module.exports = {
        gas: 4700000,
      },
     ropsten: {
-       provider: new HDWalletProvider(mnemonic, `https://ropsten.infura.io/${infuraKey}`),
+      provider: new HDWalletProvider(mnemonic, `https://ropsten.infura.io/${infuraKey}`),
        network_id: '*',
        gas: 4700000,
-       gasPrice: 2000000000, // 50 gwei, this is very high
+       gasPrice: 5000000000, // 50 gwei, this is very high
      },
      rinkeby: {
         provider: new HDWalletProvider(mnemonic, `https://rinkeby.infura.io/${infuraKey}`),

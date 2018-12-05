@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     cp -r leveldb /usr/local/include/ && \
     ldconfig && \
     echo "Built CLevelDB!" && \
-    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus
+    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus/cmd/dkgnode && go install && cd $HOME \
 
 EXPOSE 443 80 26656 26657
+CMD ["dkgnode", "-privateKey somethingsomething", "-ipAddress 123.1231.231"]

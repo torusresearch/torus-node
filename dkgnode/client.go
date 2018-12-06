@@ -16,9 +16,6 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/pvss"
-	"github.com/torusresearch/torus/secp256k1"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
@@ -27,6 +24,9 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus/pvss"
+	"github.com/torusresearch/torus/secp256k1"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 
@@ -348,22 +348,6 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 				continue
 			}
 
-			// ECDSA COMMENTED OUT
-			// hashedData := bytes32(secp256k1.Keccak256(data.PointsBytesArray))
-			// if bytes.Compare(data.EcdsaSignature.Hash[:], hashedData[:]) != 0 {
-			// 	fmt.Println("Signed hash does not match retrieved hash")
-			// 	fmt.Println(data.EcdsaSignature.Hash[:])
-			// 	fmt.Println(hashedData[:])
-			// 	continue
-			// }
-			// if !ECDSAVerify(*nodePubKeyArray[index], data.EcdsaSignature) {
-			// 	fmt.Println("Signature does not verify")
-			// 	continue
-			// } else {
-			// 	fmt.Println("Signature of pubpoly verified")
-			// }
-
-			//TODO: Check epoch number and share index against tx received
 			broadcastedDataArray[index] = pubPolyTx.PubPoly
 		}
 
@@ -480,7 +464,6 @@ func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Add
 	}
 	rpcClient := jsonrpcclient.NewClient(nodeIPAddress)
 
-	// TODO: possible replace with signature?
 	_, err = rpcClient.Call("Ping", &Message{suite.EthSuite.NodeAddress.Hex()})
 	if err != nil {
 		return nil, err

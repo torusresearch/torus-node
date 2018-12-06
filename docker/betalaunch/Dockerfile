@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     echo "Standared files cloned!" && \
     echo "export PATH=$PATH:$GOPATH/bin" >> $HOME/.profile && . $HOME/.profile && \
     # wget https://raw.githubusercontent.com/golang/dep/master/install.sh && chmod +x ./install.sh && ./install.sh && \
-    git clone https://github.com/torusresearch/tendermint && cd $GOPATH/src/github.com/tendermint/tendermint && \
+    git clone https://github.com/YZhenY/tendermint && cd $GOPATH/src/github.com/tendermint/tendermint && \
     make get_tools && make get_vendor_deps && \
     echo "Dependencies Built!" && \
     apt-get install -y libsnappy-dev && \
@@ -29,4 +29,4 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/torusresearch/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc
 
 EXPOSE 443 80 26656 26657
-CMD ["/root/go/bin/dkgnode", "-privateKey", "$PRIVATEKEY", "-ipAddress", "$IPADDRESS"]
+CMD ["/root/go/bin/dkgnode", "-privateKey", "$PRIVATEKEY", "-ipAddress", "$IPADDRESS", "-nodeListAddress", "$NODELISTADDRESS"]

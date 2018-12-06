@@ -26,7 +26,7 @@ type Config struct {
 	BuildPath                  string `json:"buildpath"`
 }
 
-func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string) {
+func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string, nodeListAddress string) {
 
 	conf := defaultConfigSettings()
 	nodeIP, err := findExternalIP()
@@ -66,6 +66,9 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 	}
 	if buildPath != "" && buildPath != "./.build" {
 		conf.BuildPath = buildPath
+	}
+	if nodeListAddress != "" {
+		conf.NodeListAddress = nodeListAddress
 	}
 	fmt.Println("Configuration: ")
 	fmt.Printf("%+v\n", conf)

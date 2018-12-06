@@ -26,9 +26,7 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     cp -r leveldb /usr/local/include/ && \
     ldconfig && \
     echo "Built CLevelDB!" && \
-    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/torusresearch/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc \
+    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/torusresearch/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc
+
 EXPOSE 443 80 26656 26657
-# CMD  . ~/.profile | /bin/bash
-# ENTRYPOINT [ "/root/go/src/github.com/torusresearch/torus/docker/betalaunch/wrapper.sh" ]
-# CMD ["-private"]
-CMD ["/root/go/bin/dkgnode", "-privateKey", "somethingsomething", "-ipAddress", "23.1231.231"]
+CMD ["/root/go/bin/dkgnode", "-privateKey", "$PRIVATEKEY", "-ipAddress", "$IPADDRESS"]

@@ -81,7 +81,7 @@ func defaultConfigSettings() Config {
 		HostName:                   "",
 		NumberOfNodes:              5,
 		Threshold:                  3,
-		KeysPerEpoch:               20,
+		KeysPerEpoch:               100,
 		KeyBufferTriggerPercentage: 80,
 	}
 }

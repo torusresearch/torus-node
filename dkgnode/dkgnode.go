@@ -117,8 +117,14 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 	if register && whitelisted {
 		// register Node
 		fmt.Println("Registering node...")
+		var externalAddr string
+		if nodeIPAddress != "" {
+			//for external deploymets
+			externalAddr = "tcp://" + nodeIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
+		} else {
+			externalAddr = suite.Config.P2PListenAddress
+		}
 		//TODO: Make epoch variable when needeed
-		externalAddr := "tcp://" + nodeIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
 		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), mainServerIPAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		if err != nil {
 			log.Fatal(err)

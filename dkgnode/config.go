@@ -67,7 +67,8 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 	if buildPath != "" && buildPath != "./.build" {
 		conf.BuildPath = buildPath
 	}
-	fmt.Println("Configuration: ", conf)
+	fmt.Println("Configuration: ")
+	fmt.Printf("%+v\n", conf)
 	//edit the config to use nodeAddress
 	suite.Config = &conf
 }

@@ -64,7 +64,7 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 	suite := Suite{}
 	suite.Flags = &Flags{production}
 	fmt.Println(configPath)
-	loadConfig(&suite, configPath, nodeIPAddress, privateKey)
+	loadConfig(&suite, configPath, nodeIPAddress, privateKey, buildPath)
 	//TODO: Dont die on failure but retry
 
 	// set up connection to ethereum blockchain

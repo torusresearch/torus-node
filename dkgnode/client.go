@@ -564,7 +564,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = ioutil.WriteFile("cache.json", cacheJSON, 0644)
+	err = ioutil.WriteFile(suite.Config.BuildPath+"/"+time.Now().String()+"_secrets.json", cacheJSON, 0644)
 	if err != nil {
 		fmt.Println(err)
 	}

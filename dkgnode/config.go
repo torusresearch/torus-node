@@ -23,9 +23,10 @@ type Config struct {
 	Threshold                  int    `json:"threshold"`
 	KeysPerEpoch               int    `json:"keysperepoch"`
 	KeyBufferTriggerPercentage int    `json:"keybuffertriggerpercetage"` //percetage threshold of keys left to trigger buffering 90 - 20
+	BuildPath                  string `json:"buildpath"`
 }
 
-func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string) {
+func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string) {
 
 	conf := defaultConfigSettings()
 	nodeIP, err := findExternalIP()
@@ -63,6 +64,9 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 	if privateKey != "" {
 		conf.EthPrivateKey = privateKey
 	}
+	if buildPath != "" && buildPath != "./.build" {
+		conf.BuildPath = buildPath
+	}
 	fmt.Println("Configuration: ", conf)
 	//edit the config to use nodeAddress
 	suite.Config = &conf
@@ -83,5 +87,6 @@ func defaultConfigSettings() Config {
 		Threshold:                  3,
 		KeysPerEpoch:               100,
 		KeyBufferTriggerPercentage: 80,
+		BuildPath:                  "/.build",
 	}
 }

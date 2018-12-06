@@ -8,12 +8,12 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     wget https://dl.google.com/go/go1.11.2.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.11.2.linux-amd64.tar.gz && \
     echo "export PATH=$PATH:/usr/local/go/bin" >> $HOME/.profile && echo "export GOPATH=$HOME/go" >> $HOME/.profile && rm go1.11.2.linux-amd64.tar.gz && . $HOME/.profile && \
     echo "Go Installed!" && \
-    mkdir $GOPATH && mkdir $GOPATH/src && mkdir $GOPATH/src/github.com &&  mkdir $GOPATH/src/github.com/YZhenY && mkdir $GOPATH/bin && \
-    cd $GOPATH/src/github.com/YZhenY && git clone https://github.com/YZhenY/torus && mkdir $GOPATH/src/github.com/tendermint && cd $GOPATH/src/github.com/tendermint && \
+    mkdir $GOPATH && mkdir $GOPATH/src && mkdir $GOPATH/src/github.com &&  mkdir $GOPATH/src/github.com/torusresearch && mkdir $GOPATH/bin && \
+    cd $GOPATH/src/github.com/torusresearch && git clone https://github.com/torusresearch/torus && mkdir $GOPATH/src/github.com/tendermint && cd $GOPATH/src/github.com/tendermint && \
     echo "Standared files cloned!" && \
     echo "export PATH=$PATH:$GOPATH/bin" >> $HOME/.profile && . $HOME/.profile && \
     # wget https://raw.githubusercontent.com/golang/dep/master/install.sh && chmod +x ./install.sh && ./install.sh && \
-    git clone https://github.com/YZhenY/tendermint && cd $GOPATH/src/github.com/tendermint/tendermint && \
+    git clone https://github.com/torusresearch/tendermint && cd $GOPATH/src/github.com/tendermint/tendermint && \
     make get_tools && make get_vendor_deps && \
     echo "Dependencies Built!" && \
     apt-get install -y libsnappy-dev && \
@@ -26,9 +26,9 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     cp -r leveldb /usr/local/include/ && \
     ldconfig && \
     echo "Built CLevelDB!" && \
-    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/YZhenY/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc \
+    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/torusresearch/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc \
 EXPOSE 443 80 26656 26657
 # CMD  . ~/.profile | /bin/bash
-# ENTRYPOINT [ "/root/go/src/github.com/YZhenY/torus/docker/betalaunch/wrapper.sh" ]
+# ENTRYPOINT [ "/root/go/src/github.com/torusresearch/torus/docker/betalaunch/wrapper.sh" ]
 # CMD ["-private"]
 CMD ["/root/go/bin/dkgnode", "-privateKey", "somethingsomething", "-ipAddress", "23.1231.231"]

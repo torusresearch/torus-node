@@ -5,8 +5,8 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/YZhenY/torus/common"
-	"github.com/YZhenY/torus/secp256k1"
+	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus/secp256k1"
 	xlabcommon "github.com/xlab-si/emmy/crypto/common"
 	"github.com/xlab-si/emmy/crypto/qr"
 )

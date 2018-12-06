@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #have tendermint and docker installed
-#get tendermint from github.com/YZhenY/tendermint
+#get tendermint from github.com/torusresearch/tendermint
 cd $GOPATH/src/github.com/tendermint/tendermint
 
 # Build the linux binary in ./build

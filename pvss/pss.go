@@ -3,8 +3,8 @@ package pvss
 import (
 	"math/big"
 
-	"github.com/YZhenY/torus/common"
-	"github.com/YZhenY/torus/secp256k1"
+	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus/secp256k1"
 	"github.com/jinzhu/copier"
 )
 

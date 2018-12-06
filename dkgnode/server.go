@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/YZhenY/torus/common"
-	"github.com/YZhenY/torus/pvss"
+	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus/pvss"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"

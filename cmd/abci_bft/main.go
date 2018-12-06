@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/YZhenY/torus/tmabci"
+	"github.com/torusresearch/torus/tmabci"
 )
 
 func main() {

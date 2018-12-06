@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/YZhenY/torus/bft"
+	"github.com/torusresearch/torus/bft"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/rs/cors"

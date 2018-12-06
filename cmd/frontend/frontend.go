@@ -11,11 +11,18 @@ import (
 	"github.com/YZhenY/torus/secp256k1"
 	"github.com/YZhenY/torus/solidity/goContracts"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	config "github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
+
+var NodeAddressesList = []string{
+	"ec2-54-241-226-244.us-west-1.compute.amazonaws.com",
+	"ec2-52-9-229-81.us-west-1.compute.amazonaws.com",
+	"ec2-52-53-95-189.us-west-1.compute.amazonaws.com",
+	"ec2-54-153-49-250.us-west-1.compute.amazonaws.com",
+	"ec2-13-52-39-181.us-west-1.compute.amazonaws.com",
+}
 
 type NodeReference struct {
 	Address    *ethCommon.Address
@@ -77,30 +84,44 @@ type Config struct {
 func main() {
 
 	authToken := "blublu"
-	config := loadConfig("./config/config.frontend.json")
+	//uncomment if you wannna use node list refereces
+	// config := loadConfig("./config/config.frontend.json")
 
 	/* Connect to Ethereum */
-	client, err := ethclient.Dial(config.EthConnection)
-	if err != nil {
-		fmt.Println("Could not connect to eth connection " + config.EthConnection)
-	}
+	// client, err := ethclient.Dial(config.EthConnection)
+	// if err != nil {
+	// 	fmt.Println("Could not connect to eth connection " + config.EthConnection)
+	// }
 
-	/*Creating contract instances */
-	NodeListContract, err := nodelist.NewNodelist(ethCommon.HexToAddress(config.NodeListAddress), client)
-	if err != nil {
-		fmt.Println(err)
-	}
+	// /*Creating contract instances */
+	// NodeListContract, err := nodelist.NewNodelist(ethCommon.HexToAddress(config.NodeListAddress), client)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
 
-	list, _, err := NodeListContract.ViewNodes(nil, big.NewInt(int64(0)))
-	if err != nil {
-		fmt.Println(err)
-	}
+	// list, _, err := NodeListContract.ViewNodes(nil, big.NewInt(int64(0)))
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
 
-	nodeList := make([]*NodeReference, len(list))
-	for i := range list {
-		nodeList[i], err = connectToJSONRPCNode(NodeListContract, list[i])
+	// nodeList := make([]*NodeReference, len(list))
+	// for i := range list {
+	// 	nodeList[i], err = connectToJSONRPCNode(NodeListContract, list[i])
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 	}
+	// }
+
+	nodeList := make([]*NodeReference, len(NodeAddressesList))
+	for i := range nodeList {
+		rpcClient := jsonrpcclient.NewClient("http://" + NodeAddressesList[i] + ":80/jrpc")
+		response, err := rpcClient.Call("Ping", &Message{"HEYO"})
 		if err != nil {
 			fmt.Println(err)
+		}
+		fmt.Println(response)
+		nodeList[i] = &NodeReference{
+			JSONClient: rpcClient,
 		}
 	}
 

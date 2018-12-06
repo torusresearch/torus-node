@@ -162,22 +162,21 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		for _, nodeI := range app.Suite.EthSuite.NodeList {
 			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "Y" {
 				stopIndex := string(statusTx.Data)
-				fmt.Println("here1", stopIndex)
+				// fmt.Println("Initiate Key Gen Registered till ", stopIndex)
 				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
 					fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
 					continue
 				}
 				percentLeft := 100 * (app.state.LastCreatedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
-				if percentLeft > 40 {
-					fmt.Println("here3")
+				if percentLeft > uint(app.Suite.Config.KeyBufferTriggerPercentage) {
+					fmt.Println("Haven't hit buffer amount")
 					continue
 				}
-				fmt.Println("here4")
 				counter++
 			}
 		}
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			fmt.Println("here5")
+			fmt.Println("Initiate Keygen")
 			app.state.LocalStatus["all_initiate_keygen"] = "Y" // TODO: make epoch variable
 			for _, nodeI := range app.Suite.EthSuite.NodeList {
 				app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""

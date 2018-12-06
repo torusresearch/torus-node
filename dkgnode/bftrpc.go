@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/torusresearch/torus/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
+	"github.com/torusresearch/torus/common"
 )
 
 type BftRPC struct {
@@ -33,10 +33,6 @@ type PubPolyBFTTx struct {
 	PubPoly    []common.Point
 	Epoch      uint
 	ShareIndex uint
-}
-
-type EpochBFTTx struct {
-	EpochNumber uint
 }
 
 type KeyGenShareBFTTx struct {
@@ -70,7 +66,6 @@ type ValidatorUpdateBFTTx struct {
 // mapping of name of struct to id
 var bftTxs = map[string]byte{
 	getType(PubPolyBFTTx{}):         byte(1),
-	getType(EpochBFTTx{}):           byte(2),
 	getType(KeyGenShareBFTTx{}):     byte(3),
 	getType(AssignmentBFTTx{}):      byte(4),
 	getType(StatusBFTTx{}):          byte(5),

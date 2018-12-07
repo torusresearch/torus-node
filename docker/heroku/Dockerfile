@@ -1,5 +1,7 @@
 FROM ubuntu:18.04
-
+ARG PRIVATEKEY
+ARG IPADDRESS
+ARG NODELISTADDRESS
 RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-get install -y make && apt-get install -y build-essential && \
     echo "Ubuntu is ready!" && \
     # sed "s/mesg n || true/test -t 0 \&\& mesg n/" $HOME/.profile && \

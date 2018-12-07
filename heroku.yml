@@ -1,0 +1,7 @@
+build:
+  docker:
+    web: ./docker/heroku/Dockerfile
+  config:
+    NODELISTADDRESS: development
+    IPADDRESS: bar
+    PRIVATEKEY: dlkasjf

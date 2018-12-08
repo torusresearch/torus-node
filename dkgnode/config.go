@@ -81,7 +81,7 @@ func defaultConfigSettings() Config {
 	return Config{
 		MyPort:                     "443",
 		MainServerAddress:          "127.0.0.1:443",
-		EthConnection:              "http://178.128.178.162:8545",
+		EthConnection:              "http://178.128.178.162:14103",
 		EthPrivateKey:              "29909a750dc6abc3e3c83de9c6da9d6faf9fde4eebb61fa21221415557de5a0b",
 		BftURI:                     "tcp://0.0.0.0:26657",
 		ABCIServer:                 "tcp://0.0.0.0:8010",

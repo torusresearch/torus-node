@@ -12,14 +12,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/pvss"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
+	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus/pvss"
 )
 
 type (
@@ -440,8 +440,8 @@ func setUpServer(suite *Suite, port string) {
 	handler := cors.Default().Handler(mux)
 	if suite.Flags.Production {
 		if err := http.ListenAndServeTLS(":443",
-			"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
-			"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem",
+			"/root/https/fullchain.pem",
+			"/root/https/privkey.pem",
 			handler,
 		); err != nil {
 			log.Fatalln(err)

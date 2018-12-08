@@ -1,6 +1,6 @@
 build:
   docker:
-    web: ./docker/heroku/Dockerfile
+    worker: ./docker/heroku/Dockerfile
   # config:
   #   NODELISTADDRESS: 0xd44f7724b0a0800e41283e97be5ec9e875f59811
   #   IPADDRESS: torusnode1.herokuapp.com

@@ -36,8 +36,7 @@ module.exports = {
        gas: 4700000,
      },
     digital: {
-      provider: new HDWalletProvider(private.ganache, 'http://178.128.178.162'),
-      port: 14103,
+      provider: new HDWalletProvider(private.ganache, 'http://178.128.178.162:14103'),
       network_id: '*',
       network_id: '*',
       gas: 4700000,

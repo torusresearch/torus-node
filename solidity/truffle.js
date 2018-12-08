@@ -36,8 +36,9 @@ module.exports = {
        gas: 4700000,
      },
     digital: {
-      host: '178.128.178.162',
+      provider: new HDWalletProvider(private.ganache, 'http://178.128.178.162'),
       port: 14103,
+      network_id: '*',
       network_id: '*',
       gas: 4700000,
       gasPrice: 5000000000, // 50 gwei, this is very high

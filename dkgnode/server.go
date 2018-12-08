@@ -440,8 +440,8 @@ func setUpServer(suite *Suite, port string) {
 	handler := cors.Default().Handler(mux)
 	if suite.Flags.Production {
 		if err := http.ListenAndServeTLS(":443",
-			"/etc/letsencrypt/live/"+suite.Config.HostName+"/fullchain.pem",
-			"/etc/letsencrypt/live/"+suite.Config.HostName+"/privkey.pem",
+			"/root/https/fullchain.pem",
+			"/root/https/privkey.pem",
 			handler,
 		); err != nil {
 			log.Fatalln(err)

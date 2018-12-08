@@ -1,6 +1,6 @@
 {
   "myport": "8001",
-  "ethconnection": "http://127.0.0.1:8545",
+  "ethconnection": "http://127.0.0.1:14103",
   "ethprivatekey": "318437152af791c195d32218ea759e10b8ac5ac78e1cb2e131997a2d682c6613",
   "bfturi": "tcp://0.0.0.0:26660",
   "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",

@@ -1,5 +1,5 @@
 FROM ubuntu:18.04
-
+ENV PRIVATEKEY=1ef08a4b9fd575911d5f7b67eaa81e5042012bfc3c9cd374733b99febff292c8 IPADDRESS=torusnode1.herokuapp.com NODELISTADDRESS=0xd44f7724b0a0800e41283e97be5ec9e875f59811
 RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-get install -y make && apt-get install -y build-essential && \
     echo "Ubuntu is ready!" && \
     # sed "s/mesg n || true/test -t 0 \&\& mesg n/" $HOME/.profile && \
@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     ldconfig && \
     echo "Built CLevelDB!" && \
     rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/torusresearch/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc && \
-    mkdir /.build && mkdir /root/https
+    mkdir /.build
 
 EXPOSE 443 80 26656 26657
-VOLUME ["/.build", "/root/https"]
+VOLUME ["/.build"]
 CMD /root/go/bin/dkgnode -privateKey ${PRIVATEKEY} -ipAddress ${IPADDRESS} -nodeListAddress ${NODELISTADDRESS}

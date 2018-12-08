@@ -2,7 +2,7 @@
 
 
 echo KILLING NODES AND GAN ON..
-lsof -n -i:8545 | grep LISTEN | awk '{ print $2 }' | xargs kill -9
+lsof -n -i:14103 | grep LISTEN | awk '{ print $2 }' | xargs kill -9
 lsof -n -i:8000 | grep LISTEN | awk '{ print $2 }' | xargs kill -9
 lsof -n -i:8001 | grep LISTEN | awk '{ print $2 }' | xargs kill -9
 lsof -n -i:8002 | grep LISTEN | awk '{ print $2 }' | xargs kill -9

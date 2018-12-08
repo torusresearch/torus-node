@@ -89,14 +89,16 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 		fmt.Println("Node Key generation issue")
 		fmt.Println(err)
 	}
-	var mainServerIPAddress string
+
+	//TODO: now somewhat redundent
 	if production {
 		fmt.Println("---PRODUCTION MODE---")
-		mainServerIPAddress = suite.Config.HostName + ":" + string(suite.Config.MyPort)
 	} else {
 		fmt.Println("---DEVELOPMENT MODE---")
-		mainServerIPAddress = suite.Config.MainServerAddress
 	}
+
+	var mainServerIPAddress string
+	mainServerIPAddress = suite.Config.MainServerAddress
 
 	fmt.Println("Node IP Address: " + mainServerIPAddress)
 	whitelisted := false

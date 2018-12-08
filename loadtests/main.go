@@ -27,15 +27,15 @@ var sharerequests = 0
 
 func main() {
 	// rate := vegeta.Rate{Freq: 3, Per: time.Second}
-	duration := 120 * time.Second
+	duration := 60 * time.Second
 	targeter := NewCustomTargeter()
 	attacker := vegeta.NewAttacker()
 
 	var metrics vegeta.Metrics
-	for res := range attacker.Attack(targeter, uint64(2), duration) {
+	for res := range attacker.Attack(targeter, uint64(1000), duration) {
 		metrics.Add(res)
 
-		fmt.Println("response: ", res.Timestamp, res)
+		// fmt.Println("response: ", res.Timestamp, res)
 	}
 
 	metrics.Close()
@@ -68,7 +68,7 @@ func NewCustomTargeter() vegeta.Targeter {
 			tgt.Body = []byte(payload)
 			assignments = assignments + 1
 		}
-		fmt.Println("Sent: " + payload)
+		// fmt.Println("Sent: " + payload)
 
 		return nil
 	}

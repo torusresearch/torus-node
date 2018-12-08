@@ -12,14 +12,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/pvss"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
+	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus/pvss"
 )
 
 type (
@@ -345,7 +345,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 //gets assigned index and returns users public key
 func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) {
 
-	resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index="+strconv.Itoa(assignedIndex), false, 10, 10)
+	resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index<="+strconv.Itoa(assignedIndex)+" AND "+"share_index>="+strconv.Itoa(assignedIndex), false, 10, 10)
 	if err != nil {
 		return nil, err
 	}

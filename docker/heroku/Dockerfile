@@ -1,7 +1,5 @@
 FROM ubuntu:18.04
-ARG PRIVATEKEY
-ARG IPADDRESS
-ARG NODELISTADDRESS
+ENV PRIVATEKEY=83781f4a87b3a1fd7473652afc441f4abb111a46c44b404ec640f43b89202387 IPADDRESS=torusnode1.herokuapp.com NODELISTADDRESS=0xd44f7724b0a0800e41283e97be5ec9e875f59811
 RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-get install -y make && apt-get install -y build-essential && \
     echo "Ubuntu is ready!" && \
     # sed "s/mesg n || true/test -t 0 \&\& mesg n/" $HOME/.profile && \

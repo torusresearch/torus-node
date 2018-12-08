@@ -2,6 +2,6 @@ build:
   docker:
     web: ./docker/heroku/Dockerfile
   config:
-    NODELISTADDRESS: development
-    IPADDRESS: bar
-    PRIVATEKEY: dlkasjf
+    NODELISTADDRESS: 0xd44f7724b0a0800e41283e97be5ec9e875f59811
+    IPADDRESS: torusnode1.herokuapp.com
+    PRIVATEKEY: 83781f4a87b3a1fd7473652afc441f4abb111a46c44b404ec640f43b89202387

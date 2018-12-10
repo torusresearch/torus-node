@@ -186,7 +186,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, jsonrpc.ErrInvalidParams()
 	}
 	tmpInt := siMapping[p.Index].Value
-	if p.IDToken == "blublu" {
+	if p.IDToken == "blublu" { // TODO: remove
 		fmt.Println("Share requested")
 		fmt.Println("SHARE: ", tmpInt.Text(16))
 

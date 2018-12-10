@@ -195,11 +195,11 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 			HexShare: tmpInt.Text(16),
 		}, nil
 	}
-	tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
-	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get secret mapping"}
-	}
-	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
+	// tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
+	// if !found {
+	// 	return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get secret mapping"}
+	// }
+	// secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 
 	//checking oAuth token
 	if oAuthCorrect, _ := testOauth(p.IDToken, p.Email); !*oAuthCorrect {
@@ -216,9 +216,11 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Cannot parse uint for user index here: " + err.Error()}
 	}
 
+	tmpInt = siMapping[int(userIndex)].Value
+
 	return ShareRequestResult{
 		Index:    siMapping[int(userIndex)].Index,
-		HexShare: secretMapping[int(userIndex)].Secret.Text(16),
+		HexShare: tmpInt.Text(16),
 	}, nil
 }
 

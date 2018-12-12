@@ -305,11 +305,15 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	fmt.Println("CHECKING IF GOT RESPONSES", randomInt)
 	// wait for block to be committed
 	var assignedIndex uint
-	for e := range h.suite.BftSuite.BftRPCWS.ResponsesCh {
-		fmt.Println("BFTWS: RECEIVED RESPONSE ", e.Error, string(e.Result), randomInt)
-		fmt.Println("BFTWS gjson:", gjson.GetBytes(e.Result, "query").String(), randomInt)
+	responseCh, err := h.suite.BftSuite.RegisterQuery(query.String())
+	if err != nil {
+		fmt.Println("BFTWS: could not register query, ", query.String())
+	}
+
+	for e := range responseCh {
+		fmt.Println("BFTWS: gjson:", gjson.GetBytes(e, "query").String(), randomInt)
 		fmt.Println("BFTWS: queryString", query.String(), randomInt)
-		if gjson.GetBytes(e.Result, "query").String() != query.String() {
+		if gjson.GetBytes(e, "query").String() != query.String() {
 			continue
 		}
 		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))

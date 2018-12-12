@@ -309,7 +309,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment: " + err.Error()}
 		}
 		if string(res.Response.Value) == "" {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned: " + err.Error()}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned"}
 		}
 		assignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
 		assignedIndex = uint(assignedIndex64)

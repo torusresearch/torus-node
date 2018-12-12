@@ -15,7 +15,7 @@ func SetUpCache(suite *Suite) {
 	// Create a cache with a default expiration time of no expiration time, and which
 	// purges expired items every 10 minutes
 	secretCache := cache.New(cache.NoExpiration, 10*time.Minute)
-	oauthCache := cache.New(5*time.Second, 1*time.Minute)
+	oauthCache := cache.New(60*time.Second, 1*time.Minute)
 
 	suite.CacheSuite = &CacheSuite{
 		secretCache,

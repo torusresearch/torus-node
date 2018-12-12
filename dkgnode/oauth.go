@@ -59,8 +59,8 @@ func testOauth(suite *Suite, idToken string, email string) (bool, error) {
 		fmt.Println(err)
 	}
 	timeSigned := time.Unix(int64(timeSignedInt), 0)
-	if !timeSigned.Add(5 * time.Second).Before(time.Now()) {
-		return false, errors.New("timesigned is more than 5 seconds ago " + timeSigned.String())
+	if !timeSigned.Add(60 * time.Second).Before(time.Now()) {
+		return false, errors.New("timesigned is more than 60 seconds ago " + timeSigned.String())
 	}
 
 	if strings.Compare(clientID, body.Azp) != 0 {

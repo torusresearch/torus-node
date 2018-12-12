@@ -276,16 +276,16 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			fmt.Println(errArr)
 		}
 		secretMapping[shareIndex] = SecretStore{secret, false}
-		statusTx := StatusBFTTx{
-			StatusType:  "keygen_complete",
-			StatusValue: "Y",
-			// TODO: make epoch variable
-			Epoch:       suite.ABCIApp.state.Epoch,
-			FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
-			FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
-		}
-		suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&statusTx})
 	}
+	statusTx := StatusBFTTx{
+		StatusType:  "keygen_complete",
+		StatusValue: "Y",
+		// TODO: make epoch variable
+		Epoch:       suite.ABCIApp.state.Epoch,
+		FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
+		FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
+	}
+	suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&statusTx})
 
 	// wait for websocket to be up
 	for suite.BftSuite.BftRPCWSStatus != "up" {

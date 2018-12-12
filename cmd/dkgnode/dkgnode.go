@@ -18,7 +18,7 @@ func main() {
 	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
 	nodeListAddress := flag.String("nodeListAddress", "", "node list address on ethereum")
 	flag.Parse()
-	fmt.Println("---- STARTING TORUS NODE v0.0.7 ----")
+	fmt.Println("---- STARTING TORUS NODE v0.0.8 ----")
 
 	dkgnode.New(*configPath, *register, *production, *buildPath, *cpuProfile, *nodeIPAddress, *privateKey, *nodeListAddress)
 }

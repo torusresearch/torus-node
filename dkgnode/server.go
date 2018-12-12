@@ -302,7 +302,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// wait for block to be committed
 	var assignedIndex uint
 	for e := range h.suite.BftSuite.BftRPCWS.ResponsesCh {
-		fmt.Println("BFTWS: RECEIVED RESPONSE ", e.Error.Error(), string(e.Result))
+		fmt.Println("BFTWS: RECEIVED RESPONSE ", e.Error, string(e.Result))
 		fmt.Println("BFTWS gjson:", gjson.GetBytes(e.Result, "query").String())
 		fmt.Println("BFTWS: queryString", query.String())
 		if gjson.GetBytes(e.Result, "query").String() != query.String() {

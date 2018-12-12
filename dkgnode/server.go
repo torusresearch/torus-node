@@ -251,7 +251,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		fmt.Println("previouslyAssignedIndex: ", previouslyAssignedIndex)
 		finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret from previously assigned index, please try again err, " + err.Error()}
 		}
 
 		//form address eth
@@ -324,13 +324,13 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 
 	if secretMapping[int(assignedIndex)].Secret == nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve secret from secret mapping, please try again"}
 	}
 
 	//create users publicKey
 	finalUserPubKey, err := retrieveUserPubKey(h.suite, int(assignedIndex))
 	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret, please try again"}
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve user public key through query, please try again, err " + err.Error()}
 	}
 
 	//form address eth

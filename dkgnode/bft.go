@@ -50,6 +50,7 @@ func SetUpBft(suite *Suite) {
 			if suite.BftSuite.BftRPCWSStatus != "up" {
 				continue
 			}
+			break
 		}
 		for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
 			queryString := gjson.GetBytes(e.Result, "query").String()

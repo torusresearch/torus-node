@@ -202,7 +202,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 
 	//checking oAuth token
-	if oAuthCorrect, _ := testOauth(p.IDToken, p.Email); !*oAuthCorrect {
+	if oAuthCorrect, _ := testOauth(h.suite, p.IDToken, p.Email); !*oAuthCorrect {
 		return nil, jsonrpc.ErrInvalidParams()
 	}
 

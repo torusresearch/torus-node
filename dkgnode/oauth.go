@@ -2,23 +2,42 @@ package dkgnode
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type AuthBodyGoogle struct {
-	Azp   string `json:"azp"`
-	Email string `json:"email"`
+	Azp            string `json:"azp"`
+	Email          string `json:"email"`
+	Iss            string `json:"iss"`
+	Aud            string `json:"aud"`
+	Sub            string `json:"sub"`
+	Email_verified string `json:"email_verified"`
+	At_hash        string `json:"at_hash"`
+	Name           string `json:"name"`
+	Picture        string `json:"picture"`
+	Given_name     string `json:"given_name"`
+	Locale         string `json:"locale"`
+	Iat            string `json:"iat"`
+	Exp            string `json:"exp"`
+	Jti            string `json:"jti"`
+	Alg            string `json:"alg"`
+	Kid            string `json:"kid"`
+	Typ            string `json:"typ"`
 }
 
-func testOauth(idToken string, email string) (*bool, error) {
+func testOauth(suite *Suite, idToken string, email string) (*bool, error) {
 	clientID := "876733105116-i0hj3s53qiio5k95prpfmj0hp0gmgtor.apps.googleusercontent.com"
 	client := http.DefaultClient
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" + idToken)
 	if err != nil {
 		return nil, err
 	}
+
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -31,8 +50,30 @@ func testOauth(idToken string, email string) (*bool, error) {
 	}
 
 	oAuthCorrect := true
+	// Check if auth token has been signed within declared parameter
+	//TODO: config var?? AND how do we decide on this parameter
+	//TODO: should we return auth errors for developers get in jrpc response
+	timeSignedInt, err := strconv.Atoi(body.Iat)
+	if err != nil {
+		fmt.Println(err)
+	}
+	timeSigned := time.Unix(int64(timeSignedInt), 0)
+	if !timeSigned.Add(5 * time.Second).Before(time.Now()) {
+		oAuthCorrect = false
+	}
+
 	if strings.Compare(clientID, body.Azp) != 0 || strings.Compare(email, body.Email) != 0 {
 		oAuthCorrect = false
 	}
+
+	//check if oauth is in cache
+	_, ok := suite.CacheSuite.OAuthCacheInstance.Get(idToken)
+	if ok {
+		oAuthCorrect = false
+	}
+
+	//add token to cache should clean every 5 seconds
+	suite.CacheSuite.OAuthCacheInstance.Set(idToken, true, 0)
+
 	return &oAuthCorrect, nil
 }

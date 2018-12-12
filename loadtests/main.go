@@ -14,11 +14,11 @@ var mostRecent = "avgjoe@gmail.com"
 var ratio = 5 //20% assignments
 
 var NodeAddressesList = []string{
-	"ec2-54-241-226-244.us-west-1.compute.amazonaws.com",
-	"ec2-52-9-229-81.us-west-1.compute.amazonaws.com",
-	"ec2-52-53-95-189.us-west-1.compute.amazonaws.com",
-	"ec2-54-153-49-250.us-west-1.compute.amazonaws.com",
-	"ec2-13-52-39-181.us-west-1.compute.amazonaws.com",
+	"node1.torusnode.com",
+	"node2.torusnode.com",
+	"node3.torusnode.com",
+	"node4.torusnode.com",
+	"node5.torusnode.com",
 }
 
 //for metrics and data
@@ -27,15 +27,15 @@ var sharerequests = 0
 
 func main() {
 	// rate := vegeta.Rate{Freq: 3, Per: time.Second}
-	duration := 60 * time.Second
+	duration := 10 * time.Second
 	targeter := NewCustomTargeter()
 	attacker := vegeta.NewAttacker()
 
 	var metrics vegeta.Metrics
-	for res := range attacker.Attack(targeter, uint64(1000), duration) {
+	for res := range attacker.Attack(targeter, uint64(100), duration) {
 		metrics.Add(res)
 
-		// fmt.Println("response: ", res.Timestamp, res)
+		// fmt.Println("response: ", res.Timestamp, strconv.FormatInt(int64(res.BytesIn), 16))
 	}
 
 	metrics.Close()
@@ -56,7 +56,7 @@ func NewCustomTargeter() vegeta.Targeter {
 		randmod := rand % 4
 		randMod2 := rand % ratio
 		tgt.Method = "POST"
-		tgt.URL = "http://" + NodeAddressesList[randmod] + ":80/jrpc"
+		tgt.URL = "https://" + NodeAddressesList[randmod] + "/jrpc"
 		tgt.Header = http.Header{"Content-Type": []string{"application/json"}}
 		var payload string
 		if randMod2 < ratio-1 {

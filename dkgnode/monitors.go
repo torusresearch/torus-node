@@ -26,12 +26,14 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			continue
 		}
 		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
-		if percentLeft > 40 {
+		if percentLeft > uint(suite.Config.KeyBufferTriggerPercentage) {
+			fmt.Println("KEYGEN: haven't reaced the amount where we trigger percentleft", percentLeft)
 			continue
 		}
 		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
 		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex)
 
+		fmt.Println("KEYGEN: we are starting keygen", suite.ABCIApp.state)
 		initiateKeyGenerationStatusWrapper := DefaultBFTTxWrapper{
 			StatusBFTTx{
 				FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),

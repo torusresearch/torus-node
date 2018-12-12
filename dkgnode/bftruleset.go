@@ -134,7 +134,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			// start listening again for the next time we initiate a keygen
 			app.state.LocalStatus["all_initiate_keygen"] = ""
 			app.state.Epoch = app.state.Epoch + uint(1)
-			fmt.Println("STATUSTX: localstatus is", app.state.LocalStatus)
+			fmt.Println("STATUSTX: state is", app.state)
 			fmt.Println("STATUSTX: epoch is", app.state.Epoch)
 		} else {
 			fmt.Println("Number of keygen initiation messages does not match number of nodes")
@@ -152,7 +152,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				}
 				percentLeft := 100 * (app.state.LastCreatedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
 				if percentLeft > uint(app.Suite.Config.KeyBufferTriggerPercentage) {
-					fmt.Println("Haven't hit buffer amount")
+					fmt.Println("KEYGEN: Haven't hit buffer amount, percentLeft, lastcreatedindex, lastunassignedindex", percentLeft, app.state.LastCreatedIndex, app.state.LastUnassignedIndex)
 					continue
 				}
 				counter++

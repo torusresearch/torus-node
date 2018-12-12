@@ -72,9 +72,10 @@ func SetUpBft(suite *Suite) {
 	}()
 
 	suite.BftSuite = &BftSuite{
-		BftRPC:         &BftRPC{bftClient},
-		BftRPCWS:       bftClientWS,
-		BftRPCWSStatus: "down",
+		BftRPC:               &BftRPC{bftClient},
+		BftRPCWS:             bftClientWS,
+		BftRPCWSStatus:       "down",
+		BftRPCWSQueryHandler: &BftRPCWSQueryHandler{make(map[string]chan []byte)},
 	}
 }
 

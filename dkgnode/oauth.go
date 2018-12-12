@@ -2,6 +2,7 @@ package dkgnode
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -30,26 +31,26 @@ type AuthBodyGoogle struct {
 	Typ            string `json:"typ"`
 }
 
-func testOauth(suite *Suite, idToken string, email string) (*bool, error) {
+func testOauth(suite *Suite, idToken string, email string) (bool, error) {
 	clientID := "876733105116-i0hj3s53qiio5k95prpfmj0hp0gmgtor.apps.googleusercontent.com"
 	client := http.DefaultClient
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" + idToken)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	var body AuthBodyGoogle
 	err = json.Unmarshal(b, &body)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	oAuthCorrect := true
+	// oAuthCorrect := true
 	// Check if auth token has been signed within declared parameter
 	//TODO: config var?? AND how do we decide on this parameter
 	//TODO: should we return auth errors for developers get in jrpc response
@@ -59,21 +60,25 @@ func testOauth(suite *Suite, idToken string, email string) (*bool, error) {
 	}
 	timeSigned := time.Unix(int64(timeSignedInt), 0)
 	if !timeSigned.Add(5 * time.Second).Before(time.Now()) {
-		oAuthCorrect = false
+		return false, errors.New("timesigned is more than 5 seconds ago " + timeSigned.String())
 	}
 
-	if strings.Compare(clientID, body.Azp) != 0 || strings.Compare(email, body.Email) != 0 {
-		oAuthCorrect = false
+	if strings.Compare(clientID, body.Azp) != 0 {
+		return false, errors.New("azip is not clientID " + body.Azp + " " + clientID)
+	}
+
+	if strings.Compare(email, body.Email) != 0 {
+		return false, errors.New("email not equal to body.email " + email + " " + body.Email)
 	}
 
 	//check if oauth is in cache
 	_, ok := suite.CacheSuite.OAuthCacheInstance.Get(idToken)
 	if ok {
-		oAuthCorrect = false
+		return false, errors.New("oauth is already in cache " + idToken)
 	}
 
 	//add token to cache should clean every 5 seconds
 	suite.CacheSuite.OAuthCacheInstance.Set(idToken, true, 0)
 
-	return &oAuthCorrect, nil
+	return true, nil
 }

@@ -202,8 +202,8 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 
 	//checking oAuth token
-	if oAuthCorrect, _ := testOauth(h.suite, p.IDToken, p.Email); !*oAuthCorrect {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "oauth is invalid"}
+	if oAuthCorrect, err := testOauth(h.suite, p.IDToken, p.Email); !oAuthCorrect {
+		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "oauth is invalid, err: " + err.Error()}
 	}
 
 	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
@@ -288,6 +288,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	fmt.Println("CHECKING IF SUBSCRIBE TO UPDATES")
 	// subscribe to updates
 	query := tmquery.MustParse("tx.hash='" + hash.String() + "'")
+	fmt.Println("BFTWS:, hashstring", hash.String())
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	go func() {
@@ -301,7 +302,9 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// wait for block to be committed
 	var assignedIndex uint
 	for e := range h.suite.BftSuite.BftRPCWS.ResponsesCh {
-		fmt.Println("BFTWS: RECEIVED RESPONSE ", e, e.Error, e.Result, e.String())
+		fmt.Println("BFTWS: RECEIVED RESPONSE ", e.Error.Error(), string(e.Result))
+		fmt.Println("BFTWS gjson:", gjson.GetBytes(e.Result, "query").String())
+		fmt.Println("BFTWS: queryString", query.String())
 		if gjson.GetBytes(e.Result, "query").String() != query.String() {
 			continue
 		}

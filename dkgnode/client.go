@@ -298,10 +298,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// TODO: make epoch variable
 		allKeygenComplete := suite.ABCIApp.state.LocalStatus["all_keygen_complete"]
 		if allKeygenComplete != "Y" {
-			fmt.Println("nodes have not finished sending shares for epoch 0")
+			fmt.Println("nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
 			continue
 		}
-		fmt.Println("all nodes have finished sending shares for epoch 0")
+		fmt.Println("all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
 		suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
 		break
 	}

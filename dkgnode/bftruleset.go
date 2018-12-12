@@ -108,6 +108,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		// set status
 
 		app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
+		fmt.Println("STATUSTX: status set for node", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
 
 		// Update LocalStatus based on rules
 		// check if all nodes have broadcasted keygen_complete == "Y"
@@ -117,19 +118,24 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				counter++
 			}
 		}
+		fmt.Println("STATUSTX: counter is at ", counter)
 		if counter == len(app.Suite.EthSuite.NodeList) {
+			fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
 			// set all_keygen_complete to Y
 			app.state.LocalStatus["all_keygen_complete"] = "Y" // TODO: make epoch variable
 			// reset all other nodes' keygen completion status
 			for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
 				app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] = ""
 			}
+			fmt.Println("STATUSTX: app state is:", app.state)
 			// update total number of available keys
 			app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
-
+			fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
 			// start listening again for the next time we initiate a keygen
 			app.state.LocalStatus["all_initiate_keygen"] = ""
 			app.state.Epoch = app.state.Epoch + uint(1)
+			fmt.Println("STATUSTX: localstatus is", app.state.LocalStatus)
+			fmt.Println("STATUSTX: epoch is", app.state.Epoch)
 		} else {
 			fmt.Println("Number of keygen initiation messages does not match number of nodes")
 		}
@@ -139,7 +145,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		for _, nodeI := range app.Suite.EthSuite.NodeList {
 			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "Y" {
 				stopIndex := string(statusTx.Data)
-				// fmt.Println("Initiate Key Gen Registered till ", stopIndex)
+				fmt.Println("STATUSTX: Initiate Key Gen Registered till ", stopIndex)
 				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
 					fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
 					continue
@@ -152,12 +158,14 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				counter++
 			}
 		}
+		fmt.Println("STATUSTX: another counter is at", counter)
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			fmt.Println("Initiate Keygen")
+			fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
 			app.state.LocalStatus["all_initiate_keygen"] = "Y" // TODO: make epoch variable
 			for _, nodeI := range app.Suite.EthSuite.NodeList {
 				app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
 			}
+			fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
 		} else {
 			fmt.Println("Number of keygen initiation messages does not match number of nodes")
 		}

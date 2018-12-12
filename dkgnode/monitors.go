@@ -53,6 +53,7 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			fmt.Println(suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
 			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
+				fmt.Println("STATUSTX: localstatus all initiate keygen is Y, appstate", suite.ABCIApp.state)
 				//reset keygen flag
 				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "IP"
 				//report back to main process

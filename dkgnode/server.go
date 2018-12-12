@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -226,6 +227,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 // assigns a user a secret, returns the same index if the user has been previously assigned
 func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+	randomInt := rand.Int()
 	var p SecretAssignParams
 	tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
 	if !found {
@@ -285,26 +287,28 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast: " + err.Error()}
 	}
 
-	fmt.Println("CHECKING IF SUBSCRIBE TO UPDATES")
+	fmt.Println("CHECKING IF SUBSCRIBE TO UPDATES", randomInt)
 	// subscribe to updates
 	query := tmquery.MustParse("tx.hash='" + hash.String() + "'")
-	fmt.Println("BFTWS:, hashstring", hash.String())
+	fmt.Println("BFTWS:, hashstring", hash.String(), randomInt)
+	fmt.Println("BFTWS: querystring", query.String(), randomInt)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	go func() {
-		err = h.suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
-		if err != nil {
-			fmt.Println("Error with subscription", err)
-		}
-	}()
+	// go func() {
+	fmt.Println("BFTWS: subscribing", randomInt)
+	err = h.suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
+	if err != nil {
+		fmt.Println("BFTWS: Error with subscription", err, randomInt)
+	}
+	// }()
 
-	fmt.Println("CHECKING IF GOT RESPONSES")
+	fmt.Println("CHECKING IF GOT RESPONSES", randomInt)
 	// wait for block to be committed
 	var assignedIndex uint
 	for e := range h.suite.BftSuite.BftRPCWS.ResponsesCh {
-		fmt.Println("BFTWS: RECEIVED RESPONSE ", e.Error, string(e.Result))
-		fmt.Println("BFTWS gjson:", gjson.GetBytes(e.Result, "query").String())
-		fmt.Println("BFTWS: queryString", query.String())
+		fmt.Println("BFTWS: RECEIVED RESPONSE ", e.Error, string(e.Result), randomInt)
+		fmt.Println("BFTWS gjson:", gjson.GetBytes(e.Result, "query").String(), randomInt)
+		fmt.Println("BFTWS: queryString", query.String(), randomInt)
 		if gjson.GetBytes(e.Result, "query").String() != query.String() {
 			continue
 		}
@@ -320,6 +324,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for returned assignment index: " + fmt.Sprint(res) + " Error: " + err.Error()}
 		}
+		fmt.Println("EXITING RESPONSES LISTENER", randomInt)
 		break
 	}
 

@@ -91,7 +91,7 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 					}
 
 					if temp != nil {
-						if nodeList[int(temp.Index.Int64())-1] == nil {
+						if nodeList[int(temp.Index.Int64())-1] == nil { // TODO: use mapping
 							nodeList[int(temp.Index.Int64())-1] = temp
 						}
 						connectedNodes++

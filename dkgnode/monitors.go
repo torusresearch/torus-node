@@ -49,7 +49,7 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			fmt.Println("KEYGEN: could not broadcast initiateKeygeneration", err)
 			continue
 		}
-		listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
+		go listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
 		for {
 			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y")
 			fmt.Println(suite.ABCIApp.state)

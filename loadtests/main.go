@@ -27,7 +27,7 @@ var sharerequests = 0
 
 func main() {
 	// rate := vegeta.Rate{Freq: 3, Per: time.Second}
-	duration := 10 * time.Second
+	duration := 5 * time.Second
 	targeter := NewCustomTargeter()
 	attacker := vegeta.NewAttacker()
 

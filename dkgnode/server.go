@@ -395,13 +395,13 @@ func setUpServer(suite *Suite, port string) {
 		log.Fatalln(err)
 	}
 
-	go func() {
-		// TODO: waiting for websocket connection to be ready
-		for suite.BftSuite.BftRPCWSStatus != "up" {
-			time.Sleep(1 * time.Second)
-		}
-		listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
-	}()
+	// go func() {
+	// 	// TODO: waiting for websocket connection to be ready
+	// 	for suite.BftSuite.BftRPCWSStatus != "up" {
+	// 		time.Sleep(1 * time.Second)
+	// 	}
+	// 	listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
+	// }()
 
 	mux := http.NewServeMux()
 	mux.Handle("/jrpc", mr)

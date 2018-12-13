@@ -34,7 +34,7 @@ type Flags struct {
 }
 
 /* The entry point for our System */
-func New(configPath string, register bool, production bool, buildPath string, cpuProfile string, nodeIPAddress string, privateKey string, nodeListAddress string) {
+func New(configPath string, register bool, production bool, buildPath string, cpuProfile string, nodeIPAddress string, privateKey string, ethConnection string, nodeListAddress string) {
 	if cpuProfile != "" {
 		f, err := os.Create(cpuProfile)
 		if err != nil {
@@ -64,7 +64,7 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 	suite := Suite{}
 	suite.Flags = &Flags{production}
 	fmt.Println(configPath)
-	loadConfig(&suite, configPath, nodeIPAddress, privateKey, buildPath, nodeListAddress)
+	loadConfig(&suite, configPath, nodeIPAddress, privateKey, buildPath, ethConnection, nodeListAddress)
 	//TODO: Dont die on failure but retry
 
 	// set up connection to ethereum blockchain

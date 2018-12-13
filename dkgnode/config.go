@@ -26,7 +26,7 @@ type Config struct {
 	BuildPath                  string `json:"buildpath"`
 }
 
-func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string, nodeListAddress string) {
+func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string, ethConnection string, nodeListAddress string) {
 
 	conf := defaultConfigSettings()
 	nodeIP, err := findExternalIP()
@@ -71,6 +71,9 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 	if nodeListAddress != "" {
 		conf.NodeListAddress = nodeListAddress
 	}
+	if ethConnection != "" {
+		conf.EthConnection = ethConnection
+	}
 	fmt.Println("Configuration: ")
 	fmt.Printf("%+v\n", conf)
 	//edit the config to use nodeAddress
@@ -81,7 +84,7 @@ func defaultConfigSettings() Config {
 	return Config{
 		MyPort:                     "443",
 		MainServerAddress:          "127.0.0.1:443",
-		EthConnection:              "https://mainnet.infura.io/1cd8ab320edc46dd81f09a048dca1e50",
+		EthConnection:              "http://178.128.178.162:14103",
 		EthPrivateKey:              "29909a750dc6abc3e3c83de9c6da9d6faf9fde4eebb61fa21221415557de5a0b",
 		BftURI:                     "tcp://0.0.0.0:26657",
 		ABCIServer:                 "tcp://0.0.0.0:8010",

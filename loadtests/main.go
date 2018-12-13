@@ -27,7 +27,7 @@ var sharerequests = 0
 
 func main() {
 	// rate := vegeta.Rate{Freq: 3, Per: time.Second}
-	duration := 5 * time.Second
+	duration := 4 * time.Second
 	targeter := NewCustomTargeter()
 	attacker := vegeta.NewAttacker()
 
@@ -52,7 +52,7 @@ func NewCustomTargeter() vegeta.Targeter {
 		if tgt == nil {
 			return vegeta.ErrNilTarget
 		}
-		rand := rand.Int()
+		rand := rand.Int() + int(time.Now().Unix())
 		randmod := rand % 4
 		randMod2 := rand % ratio
 		tgt.Method = "POST"

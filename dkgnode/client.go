@@ -397,8 +397,24 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		fmt.Println("STORED Si: ", shareIndex)
 		siMapping[shareIndex] = si
 	}
-	suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
-	suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
+
+	if previousSiMapping, found := suite.CacheSuite.CacheInstance.Get("Si_MAPPING"); !found {
+		suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
+	} else {
+		for k, v := range previousSiMapping.(map[int]common.PrimaryShare) {
+			siMapping[k] = v
+			suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
+		}
+	}
+
+	if previousSecretMapping, found := suite.CacheSuite.CacheInstance.Get("Secret_MAPPING"); !found {
+		suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
+	} else {
+		for k, v := range previousSecretMapping.(map[int]SecretStore) {
+			secretMapping[k] = v
+			suite.CacheSuite.CacheInstance.Set("Secret_MAPPING", secretMapping, -1)
+		}
+	}
 	//save cache
 	cacheItems := suite.CacheSuite.CacheInstance.Items()
 	cacheJSON, err := json.Marshal(cacheItems)

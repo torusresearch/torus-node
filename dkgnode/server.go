@@ -184,6 +184,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 	siMapping := tmpSi.(map[int]common.PrimaryShare)
 	if _, ok := siMapping[p.Index]; !ok {
+		fmt.Println("LOOKUP: siMapping", siMapping)
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "Could not lookup p.Index in siMapping"}
 	}
 	tmpInt := siMapping[p.Index].Value
@@ -196,11 +197,6 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 			HexShare: tmpInt.Text(16),
 		}, nil
 	}
-	// tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
-	// if !found {
-	// 	return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get secret mapping"}
-	// }
-	// secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 
 	//checking oAuth token
 	if oAuthCorrect, err := testOauth(h.suite, p.IDToken, p.Email); !oAuthCorrect {
@@ -229,11 +225,6 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 	randomInt := rand.Int()
 	var p SecretAssignParams
-	tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
-	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get sec mapping here"}
-	}
-	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
@@ -323,8 +314,20 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		break
 	}
 
+	// TODO: after ws response has returned as the secret mapping could have changed, should be initializable anywhere
+	tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
+	if !found {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get sec mapping here after ws reply"}
+	}
+	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+
 	if secretMapping[int(assignedIndex)].Secret == nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve secret from secret mapping, please try again"}
+		fmt.Println("LOOKUP: secretmapping", secretMapping)
+		fmt.Println("LOOKUP: SHOULD BE ERROR")
+		// return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve secret from secret mapping, please try again"}
 	}
 
 	//create users publicKey

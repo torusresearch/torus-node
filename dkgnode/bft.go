@@ -108,3 +108,21 @@ func (bftSuite *BftSuite) RegisterQuery(query string, count int) (chan []byte, e
 	fmt.Println(bftSuite.BftRPCWSQueryHandler.QueryMap)
 	return responseCh, nil
 }
+
+func (bftSuite *BftSuite) DeregisterQuery(query string) error {
+	fmt.Println("BFTWS: deregistering query", query)
+	if responseCh, found := bftSuite.BftRPCWSQueryHandler.QueryMap[query]; found {
+		close(responseCh)
+		delete(bftSuite.BftRPCWSQueryHandler.QueryMap, query)
+	}
+	ctx := context.Background()
+	err := bftSuite.BftRPCWS.Unsubscribe(ctx, query)
+	if err != nil {
+		fmt.Println("BFTWS: websocket could not unsubscribe, queryString", query)
+		return err
+	}
+	if _, found := bftSuite.BftRPCWSQueryHandler.QueryCount[query]; found {
+		delete(bftSuite.BftRPCWSQueryHandler.QueryCount, query)
+	}
+	return nil
+}

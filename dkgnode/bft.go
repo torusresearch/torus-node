@@ -52,6 +52,7 @@ func SetUpBft(suite *Suite) {
 			}
 			break
 		}
+		fmt.Println("BFTWS: listening to responsesCh")
 		for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
 			queryString := gjson.GetBytes(e.Result, "query").String()
 			if e.Error != nil {
@@ -62,12 +63,18 @@ func SetUpBft(suite *Suite) {
 				continue
 			}
 			suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString] <- e.Result
-			close(suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString])
-			delete(suite.BftSuite.BftRPCWSQueryHandler.QueryMap, queryString)
-			ctx := context.Background()
-			err := suite.BftSuite.BftRPCWS.Unsubscribe(ctx, queryString)
-			if err != nil {
-				fmt.Println("BFTWS: websocket could not unsubscribe, queryString", queryString)
+			if suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] != 0 {
+				suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] = suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] - 1
+				if suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] == 0 {
+					close(suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString])
+					delete(suite.BftSuite.BftRPCWSQueryHandler.QueryMap, queryString)
+					ctx := context.Background()
+					err := suite.BftSuite.BftRPCWS.Unsubscribe(ctx, queryString)
+					if err != nil {
+						fmt.Println("BFTWS: websocket could not unsubscribe, queryString", queryString)
+					}
+					delete(suite.BftSuite.BftRPCWSQueryHandler.QueryCount, queryString)
+				}
 			}
 		}
 	}()
@@ -76,15 +83,17 @@ func SetUpBft(suite *Suite) {
 		BftRPC:               &BftRPC{bftClient},
 		BftRPCWS:             bftClientWS,
 		BftRPCWSStatus:       "down",
-		BftRPCWSQueryHandler: &BftRPCWSQueryHandler{make(map[string]chan []byte)},
+		BftRPCWSQueryHandler: &BftRPCWSQueryHandler{make(map[string]chan []byte), make(map[string]int)},
 	}
 }
 
 type BftRPCWSQueryHandler struct {
-	QueryMap map[string]chan []byte
+	QueryMap   map[string]chan []byte
+	QueryCount map[string]int
 }
 
-func (bftSuite *BftSuite) RegisterQuery(query string) (chan []byte, error) {
+func (bftSuite *BftSuite) RegisterQuery(query string, count int) (chan []byte, error) {
+	fmt.Println("BFTWS: registering query", query)
 	if bftSuite.BftRPCWSQueryHandler.QueryMap[query] != nil {
 		return nil, errors.New("BFTWS: query has already been registered for query: " + query)
 	}
@@ -95,5 +104,7 @@ func (bftSuite *BftSuite) RegisterQuery(query string) (chan []byte, error) {
 	}
 	responseCh := make(chan []byte, 1)
 	bftSuite.BftRPCWSQueryHandler.QueryMap[query] = responseCh
+	bftSuite.BftRPCWSQueryHandler.QueryCount[query] = count
+	fmt.Println(bftSuite.BftRPCWSQueryHandler.QueryMap)
 	return responseCh, nil
 }

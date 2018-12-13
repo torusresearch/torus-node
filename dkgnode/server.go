@@ -292,20 +292,11 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	query := tmquery.MustParse("tx.hash='" + hash.String() + "'")
 	fmt.Println("BFTWS:, hashstring", hash.String(), randomInt)
 	fmt.Println("BFTWS: querystring", query.String(), randomInt)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	// go func() {
-	fmt.Println("BFTWS: subscribing", randomInt)
-	err = h.suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
-	if err != nil {
-		fmt.Println("BFTWS: Error with subscription", err, randomInt)
-	}
-	// }()
 
 	fmt.Println("CHECKING IF GOT RESPONSES", randomInt)
 	// wait for block to be committed
 	var assignedIndex uint
-	responseCh, err := h.suite.BftSuite.RegisterQuery(query.String())
+	responseCh, err := h.suite.BftSuite.RegisterQuery(query.String(), 1)
 	if err != nil {
 		fmt.Println("BFTWS: could not register query, ", query.String())
 	}
@@ -406,20 +397,23 @@ func setUpServer(suite *Suite, port string) {
 		for suite.BftSuite.BftRPCWSStatus != "up" {
 			time.Sleep(1 * time.Second)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
 		query := tmquery.MustParse("keygeneration.sharecollection='1'")
 		fmt.Println("QUERY IS:", query)
 		go func() {
 			// note: we also get back the initial "{}"
 			// data comes back in bytes of utf-8 which correspond
 			// to a base64 encoding of the original data
-			for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
-				if gjson.GetBytes(e.Result, "query").String() != "keygeneration.sharecollection='1'" {
+			responseCh, err := suite.BftSuite.RegisterQuery(query.String(), 0)
+			if err != nil {
+				fmt.Println("BFTWS: failure to registerquery", query.String())
+				return
+			}
+			for e := range responseCh {
+				if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
 					continue
 				}
-				fmt.Println("sub got ", string(e.Result[:]))
-				res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e.Result, "data.value.TxResult.tx").String())
+				fmt.Println("sub got ", string(e[:]))
+				res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
 				if err != nil {
 					fmt.Println("error decoding b64", err)
 					continue
@@ -443,10 +437,6 @@ func setUpServer(suite *Suite, port string) {
 				}
 			}
 		}()
-		err := suite.BftSuite.BftRPCWS.Subscribe(ctx, query.String())
-		if err != nil {
-			fmt.Println("Error with subscription", err)
-		}
 	}()
 
 	mux := http.NewServeMux()

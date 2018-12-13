@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     echo "Go Installed!" && \
     mkdir $GOPATH && mkdir $GOPATH/src && mkdir $GOPATH/src/github.com &&  mkdir $GOPATH/src/github.com/torusresearch && mkdir $GOPATH/bin && \
     cd $GOPATH/src/github.com/torusresearch && git clone https://github.com/torusresearch/torus && mkdir $GOPATH/src/github.com/tendermint && cd $GOPATH/src/github.com/tendermint && \
-    echo "Standared files cloned!" && \
+    echo "Standard files cloned!" && \
     echo "export PATH=$PATH:$GOPATH/bin" >> $HOME/.profile && . $HOME/.profile && \
     # wget https://raw.githubusercontent.com/golang/dep/master/install.sh && chmod +x ./install.sh && ./install.sh && \
     git clone https://github.com/YZhenY/tendermint && cd $GOPATH/src/github.com/tendermint/tendermint && \

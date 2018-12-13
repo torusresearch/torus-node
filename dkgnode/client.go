@@ -201,7 +201,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	bftRPC := suite.BftSuite.BftRPC
 
 	fmt.Println("Required number of nodes reached")
-	fmt.Println("Sending shares -----------")
+	fmt.Println("KEYGEN: Sending shares -----------")
 
 	secretMapping := make(map[int]SecretStore)
 	siMapping := make(map[int]SiStore)
@@ -233,6 +233,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// broadcast signed pubpoly
 		var id *common.Hash
 		action := func(attempt uint) error {
+			fmt.Println("KEYGEN: trying to broadcast for shareIndex", shareIndex, "attempt", attempt)
 			id, err = bftRPC.Broadcast(wrapper)
 			if err != nil {
 				fmt.Println("failed to fetch (attempt #%d) with error: %d", err)
@@ -247,7 +248,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		if nil != err {
 			fmt.Println("Failed to publish pub poly with error %q", err)
 		}
-
+		fmt.Println("KEYGEN: broadcasted shareIndex", shareIndex)
 		// signcrypt data
 		signcryptedData := make([]*common.SigncryptedOutput, len(nodes))
 		for index, share := range *shares {
@@ -270,11 +271,11 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			// data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
 			// signcryption, err := pvss.Signcrypt(nodes[index].PubKey, data, *suite.EthSuite.NodePrivateKey.D)
 			if err != nil {
-				fmt.Println("Failed during signcryption")
+				fmt.Println("KEYGEN: Failed during signcryption", shareIndex)
 			}
 			signcryptedData[index] = &common.SigncryptedOutput{NodePubKey: nodes[index].PubKey, NodeIndex: share.Index, SigncryptedShare: *signcryption}
+			fmt.Println("KEYGEN: Signcrypted", shareIndex)
 		}
-		listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
 		errArr := sendSharesToNodes(suite, signcryptedData, nodeList, shareIndex)
 		if errArr != nil {
 			fmt.Println("errors sending shares")
@@ -282,6 +283,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		}
 		secretMapping[shareIndex] = SecretStore{secret, false}
 	}
+	fmt.Println("KEYGEN: broadcasting keygencomplete status")
 	statusTx := StatusBFTTx{
 		StatusType:  "keygen_complete",
 		StatusValue: "Y",
@@ -303,10 +305,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// TODO: make epoch variable
 		allKeygenComplete := suite.ABCIApp.state.LocalStatus["all_keygen_complete"]
 		if allKeygenComplete != "Y" {
-			fmt.Println("nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
+			fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
 			continue
 		}
-		fmt.Println("all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
+		fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
 		suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
 		// err := suite.BftSuite.DeregisterQuery("keygeneration.sharecollection='1'")
 		// if err != nil {
@@ -317,7 +319,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 	// Signcrypted shares are received by the other nodes and handled in server.go
 
-	fmt.Println("STARTING TO GATHER SHARES AND PUT THEM TOGETHER")
+	fmt.Println("KEYGEN: STARTING TO GATHER SHARES AND PUT THEM TOGETHER", shareStartingIndex, shareEndingIndex)
 	// gather shares, decrypt and verify with pubpoly
 	// - check if shares are here
 	// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
@@ -362,6 +364,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 		// verify share against pubpoly
 		//TODO: shift to function in pvss.go
+		fmt.Println("KEYGEN: share verification", shareIndex)
 		s := secp256k1.Curve
 		for index, pubpoly := range broadcastedDataArray {
 			var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))
@@ -390,6 +393,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			}
 		}
 
+		fmt.Println("KEYGEN: storing Si")
 		// form Si
 		tempSi := new(big.Int)
 		for i := range unsigncryptedShares {
@@ -406,7 +410,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		fmt.Println("STORED Si: ", shareIndex)
 		siMapping[shareIndex] = si
 	}
-
+	fmt.Println("KEYGEN: replacing Simapping and secret mapping")
 	if previousSiMapping, found := suite.CacheSuite.CacheInstance.Get("Si_MAPPING"); !found {
 		suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 	} else {
@@ -438,7 +442,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 }
 
 func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
-	fmt.Println("SHARES BEING SENT TO OTHER NODES")
+	fmt.Println("KEYGEN: SHARES BEING SENT TO OTHER NODES", len(signcryptedOutput))
 	errorSlice := make([]error, len(signcryptedOutput))
 	// fmt.Println("GIVEN SIGNCRYPTION")
 	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
@@ -460,7 +464,10 @@ func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutp
 						uint(shareIndex),
 					},
 				}
-				suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{broadcastMessage})
+				_, err := suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{broadcastMessage})
+				if err != nil {
+					fmt.Println("KEYGEN: FAILED TO BROADCAST", shareIndex, "msg", broadcastMessage)
+				}
 			}
 		}
 	}

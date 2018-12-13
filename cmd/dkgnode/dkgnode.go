@@ -9,7 +9,7 @@ import (
 
 func main() {
 	/* Parse the provided parameters on command line */
-	fmt.Println("---- STARTING TORUS NODE v0.0.9 ----")
+	fmt.Println("---- STARTING TORUS NODE v0.0.10 ----")
 	register := flag.Bool("register", true, "defaults to true")
 	production := flag.Bool("production", false, "defaults to false")
 	configPath := flag.String("configPath", "", "provide path to config file")

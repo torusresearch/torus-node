@@ -138,7 +138,7 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 	shareBytes := (*unsigncryptedData)[:n-32]
 	broadcastId := (*unsigncryptedData)[n-32:]
 
-	fmt.Println("Saved share from ", p.FromAddress)
+	fmt.Println("KEYGEN: Saved share from ", p.FromAddress)
 	savedLog, found := suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")
 	newShareLog := ShareLog{time.Now().UTC(), 0, int(p.ShareIndex), shareBytes, broadcastId}
 	// if not found, we create a new mapping
@@ -167,7 +167,7 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 		// fmt.Println(newShareLog)
 		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", newMapping, cache.NoExpiration)
 	}
-	fmt.Println("SAVED SHARE FINISHED")
+	fmt.Println("KEYGEN: SAVED SHARE FINISHED for index", p.ShareIndex)
 	return nil
 }
 
@@ -425,6 +425,7 @@ func setUpServer(suite *Suite, port string) {
 }
 
 func listenForShares(suite *Suite, count int) {
+	fmt.Println("KEYGEN: listening for shares ", count)
 	query := tmquery.MustParse("keygeneration.sharecollection='1'")
 	fmt.Println("QUERY IS:", query)
 	// note: we also get back the initial "{}"
@@ -436,9 +437,10 @@ func listenForShares(suite *Suite, count int) {
 		return
 	}
 	for e := range responseCh {
-		if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
-			continue
-		}
+		fmt.Println("KEYGEN: got a share", e)
+		// if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
+		// 	continue
+		// }
 		fmt.Println("sub got ", string(e[:]))
 		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
 		if err != nil {
@@ -457,6 +459,7 @@ func listenForShares(suite *Suite, count int) {
 			continue
 		}
 		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
+		fmt.Println("KEYGEN: handling signcryption for share", keyGenShareTx)
 		err = HandleSigncryptedShare(suite, *keyGenShareTx)
 		if err != nil {
 			fmt.Println("failed to handle signcrypted share", err)

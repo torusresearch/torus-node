@@ -175,14 +175,13 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 			}
 
 		case keyGenMonitorMsg := <-keyGenMonitorMsgs:
+			fmt.Println("KEYGEN: keygenmonitor received message")
 			if keyGenMonitorMsg.Type == "start_keygen" {
 				//starts keygeneration with starting and ending index
-				fmt.Println("starting keygen with indexes: ", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+				fmt.Println("KEYGEN: starting keygen with indexes: ", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 				go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 			}
 		}
-
-		time.Sleep(1 * time.Second) //TODO: Is a time out necessary?
 	}
 }
 

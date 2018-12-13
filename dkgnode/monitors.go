@@ -22,12 +22,12 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 		fmt.Println("in start keygen monitor")
 		time.Sleep(1 * time.Second)
 		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
-			fmt.Println("WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS")
+			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS")
 			continue
 		}
 		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
 		if percentLeft > uint(suite.Config.KeyBufferTriggerPercentage) {
-			fmt.Println("KEYGEN: haven't reaced the amount where we trigger percentleft", percentLeft)
+			fmt.Println("KEYGEN: keygeneration trigger percent left not reached", percentLeft)
 			continue
 		}
 		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
@@ -46,12 +46,12 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 		}
 		_, err := suite.BftSuite.BftRPC.Broadcast(initiateKeyGenerationStatusWrapper)
 		if err != nil {
-			fmt.Println("coudl not broadcast initiateKeygeneration", err)
+			fmt.Println("KEYGEN: could not broadcast initiateKeygeneration", err)
 			continue
 		}
-
+		listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
 		for {
-			fmt.Println("WAITING FOR ALL INITIATE KEYGEN TO BE Y")
+			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y")
 			fmt.Println(suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
 			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {

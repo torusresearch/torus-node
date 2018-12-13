@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -135,7 +136,10 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
 			fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
 			// start listening again for the next time we initiate a keygen
-			app.state.LocalStatus["all_initiate_keygen"] = ""
+			go func() {
+				time.Sleep(5 * time.Second)
+				app.state.LocalStatus["all_initiate_keygen"] = ""
+			}()
 			app.state.Epoch = app.state.Epoch + uint(1)
 			fmt.Println("STATUSTX: state is", app.state)
 			fmt.Println("STATUSTX: epoch is", app.state.Epoch)

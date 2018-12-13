@@ -70,6 +70,9 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, errors.New("Email " + assignmentTx.Email + " has already been assigned")
 		}
 		// assign user email to key index
+		if app.state.LastUnassignedIndex >= app.state.LastCreatedIndex {
+			return false, &tags, errors.New("Last assigned index is exceeding last created index")
+		}
 		app.state.EmailMapping[assignmentTx.Email] = uint(app.state.LastUnassignedIndex)
 		fmt.Println("assignmentbfttx happened with app state emailmapping now equal to", app.state.EmailMapping)
 		tags = []common.KVPair{

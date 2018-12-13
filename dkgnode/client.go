@@ -50,6 +50,11 @@ type SecretStore struct {
 	Assigned bool
 }
 
+type SiStore struct {
+	Index int
+	Value *big.Int
+}
+
 // deprecated, we dont need this anymore since we are storing it on the bft
 // this appears in the form of map[string]SecretAssignment, email => userdata
 type SecretAssignment struct {
@@ -199,7 +204,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	fmt.Println("Sending shares -----------")
 
 	secretMapping := make(map[int]SecretStore)
-	siMapping := make(map[int]common.PrimaryShare)
+	siMapping := make(map[int]SiStore)
 	for shareIndex := shareStartingIndex; shareIndex < shareEndingIndex; shareIndex++ {
 		nodes := make([]common.Node, suite.Config.NumberOfNodes)
 
@@ -397,7 +402,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 				nodeIndex = int(nodeList[i].Index.Int64())
 			}
 		}
-		si := common.PrimaryShare{Index: nodeIndex, Value: *tempSi}
+		si := SiStore{Index: nodeIndex, Value: tempSi}
 		fmt.Println("STORED Si: ", shareIndex)
 		siMapping[shareIndex] = si
 	}
@@ -405,7 +410,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	if previousSiMapping, found := suite.CacheSuite.CacheInstance.Get("Si_MAPPING"); !found {
 		suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 	} else {
-		for k, v := range previousSiMapping.(map[int]common.PrimaryShare) {
+		for k, v := range previousSiMapping.(map[int]SiStore) {
 			siMapping[k] = v
 			suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 		}

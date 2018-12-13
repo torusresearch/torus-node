@@ -182,7 +182,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	if !found {
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
 	}
-	siMapping := tmpSi.(map[int]common.PrimaryShare)
+	siMapping := tmpSi.(map[int]SiStore)
 	if _, ok := siMapping[p.Index]; !ok {
 		fmt.Println("LOOKUP: siMapping", siMapping)
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "Could not lookup p.Index in siMapping"}

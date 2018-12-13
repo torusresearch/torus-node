@@ -406,7 +406,7 @@ func setUpServer(suite *Suite, port string) {
 			// note: we also get back the initial "{}"
 			// data comes back in bytes of utf-8 which correspond
 			// to a base64 encoding of the original data
-			responseCh, err := suite.BftSuite.RegisterQuery(query.String(), suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes)
+			responseCh, err := suite.BftSuite.RegisterQuery(query.String(), suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
 			if err != nil {
 				fmt.Println("BFTWS: failure to registerquery", query.String())
 				return

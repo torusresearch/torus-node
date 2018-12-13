@@ -55,6 +55,7 @@ func SetUpBft(suite *Suite) {
 		fmt.Println("BFTWS: listening to responsesCh")
 		for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
 			queryString := gjson.GetBytes(e.Result, "query").String()
+			fmt.Println("BFTWS: query", queryString)
 			if e.Error != nil {
 				fmt.Println("BFTWS: websocket subscription received error:, ", e.Error.Error())
 			}
@@ -111,15 +112,15 @@ func (bftSuite *BftSuite) RegisterQuery(query string, count int) (chan []byte, e
 
 func (bftSuite *BftSuite) DeregisterQuery(query string) error {
 	fmt.Println("BFTWS: deregistering query", query)
-	if responseCh, found := bftSuite.BftRPCWSQueryHandler.QueryMap[query]; found {
-		close(responseCh)
-		delete(bftSuite.BftRPCWSQueryHandler.QueryMap, query)
-	}
 	ctx := context.Background()
 	err := bftSuite.BftRPCWS.Unsubscribe(ctx, query)
 	if err != nil {
 		fmt.Println("BFTWS: websocket could not unsubscribe, queryString", query)
 		return err
+	}
+	if responseCh, found := bftSuite.BftRPCWSQueryHandler.QueryMap[query]; found {
+		delete(bftSuite.BftRPCWSQueryHandler.QueryMap, query)
+		close(responseCh)
 	}
 	if _, found := bftSuite.BftRPCWSQueryHandler.QueryCount[query]; found {
 		delete(bftSuite.BftRPCWSQueryHandler.QueryCount, query)

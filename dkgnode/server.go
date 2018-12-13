@@ -400,46 +400,7 @@ func setUpServer(suite *Suite, port string) {
 		for suite.BftSuite.BftRPCWSStatus != "up" {
 			time.Sleep(1 * time.Second)
 		}
-		query := tmquery.MustParse("keygeneration.sharecollection='1'")
-		fmt.Println("QUERY IS:", query)
-		go func() {
-			// note: we also get back the initial "{}"
-			// data comes back in bytes of utf-8 which correspond
-			// to a base64 encoding of the original data
-			responseCh, err := suite.BftSuite.RegisterQuery(query.String(), suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
-			if err != nil {
-				fmt.Println("BFTWS: failure to registerquery", query.String())
-				return
-			}
-			for e := range responseCh {
-				if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
-					continue
-				}
-				fmt.Println("sub got ", string(e[:]))
-				res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
-				if err != nil {
-					fmt.Println("error decoding b64", err)
-					continue
-				}
-				// valid messages should start with mug00
-				if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
-					fmt.Println("Message not prefixed with mug00")
-					continue
-				}
-				keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
-				err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
-				if err != nil {
-					fmt.Println("error decoding bfttx", err)
-					continue
-				}
-				keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
-				err = HandleSigncryptedShare(suite, *keyGenShareTx)
-				if err != nil {
-					fmt.Println("failed to handle signcrypted share", err)
-					continue
-				}
-			}
-		}()
+		listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
 	}()
 
 	mux := http.NewServeMux()
@@ -461,4 +422,45 @@ func setUpServer(suite *Suite, port string) {
 		}
 	}
 	fmt.Println("SERVER STOPPED")
+}
+
+func listenForShares(suite *Suite, count int) {
+	query := tmquery.MustParse("keygeneration.sharecollection='1'")
+	fmt.Println("QUERY IS:", query)
+	// note: we also get back the initial "{}"
+	// data comes back in bytes of utf-8 which correspond
+	// to a base64 encoding of the original data
+	responseCh, err := suite.BftSuite.RegisterQuery(query.String(), count)
+	if err != nil {
+		fmt.Println("BFTWS: failure to registerquery", query.String())
+		return
+	}
+	for e := range responseCh {
+		if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
+			continue
+		}
+		fmt.Println("sub got ", string(e[:]))
+		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
+		if err != nil {
+			fmt.Println("error decoding b64", err)
+			continue
+		}
+		// valid messages should start with mug00
+		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
+			fmt.Println("Message not prefixed with mug00")
+			continue
+		}
+		keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
+		err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
+		if err != nil {
+			fmt.Println("error decoding bfttx", err)
+			continue
+		}
+		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
+		err = HandleSigncryptedShare(suite, *keyGenShareTx)
+		if err != nil {
+			fmt.Println("failed to handle signcrypted share", err)
+			continue
+		}
+	}
 }

@@ -274,7 +274,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			}
 			signcryptedData[index] = &common.SigncryptedOutput{NodePubKey: nodes[index].PubKey, NodeIndex: share.Index, SigncryptedShare: *signcryption}
 		}
-
+		listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
 		errArr := sendSharesToNodes(suite, signcryptedData, nodeList, shareIndex)
 		if errArr != nil {
 			fmt.Println("errors sending shares")

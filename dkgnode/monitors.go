@@ -19,10 +19,10 @@ type KeyGenUpdates struct {
 
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
-		fmt.Println("in start keygen monitor")
+		fmt.Println("KEYGEN: in start keygen monitor", suite.ABCIApp.state.LocalStatus)
 		time.Sleep(1 * time.Second)
 		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
-			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS")
+			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS", suite.ABCIApp.state.LocalStatus)
 			continue
 		}
 		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
@@ -33,29 +33,43 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
 		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex)
 
-		fmt.Println("KEYGEN: we are starting keygen", suite.ABCIApp.state)
-		initiateKeyGenerationStatusWrapper := DefaultBFTTxWrapper{
-			StatusBFTTx{
-				FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
-				FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
-				Epoch:       suite.ABCIApp.state.Epoch,
-				StatusType:  "initiate_keygen",
-				StatusValue: "Y",
-				Data:        []byte(strconv.Itoa(endingIndex)),
-			},
-		}
-		_, err := suite.BftSuite.BftRPC.Broadcast(initiateKeyGenerationStatusWrapper)
+		fmt.Println("KEYGEN: we are starting keygen", suite.ABCIApp.state.LocalStatus)
+		nodeIndex, err := matchNode(suite, suite.EthSuite.NodePublicKey.X.Text(16), suite.EthSuite.NodePublicKey.Y.Text(16))
 		if err != nil {
-			fmt.Println("KEYGEN: could not broadcast initiateKeygeneration", err)
+			fmt.Println("KEYGEN: could not get nodeIndex", err)
 			continue
 		}
 		go listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
 		for {
-			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y")
+			time.Sleep(1 * time.Second)
+			initiateKeyGenerationStatusWrapper := DefaultBFTTxWrapper{
+				StatusBFTTx{
+					FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
+					FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
+					Epoch:       suite.ABCIApp.state.Epoch,
+					StatusType:  "initiate_keygen",
+					StatusValue: "Y",
+					Data:        []byte(strconv.Itoa(endingIndex)),
+				},
+			}
+			_, err := suite.BftSuite.BftRPC.Broadcast(initiateKeyGenerationStatusWrapper)
+			if err != nil {
+				fmt.Println("KEYGEN: could not broadcast initiateKeygeneration", err)
+			}
+			selfInitiateStatus, selfInitiateStatusFound := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]["initiate_keygen"]
+			allInitiateStatus, allInitiateStatusFound := suite.ABCIApp.state.LocalStatus["all_initiate_keygen"]
+
+			// TODO: expecting keygen process to take longer than 1 second
+			if (selfInitiateStatusFound && selfInitiateStatus == "Y") || (allInitiateStatusFound && (allInitiateStatus == "Y" || allInitiateStatus == "IP")) {
+				break
+			}
+		}
+		for {
+			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y", suite.ABCIApp.state.LocalStatus)
 			fmt.Println(suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
 			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
-				fmt.Println("STATUSTX: localstatus all initiate keygen is Y, appstate", suite.ABCIApp.state)
+				fmt.Println("STATUSTX: localstatus all initiate keygen is Y, appstate", suite.ABCIApp.state.LocalStatus)
 				//reset keygen flag
 				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "IP"
 				//report back to main process

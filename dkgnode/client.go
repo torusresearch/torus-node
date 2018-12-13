@@ -201,7 +201,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	bftRPC := suite.BftSuite.BftRPC
 
 	fmt.Println("Required number of nodes reached")
-	fmt.Println("KEYGEN: Sending shares -----------")
+	fmt.Println("KEYGEN: Sending shares -----------", suite.ABCIApp.state.LocalStatus)
 
 	secretMapping := make(map[int]SecretStore)
 	siMapping := make(map[int]SiStore)
@@ -283,7 +283,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		}
 		secretMapping[shareIndex] = SecretStore{secret, false}
 	}
-	fmt.Println("KEYGEN: broadcasting keygencomplete status")
+	fmt.Println("KEYGEN: broadcasting keygencomplete status", suite.ABCIApp.state.LocalStatus)
 	statusTx := StatusBFTTx{
 		StatusType:  "keygen_complete",
 		StatusValue: "Y",

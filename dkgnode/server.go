@@ -266,7 +266,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 	//if all indexes have been assigned, bounce request. threshold at 20% TODO: Make  percentage variable
 	if h.suite.ABCIApp.state.LastCreatedIndex < h.suite.ABCIApp.state.LastUnassignedIndex+20 {
-		return nil, &jsonrpc.Error{Code: 429, Message: "System is under heavy load for assignments, please try again later"}
+		return nil, &jsonrpc.Error{Code: 32604, Message: "System is under heavy load for assignments, please try again later"}
 	}
 
 	fmt.Println("CHECKING IF REACHED NEW ASSIGNMENT")

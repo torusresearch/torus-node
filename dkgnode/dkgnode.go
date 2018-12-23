@@ -64,7 +64,7 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 	suite := Suite{}
 	suite.Flags = &Flags{production}
 	fmt.Println(configPath)
-	loadConfig(&suite, configPath, nodeIPAddress, privateKey, buildPath, ethConnection, nodeListAddress)
+	loadConfig(&suite, configPath, nodeIPAddress, privateKey, buildPath, ethConnection, nodeListAddress, production)
 	//TODO: Dont die on failure but retry
 
 	// set up connection to ethereum blockchain
@@ -97,10 +97,7 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 		fmt.Println("---DEVELOPMENT MODE---")
 	}
 
-	var mainServerIPAddress string
-	mainServerIPAddress = suite.Config.MainServerAddress
-
-	fmt.Println("Node IP Address: " + mainServerIPAddress)
+	fmt.Println("Node IP Address: " + suite.Config.MainServerAddress)
 	whitelisted := false
 
 	for !whitelisted {
@@ -127,7 +124,7 @@ func New(configPath string, register bool, production bool, buildPath string, cp
 			externalAddr = suite.Config.P2PListenAddress
 		}
 		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), mainServerIPAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		if err != nil {
 			log.Fatal(err)
 		}

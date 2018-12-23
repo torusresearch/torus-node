@@ -26,7 +26,7 @@ type Config struct {
 	BuildPath                  string `json:"buildpath"`
 }
 
-func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string, ethConnection string, nodeListAddress string) {
+func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string, ethConnection string, nodeListAddress string, production bool) {
 
 	conf := defaultConfigSettings()
 	nodeIP, err := findExternalIP()
@@ -41,7 +41,12 @@ func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string
 			file.WithPath(path),
 		))
 		config.Scan(&conf)
-		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
+		//if in production use configured nodeIP for server. else use https dev host address "localhost"
+		if production {
+			conf.MainServerAddress = nodeIP + ":" + conf.MyPort
+		} else {
+			conf.MainServerAddress = "localhost" + ":" + conf.MyPort
+		}
 		// retrieve map[string]interface{}
 	} else if nodeAddress != "" {
 		fmt.Println("Running on Specified IP Address")

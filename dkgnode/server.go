@@ -417,9 +417,17 @@ func setUpServer(suite *Suite, port string) {
 		}
 	} else {
 		// listenandserve creates a thread in the main that loops indefinitely
-		if err := http.ListenAndServe(":"+port, handler); err != nil {
+		// if err := http.ListenAndServe(":"+port, handler); err != nil {
+		// 	log.Fatalln(err)
+		// }
+		if err := http.ListenAndServeTLS(":"+port,
+			"../../tests/openssl/server.crt",
+			"../../tests/openssl/server.key",
+			handler,
+		); err != nil {
 			log.Fatalln(err)
 		}
+
 	}
 	fmt.Println("SERVER STOPPED")
 }

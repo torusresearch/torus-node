@@ -492,7 +492,7 @@ func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Add
 	if suite.Flags.Production {
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
 	} else {
-		nodeIPAddress = "http://" + details.DeclaredIp + "/jrpc"
+		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
 	}
 	rpcClient := jsonrpcclient.NewClient(nodeIPAddress)
 

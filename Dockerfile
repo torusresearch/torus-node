@@ -21,9 +21,9 @@ RUN apk add --no-cache \
   --repository http://nl.alpinelinux.org/alpine/edge/testing \
   leveldb
 
-
-COPY --from=node-build /go/src/github.com/torusresearch/torus-public/dkgnode /torus/dkgnode
+RUN mkdir -p /torus
+COPY --from=node-build /go/src/github.com/torusresearch/torus-public/cmd/dkgnode/dkgnode /torus/dkgnode
 
 EXPOSE 443 80 26656 26657
 VOLUME ["/torus", "/root/https"]
-ENTRYPOINT ["/torus/dkgnode"]
+CMD ["/torus/dkgnode"]

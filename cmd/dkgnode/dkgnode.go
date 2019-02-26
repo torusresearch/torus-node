@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/torusresearch/torus/dkgnode"
+	"github.com/torusresearch/torus-public/dkgnode"
 )
 
 func main() {

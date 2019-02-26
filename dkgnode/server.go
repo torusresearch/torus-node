@@ -19,8 +19,8 @@ import (
 	"github.com/rs/cors"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/pvss"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/pvss"
 )
 
 type (

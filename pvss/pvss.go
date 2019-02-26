@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/secp256k1"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/secp256k1"
 )
 
 func RandomBigInt() *big.Int {

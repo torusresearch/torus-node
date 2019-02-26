@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"net"
 
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/secp256k1"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/secp256k1"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"

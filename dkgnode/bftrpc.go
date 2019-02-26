@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
-	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus-public/common"
 )
 
 type BftRPC struct {

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/torusresearch/torus/dkgnode"
+	"github.com/torusresearch/torus-public/dkgnode"
 	"github.com/anthdm/hbbft"
 	"github.com/fatih/structs"
 	"github.com/intel-go/fastjson"

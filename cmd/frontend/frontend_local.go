@@ -9,10 +9,10 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	config "github.com/micro/go-config"
 	"github.com/micro/go-config/source/file"
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/pvss"
-	"github.com/torusresearch/torus/secp256k1"
-	"github.com/torusresearch/torus/solidity/goContracts"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/pvss"
+	"github.com/torusresearch/torus-public/secp256k1"
+	"github.com/torusresearch/torus-public/solidity/goContracts"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 

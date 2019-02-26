@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/torusresearch/torus/secp256k1"
-	"github.com/torusresearch/torus/solidity/goContracts"
+	"github.com/torusresearch/torus-public/secp256k1"
+	"github.com/torusresearch/torus-public/solidity/goContracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

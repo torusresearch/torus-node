@@ -3,7 +3,7 @@ package secp256k1
 import (
 	"math/big"
 
-	"github.com/torusresearch/torus/common"
+	"github.com/torusresearch/torus-public/common"
 	secp256k1 "github.com/btcsuite/btcd/btcec"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 )

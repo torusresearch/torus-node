@@ -3,7 +3,7 @@ package dkgnode
 import (
 	"testing"
 
-	"github.com/torusresearch/torus/secp256k1"
+	"github.com/torusresearch/torus-public/secp256k1"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )

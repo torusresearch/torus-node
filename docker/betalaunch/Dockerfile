@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y wget && apt-get install -y git && apt-g
     cp -r leveldb /usr/local/include/ && \
     ldconfig && \
     echo "Built CLevelDB!" && \
-    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/torusresearch/torus/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc && \
+    rm -f v1.20.tar.gz && cd $GOPATH/src/github.com/torusresearch/torus-public/cmd/dkgnode && go install && cd $HOME && echo "export PATH=$PATH" >> ~/.bashrc && \
     mkdir /.build && mkdir /root/https
 
 EXPOSE 443 80 26656 26657

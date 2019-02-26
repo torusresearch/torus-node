@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/torusresearch/torus/secp256k1"
+	"github.com/torusresearch/torus-public/secp256k1"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	// "github.com/ethereum/go-ethereum/crypto/sha3"
 

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/torusresearch/torus/dkgnode"
+	"github.com/torusresearch/torus-public/dkgnode"
 	"github.com/anthdm/hbbft"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )

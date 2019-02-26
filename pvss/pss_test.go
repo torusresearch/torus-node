@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/secp256k1"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/secp256k1"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -24,9 +24,9 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/torusresearch/torus/common"
-	"github.com/torusresearch/torus/pvss"
-	"github.com/torusresearch/torus/secp256k1"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/pvss"
+	"github.com/torusresearch/torus-public/secp256k1"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
 

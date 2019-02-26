@@ -17,7 +17,7 @@ RUN go build
 FROM alpine:3.7
 
 RUN apk update && apk add ca-certificates --no-cache
-  RUN apk add --no-cache \
+RUN apk add --no-cache \
   --repository http://nl.alpinelinux.org/alpine/edge/testing \
   leveldb
 

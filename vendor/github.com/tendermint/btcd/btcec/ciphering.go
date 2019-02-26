@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The btcsuite developers
+// Copyright (c) 2015-2016 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -41,7 +41,7 @@ var (
 )
 
 // GenerateSharedSecret generates a shared secret based on a private key and a
-// private key using Diffie-Hellman key exchange (ECDH) (RFC 4753).
+// public key using Diffie-Hellman key exchange (ECDH) (RFC 4753).
 // RFC5903 Section 9 states we should only return x.
 func GenerateSharedSecret(privkey *PrivateKey, pubkey *PublicKey) []byte {
 	x, _ := pubkey.Curve.ScalarMult(pubkey.X, pubkey.Y, privkey.D.Bytes())
@@ -65,8 +65,8 @@ func GenerateSharedSecret(privkey *PrivateKey, pubkey *PublicKey) []byte {
 //		HMAC [32]byte
 //	}
 //
-// The primary aim is to ensure byte compatibility with Pyelliptic. Additionaly,
-// refer to section 5.8.1 of ANSI X9.63 for rationale on this format.
+// The primary aim is to ensure byte compatibility with Pyelliptic.  Also, refer
+// to section 5.8.1 of ANSI X9.63 for rationale on this format.
 func Encrypt(pubkey *PublicKey, in []byte) ([]byte, error) {
 	ephemeral, err := NewPrivateKey(S256())
 	if err != nil {

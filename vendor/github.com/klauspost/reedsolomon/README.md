@@ -24,6 +24,14 @@ go get -u github.com/klauspost/reedsolomon
 
 # Changes
 
+## February 8, 2019
+
+AVX512 accelerated version added for Intel Skylake CPUs. This can give up to a 4x speed improvement as compared to AVX2. See [here](https://github.com/klauspost/reedsolomon#performance-on-avx512) for more details.
+
+## December 18, 2018
+
+Assembly code for ppc64le has been contributed, this boosts performance by about 10x on this platform.
+
 ## November 18, 2017
 
 Added [WithAutoGoroutines](https://godoc.org/github.com/klauspost/reedsolomon#WithAutoGoroutines) which will attempt to calculate the optimal number of goroutines to use based on your expected shard size and detected CPU.
@@ -249,6 +257,25 @@ BenchmarkReconstruct50x20x1M-8       1364.35      4189.79      3.07x
 BenchmarkReconstruct10x4x16M-8       1484.35      5779.53      3.89x
 ```
 
+# Performance on AVX512
+
+The performance on AVX512 has been accelerated for Intel CPUs. This gives speedups on a per-core basis of up to 4x compared to AVX2 as can be seen in the following table:
+
+```
+$ benchcmp avx2.txt avx512.txt
+benchmark                      AVX2 MB/s    AVX512 MB/s   speedup
+BenchmarkEncode8x8x1M-72       1681.35      4125.64       2.45x
+BenchmarkEncode8x4x8M-72       1529.36      5507.97       3.60x
+BenchmarkEncode8x8x8M-72        791.16      2952.29       3.73x
+BenchmarkEncode8x8x32M-72       573.26      2168.61       3.78x
+BenchmarkEncode12x4x12M-72     1234.41      4912.37       3.98x
+BenchmarkEncode16x4x16M-72     1189.59      5138.01       4.32x
+BenchmarkEncode24x8x24M-72      690.68      2583.70       3.74x
+BenchmarkEncode24x8x48M-72      674.20      2643.31       3.92x
+```
+
+This speedup has been achieved by computing multiple parity blocks in parallel as opposed to one after the other. In doing so it is possible to minimize the memory bandwidth required for loading all data shards. At the same time the calculations are performed in the 512-bit wide ZMM registers and the surplus of ZMM registers (32 in total) is used to keep more data around (most notably the matrix coefficients).
+
 # Performance on ARM64 NEON
 
 By exploiting NEON instructions the performance for ARM has been accelerated. Below are the performance numbers for a single core on an ARM Cortex-A53 CPU @ 1.2GHz (Debian 8.0 Jessie running Go: 1.7.4):
@@ -258,6 +285,18 @@ By exploiting NEON instructions the performance for ARM has been accelerated. Be
 | 5    | 2      | 40%    |           189 |            1304 |       588% |
 | 10   | 2      | 20%    |           188 |            1738 |       925% |
 | 10   | 4      | 40%    |            96 |             839 |       877% |
+
+# Performance on ppc64le
+
+The performance for ppc64le has been accelerated. This gives roughly a 10x performance improvement on this architecture as can been seen below:
+
+```
+benchmark                      old MB/s     new MB/s     speedup
+BenchmarkGalois128K-160        948.87       8878.85      9.36x
+BenchmarkGalois1M-160          968.85       9041.92      9.33x
+BenchmarkGaloisXor128K-160     862.02       7905.00      9.17x
+BenchmarkGaloisXor1M-160       784.60       6296.65      8.03x
+```
 
 # asm2plan9s
 

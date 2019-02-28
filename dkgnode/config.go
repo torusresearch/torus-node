@@ -14,9 +14,9 @@ type Config struct {
 	MainServerAddress          string `json:"mainserveraddress"`
 	EthConnection              string `json:"ethconnection"`
 	EthPrivateKey              string `json:"ethprivatekey"`
-	BftURI                     string `json:"bfturi`
-	ABCIServer                 string `json:"abciserver`
-	P2PListenAddress           string `json"p2plistenaddress"`
+	BftURI                     string `json:"bfturi"`
+	ABCIServer                 string `json:"abciserver"`
+	P2PListenAddress           string `json:"p2plistenaddress"`
 	NodeListAddress            string `json:"nodelistaddress"`
 	HostName                   string `json:"hostname"`
 	NumberOfNodes              int    `json:"numberofnodes"`

@@ -10,7 +10,7 @@ while getopts 'hs' flag; do
 done
 
 echo RUNNING NODES
-SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
+SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )/.."
 cd cmd/dkgnode
 if [ $silent = false ]; then
   go run *.go --configPath $SCRIPTPATH/config/config.local.2.json --buildPath $SCRIPTPATH/.build/node2 > log2.txt & disown

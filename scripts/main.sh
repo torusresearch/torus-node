@@ -1,2 +1,2 @@
 #!/bin/bash
-./initGan.sh && ./clearBuild.sh && ./newRunNodes.sh
+./scripts/initGan.sh && ./scripts/clearBuild.sh && ./scripts/newRunNodes.sh

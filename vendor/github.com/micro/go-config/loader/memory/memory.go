@@ -127,14 +127,14 @@ func (m *memory) loaded() bool {
 }
 
 // reload reads the sets and creates new values
-func (m *memory) reload() {
+func (m *memory) reload() error {
 	m.Lock()
 
 	// merge sets
 	set, err := m.opts.Reader.Merge(m.sets...)
 	if err != nil {
 		m.Unlock()
-		return
+		return err
 	}
 
 	// set values
@@ -148,6 +148,8 @@ func (m *memory) reload() {
 
 	// update watchers
 	m.update()
+
+	return nil
 }
 
 func (m *memory) update() {
@@ -169,18 +171,24 @@ func (m *memory) update() {
 
 // Snapshot returns a snapshot of the current loaded config
 func (m *memory) Snapshot() (*loader.Snapshot, error) {
-	m.RLock()
-	defer m.RUnlock()
-
 	if m.loaded() {
-		return m.snap, nil
+		m.RLock()
+		snap := loader.Copy(m.snap)
+		m.RUnlock()
+		return snap, nil
 	}
 
+	// not loaded, sync
 	if err := m.Sync(); err != nil {
 		return nil, err
 	}
 
-	return m.snap, nil
+	// make copy
+	m.RUnlock()
+	snap := loader.Copy(m.snap)
+	m.RUnlock()
+
+	return snap, nil
 }
 
 // Sync loads all the sources, calls the parser and updates the config
@@ -300,7 +308,9 @@ func (m *memory) Load(sources ...source.Source) error {
 		go m.watch(idx, source)
 	}
 
-	m.reload()
+	if err := m.reload(); err != nil {
+		gerrors = append(gerrors, err.Error())
+	}
 
 	// Return errors
 	if len(gerrors) != 0 {

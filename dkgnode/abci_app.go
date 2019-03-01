@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/torusresearch/torus-public/logging"
+
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
@@ -105,17 +107,17 @@ func (app *ABCIApp) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
 // tx is either "key=value" or just arbitrary bytes
 func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
-	fmt.Println("DELIVERINGTX", tx)
+	logging.Debugf("DELIVERINGTX %s", tx)
 
 	//Validate transaction here
 	correct, tags, err := app.ValidateAndUpdateAndTagBFTTx(tx) // TODO: doesnt just validate now.. break out update from validate?
 	if err != nil {
-		fmt.Println("could not validate BFTTx", err)
+		logging.Errorf("Could not validate BFTTx %s", err)
 	}
 
 	if !correct {
 		//If validated, we save the transaction into the db
-		fmt.Println("BFTTX IS WRONG")
+		logging.Debug("BFTTX IS WRONG")
 		return types.ResponseDeliverTx{Code: code.CodeTypeUnauthorized}
 	}
 
@@ -133,7 +135,7 @@ func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
 
 // NOTE: Commit happens before DeliverTx
 func (app *ABCIApp) Commit() types.ResponseCommit {
-	fmt.Println("COMMITING... HEIGHT:", app.state.Height)
+	logging.Debugf("COMMITING... HEIGHT: %s", app.state.Height)
 	// retrieve state from memdb
 	if app.state == nil {
 		app.LoadState()
@@ -142,9 +144,9 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 	// init if does not exist
 	if app.state.EmailMapping == nil {
 		app.state.EmailMapping = make(map[string]uint)
-		fmt.Println("INITIALIZED APP STATE EMAIL MAPPING")
+		logging.Debug("INITIALIZED APP STATE EMAIL MAPPING")
 	} else {
-		fmt.Println("app state email mapping has stuff", app.state.EmailMapping)
+		logging.Debugf("app state email mapping has stuff %s", app.state.EmailMapping)
 	}
 
 	// update state
@@ -152,34 +154,34 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 	app.state.Height += 1
 	// commit to memdb
 	app.SaveState()
-	fmt.Println("APP STATE COMMITTED: ", app.state)
+	logging.Debugf("APP STATE COMMITTED: %s", app.state)
 
 	return types.ResponseCommit{Data: app.state.AppHash}
 }
 
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
-	fmt.Println(app.state)
-	fmt.Println("QUERY TO ABCIAPP", reqQuery.Data, string(reqQuery.Data))
+	logging.Debug(app.state)
+	logging.Debugf("QUERY TO ABCIAPP %s %s", reqQuery.Data, string(reqQuery.Data))
 	switch reqQuery.Path {
 
 	case "GetEmailIndex":
-		fmt.Println("GOT A QUERY FOR GETEMAILINDEX")
+		logging.Debug("GOT A QUERY FOR GETEMAILINDEX")
 		val, found := app.state.EmailMapping[string(reqQuery.Data)]
 		if !found {
-			fmt.Println("val not found for query")
-			fmt.Println(reqQuery)
-			fmt.Println(reqQuery.Data)
-			fmt.Println(string(reqQuery.Data))
+			logging.Debug("val not found for query")
+			logging.Debug(reqQuery)
+			logging.Debug(reqQuery.Data)
+			logging.Debug(string(reqQuery.Data))
 			return types.ResponseQuery{Value: []byte("")}
 		}
-		fmt.Println("val found for query")
+		logging.Debug("val found for query")
 		// uint -> string -> bytes, when receiving do bytes -> string -> uint
-		fmt.Println(fmt.Sprint(val))
+		logging.Debug(fmt.Sprint(val))
 		return types.ResponseQuery{Value: []byte(fmt.Sprint(val))}
 
 	case "GetKeyGenComplete":
-		fmt.Println("GOT A QUERY FOR GETKEYGENCOMPLETE")
-		fmt.Println("for Epoch: ", string(reqQuery.Data))
+		logging.Debug("GOT A QUERY FOR GETKEYGENCOMPLETE")
+		logging.Debugf("for Epoch: %s", string(reqQuery.Data))
 		return types.ResponseQuery{
 			Value: []byte(app.state.LocalStatus["all_keygen_complete"]),
 		}
@@ -198,8 +200,8 @@ func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
 		valSet := app.state.ValidatorSet
 		//set update val back to false
 		app.state.UpdateValidators = false
-		fmt.Println("PEER SET: ", app.Suite.BftSuite.BftNode.Switch().Peers())
-		fmt.Println("VALIDATOR SET: ", valSet)
+		logging.Debugf("PEER SET: %s", app.Suite.BftSuite.BftNode.Switch().Peers())
+		logging.Debugf("VALIDATOR SET: %s", valSet)
 		return types.ResponseEndBlock{ValidatorUpdates: valSet}
 	}
 	return types.ResponseEndBlock{}

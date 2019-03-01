@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/torusresearch/torus-public/logging"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
@@ -33,7 +35,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, err
 		}
 		pubPolyTx := PubPolyTx.BFTTx.(*PubPolyBFTTx)
-		fmt.Println("ATTACHING TAGS for pubpoly")
+		logging.Debug("ATTACHING TAGS for pubpoly")
 		tags = []common.KVPair{
 			{Key: []byte("pubpoly"), Value: []byte("1")},
 			{Key: []byte("share_index"), Value: []byte(strconv.Itoa(int(pubPolyTx.ShareIndex)))},
@@ -47,18 +49,18 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, err
 		}
 		// TODO: verify keygen share?
-		fmt.Println("ATTACHING TAGS for keygenshare")
+		logging.Debug("ATTACHING TAGS for keygenshare")
 		tags = []common.KVPair{
 			{Key: []byte("keygeneration.sharecollection"), Value: []byte("1")},
 		}
 		return true, &tags, nil
 
 	case byte(4): // AssignmentBFTTx
-		fmt.Println("assignmentbfttx happening")
+		logging.Debug("Assignmentbfttx happening")
 		AssignmentTx := DefaultBFTTxWrapper{&AssignmentBFTTx{}}
 		err := AssignmentTx.DecodeBFTTx(txNoSig)
 		if err != nil {
-			fmt.Println("assignmentbfttx failed with error", err)
+			logging.Errorf("assignmentbfttx failed with error %s", err)
 			return false, &tags, err
 		}
 		assignmentTx := AssignmentTx.BFTTx.(*AssignmentBFTTx)
@@ -67,7 +69,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		}
 
 		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok { //check if user has been assigned before
-			fmt.Println("assignmentbfttx failed with email already assigned")
+			logging.Errorf("assignmentbfttx failed with email already assigned")
 			return false, &tags, errors.New("Email " + assignmentTx.Email + " has already been assigned")
 		}
 		// assign user email to key index
@@ -75,7 +77,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, errors.New("Last assigned index is exceeding last created index")
 		}
 		app.state.EmailMapping[assignmentTx.Email] = uint(app.state.LastUnassignedIndex)
-		fmt.Println("assignmentbfttx happened with app state emailmapping now equal to", app.state.EmailMapping)
+		logging.Debugf("assignmentbfttx happened with app state emailmapping now equal to %s", app.state.EmailMapping)
 		tags = []common.KVPair{
 			{Key: []byte("assignment"), Value: []byte("1")},
 		}
@@ -84,14 +86,14 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		return true, &tags, nil
 
 	case byte(5): // StatusBFTTx
-		fmt.Println("Status broadcast")
+		logging.Debug("Status broadcast")
 		StatusTx := DefaultBFTTxWrapper{&StatusBFTTx{}}
 
 		// validation
 
 		err := StatusTx.DecodeBFTTx(txNoSig)
 		if err != nil {
-			fmt.Println("Statustx decoding failed with error", err)
+			logging.Errorf("Statustx decoding failed with error %s", err)
 		}
 		statusTx := StatusTx.BFTTx.(*StatusBFTTx)
 		// TODO: check signature from node
@@ -112,7 +114,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		// set status
 
 		app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
-		fmt.Println("STATUSTX: status set for node", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
+		logging.Debugf("STATUSTX: status set for node %s, %s, %s", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
 
 		// Update LocalStatus based on rules
 		// check if all nodes have broadcasted keygen_complete == "Y"
@@ -122,29 +124,29 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				counter++
 			}
 		}
-		fmt.Println("STATUSTX: counter is at ", counter)
+		logging.Debugf("STATUSTX: counter is at %s", counter)
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
+			logging.Debugf("STATUSTX: entered counter %s %s", counter, app.Suite.EthSuite.NodeList)
 			// set all_keygen_complete to Y
 			app.state.LocalStatus["all_keygen_complete"] = "Y" // TODO: make epoch variable
 			// reset all other nodes' keygen completion status
 			for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
 				app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] = ""
 			}
-			fmt.Println("STATUSTX: app state is:", app.state)
+			logging.Debugf("STATUSTX: app state is: %s", app.state)
 			// update total number of available keys
 			app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
-			fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
+			logging.Debugf("STATUSTX: lastcreatedindex %s", app.state.LastCreatedIndex)
 			// start listening again for the next time we initiate a keygen
 			go func() {
 				time.Sleep(5 * time.Second)
 				app.state.LocalStatus["all_initiate_keygen"] = ""
 			}()
 			app.state.Epoch = app.state.Epoch + uint(1)
-			fmt.Println("STATUSTX: state is", app.state)
-			fmt.Println("STATUSTX: epoch is", app.state.Epoch)
+			logging.Debugf("STATUSTX: state is %s", app.state)
+			logging.Debugf("STATUSTX: epoch is %s", app.state.Epoch)
 		} else {
-			fmt.Println("Number of keygen initiation messages does not match number of nodes")
+			logging.Debug("Number of keygen initiation messages does not match number of nodes")
 		}
 
 		// check if all nodes have broadcasted initiate_keygen == "Y"
@@ -152,14 +154,14 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		for _, nodeI := range app.Suite.EthSuite.NodeList {
 			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "Y" {
 				stopIndex := string(statusTx.Data)
-				fmt.Println("STATUSTX: Initiate Key Gen Registered till ", stopIndex)
+				logging.Debugf("STATUSTX: Initiate Key Gen Registered till %s", stopIndex)
 				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
-					fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
+					logging.Debugf("here2 %s", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
 					continue
 				}
 				percentLeft := 100 * (app.state.LastCreatedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
 				if percentLeft > uint(app.Suite.Config.KeyBufferTriggerPercentage) {
-					fmt.Println("KEYGEN: Haven't hit buffer amount, percentLeft, lastcreatedindex, lastunassignedindex", percentLeft, app.state.LastCreatedIndex, app.state.LastUnassignedIndex)
+					logging.Debugf("KEYGEN: Haven't hit buffer amount, percentLeft, lastcreatedindex, lastunassignedindex", percentLeft, app.state.LastCreatedIndex, app.state.LastUnassignedIndex)
 					continue
 				}
 				counter++

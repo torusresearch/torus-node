@@ -138,7 +138,7 @@ func AVSSVerifyPoly(
 	return true
 }
 
-// AVSSVerifyPoint - verify-point as described in Cachine et al 2002
+// AVSSVerifyPoint - verify-point as described in Cachin et al 2002
 func AVSSVerifyPoint(
 	C [][]common.Point,
 	m big.Int, // the sender index

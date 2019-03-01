@@ -167,3 +167,23 @@ func AVSSVerifyPoint(
 
 	return true
 }
+
+// Verify-share from Cachin et al. 2002
+func AVSSVerifyShare(C [][]common.Point, m big.Int, sigma big.Int, sigmaprime big.Int) bool {
+	gsigma := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(sigma.Bytes()))
+	hsigmaprime := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, sigmaprime.Bytes()))
+	gsigmahsigmaprime := common.BigIntToPoint(secp256k1.Curve.Add(&gsigma.X, &gsigma.Y, &hsigmaprime.X, &hsigmaprime.Y))
+	pt := common.Point{X: *big.NewInt(int64(0)), Y: *big.NewInt(int64(0))}
+	for j := range C {
+		Cj0 := C[j][0]
+		mj := new(big.Int).Exp(&m, big.NewInt(int64(j)), secp256k1.GeneratorOrder)
+		Cj0mj := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&Cj0.X, &Cj0.Y, mj.Bytes()))
+		pt = common.BigIntToPoint(secp256k1.Curve.Add(&pt.X, &pt.Y, &Cj0mj.X, &Cj0mj.Y))
+	}
+
+	if gsigmahsigmaprime.X.Cmp(&pt.X) != 0 || gsigmahsigmaprime.Y.Cmp(&pt.Y) != 0 {
+		return false
+	}
+
+	return true
+}

@@ -189,10 +189,10 @@ func TestAVSS(t *testing.T) {
 		sharesBprimebari := make([]common.PrimaryShare, threshold)
 		for e := 0; e < threshold; e++ { // assume that the first 7 (threshold) are the ones we use
 			echo := nodes[n].ReceivedEchoes[e]
-			sharesAbari[e] = common.PrimaryShare{int(echo.M.Int64()), echo.Aij}
-			sharesAprimebari[e] = common.PrimaryShare{int(echo.M.Int64()), echo.Aprimeij}
-			sharesBbari[e] = common.PrimaryShare{int(echo.M.Int64()), echo.Bij}
-			sharesBprimebari[e] = common.PrimaryShare{int(echo.M.Int64()), echo.Bprimeij}
+			sharesAbari[e] = common.PrimaryShare{Index: int(echo.M.Int64()), Value: echo.Aij}
+			sharesAprimebari[e] = common.PrimaryShare{Index: int(echo.M.Int64()), Value: echo.Aprimeij}
+			sharesBbari[e] = common.PrimaryShare{Index: int(echo.M.Int64()), Value: echo.Bij}
+			sharesBprimebari[e] = common.PrimaryShare{Index: int(echo.M.Int64()), Value: echo.Bprimeij}
 		}
 		// "interpolate" shares here... but we really don't need to, because an honest server will have provided
 		// the correct polys, and if the honest server didn't we would be broadcasting a ready message with wrong
@@ -216,12 +216,11 @@ func TestAVSS(t *testing.T) {
 	}
 
 	shares := make([]common.PrimaryShare, total)
+	shareprimes := make([]common.PrimaryShare, total)
 	for i := range shares {
 		shares[i] = common.PrimaryShare{Index: int(nodes[i].Index.Int64()), Value: nodes[i].AIY.Coeff[0]}
-	}
-	shareprimes := make([]common.PrimaryShare, total)
-	for i := range shareprimes {
 		shareprimes[i] = common.PrimaryShare{Index: int(nodes[i].Index.Int64()), Value: nodes[i].AIprimeY.Coeff[0]}
+		assert.True(t, AVSSVerifyShare(C, *big.NewInt(int64(shares[i].Index)), shares[i].Value, shareprimes[i].Value))
 	}
 
 	assert.Equal(t, LagrangeScalar(shares[:7], 0).Text(16), LagrangeScalar(shares[1:8], 0).Text(16))

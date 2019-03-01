@@ -1,75 +1,13 @@
 # Changelog
 
-## 0.14.1 (November 6, 2018)
-
-IMPROVEMENTS:
- - go-amino compiles again on 32-bit platforms ([#242])
- 
-[#242]: https://github.com/tendermint/go-amino/pull/242
-
-## 0.14.0 (October 26, 2018)
-
-BREAKING CHANGE:
- - Switch default encoding of unsigned ints (`int`, `int32`, `int64`) to be on par with [proto3's] variable length 
- encoding (of `int32`, `int64`) ([#237])
- 
- [proto3's]: https://developers.google.com/protocol-buffers/docs/proto#scalar
- [#237]: https://github.com/tendermint/go-amino/issues/237
-
-## 0.13.0 (October 15, 2018)
-
-BREAKING CHANGE:
- - `time.Time`: validate seconds since 1970 are in valid range during encoding; i.e. in the interval [-62135596800, 253402300800)
- - `time.Time`: match encoding of time.Time to protobuf's well known type [Timestamp] ([#224])
- - Rename `MarshalBinary` to `MarshalBinaryLengthPrefixed` ([#222])
- 
-[Timestamp]: https://github.com/protocolbuffers/protobuf/blob/d2980062c859649523d5fd51d6b55ab310e47482/src/google/protobuf/timestamp.proto#L123-L135
-
-IMPROVEMENTS:
-  - Add `MustUnmarshalJSON` and `MustMarshalJSON` that panic if an error occurs ([#228])
-  - Optimize performance by removing `defer`s in `getTypeInfo` ([#227] by @ValarDragon) 
-  - Optimize performance by removing unnecessary allocation in `UvarintSize` ([#225] by [@ValarDragon])
-  - Add test that shows compatibility with stdlib (JSON time encoding) ([#131] by [@odeke-em]) 
-  
-[#224]: https://github.com/tendermint/go-amino/pull/224
-[#222]: https://github.com/tendermint/go-amino/pull/222
-[#228]: https://github.com/tendermint/go-amino/pull/228
-[#227]: https://github.com/tendermint/go-amino/pull/227
-[#225]: https://github.com/tendermint/go-amino/pull/225
-[#131]: https://github.com/tendermint/go-amino/pull/131
-[@ValarDragon]: https://github.com/ValarDragon
-[@odeke-em]: https://github.com/odeke-em
-
-## 0.12.0 (August 4, 2018)
-
-BREAKING CHANGE:
- - Write empty (non-nil) struct pointers, unless (is list element and empty_elements isn't set) #206
-
-## 0.11.1 (July 17, 2018)
-
-IMPROVEMENTS:
- - Remove dependency on tmlibs/common
-
-## 0.11.0 (June 19, 2018)
-
-BREAKING CHANGE:
-
- - Do not encode zero values in `EncodeTime`
- (to match proto3's behaviour) (#178, #190)
- - Do not encode empty structs, unless explicitly enforced
- via `amino:"write_empty"` (to match proto3's behaviour) (#179)
-
-IMPROVEMENTS:
- - DecodeInt{8, 16} negative limit checks (#125)
-
 ## 0.10.1 (June 15, 2018)
 
 FEATURE:
 
  - [aminoscan] aminoscan --color will print ASCII bytes in different colors
-
+ 
 BUG FIXES:
- - do not err if prefix bytes are exactly 4 (for registered types)
+ - do not err if prefix bytes are exactly 4 (for registered types) 
 
 ## 0.10.0 (June 12, 2018)
 

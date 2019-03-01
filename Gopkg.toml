@@ -32,9 +32,6 @@
   name = "github.com/google/go-cmp"
   version = "0.2.0"
 
-[[constraint]]
-  name = "github.com/ethereum/go-ethereum"
-  version = "1.8.17"
 
 [[constraint]]
   branch = "master"

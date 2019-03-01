@@ -116,10 +116,7 @@ type FieldOptions struct {
 	BinFixed64    bool   // (Binary) Encode as fixed64
 	BinFixed32    bool   // (Binary) Encode as fixed32
 	BinFieldNum   uint32 // (Binary) max 1<<29-1
-
-	Unsafe        bool // e.g. if this field is a float.
-	WriteEmpty    bool // write empty structs and lists (default false except for pointers)
-	EmptyElements bool // Slice and Array elements are never nil, decode 0x00 as empty struct.
+	Unsafe        bool   // e.g. if this field is a float.
 }
 
 //----------------------------------------
@@ -254,7 +251,7 @@ func (cdc *Codec) Seal() *Codec {
 // | Type  | Name | Prefix | Notes |
 //
 // Where Type is the golang type name and Name is the name the type was registered with.
-func (cdc *Codec) PrintTypes(out io.Writer) error {
+func (cdc Codec) PrintTypes(out io.Writer) error {
 	cdc.mtx.RLock()
 	defer cdc.mtx.RUnlock()
 	// print header
@@ -358,10 +355,8 @@ func (cdc *Codec) setTypeInfo_nolock(info *TypeInfo) {
 }
 
 func (cdc *Codec) getTypeInfo_wlock(rt reflect.Type) (info *TypeInfo, err error) {
-	// We do not use defer cdc.mtx.Unlock() here due to performance overhead of
-	// defer in go1.11 (and prior versions). Ensure new code paths unlock the
-	// mutex.
 	cdc.mtx.Lock() // requires wlock because we might set.
+	defer cdc.mtx.Unlock()
 
 	// Dereference pointer type.
 	for rt.Kind() == reflect.Ptr {
@@ -372,70 +367,55 @@ func (cdc *Codec) getTypeInfo_wlock(rt reflect.Type) (info *TypeInfo, err error)
 	if !ok {
 		if rt.Kind() == reflect.Interface {
 			err = fmt.Errorf("Unregistered interface %v", rt)
-			cdc.mtx.Unlock()
 			return
 		}
 
 		info = cdc.newTypeInfoUnregistered(rt)
 		cdc.setTypeInfo_nolock(info)
 	}
-	cdc.mtx.Unlock()
 	return info, nil
 }
 
 // iinfo: TypeInfo for the interface for which we must decode a
 // concrete type with prefix bytes pb.
 func (cdc *Codec) getTypeInfoFromPrefix_rlock(iinfo *TypeInfo, pb PrefixBytes) (info *TypeInfo, err error) {
-	// We do not use defer cdc.mtx.Unlock() here due to performance overhead of
-	// defer in go1.11 (and prior versions). Ensure new code paths unlock the
-	// mutex.
 	cdc.mtx.RLock()
+	defer cdc.mtx.RUnlock()
 
 	infos, ok := iinfo.Implementers[pb]
 	if !ok {
 		err = fmt.Errorf("unrecognized prefix bytes %X", pb)
-		cdc.mtx.RUnlock()
 		return
 	}
 	if len(infos) > 1 {
 		err = fmt.Errorf("conflicting concrete types registered for %X: e.g. %v and %v", pb, infos[0].Type, infos[1].Type)
-		cdc.mtx.RUnlock()
 		return
 	}
 	info = infos[0]
-	cdc.mtx.RUnlock()
 	return
 }
 
 func (cdc *Codec) getTypeInfoFromDisfix_rlock(df DisfixBytes) (info *TypeInfo, err error) {
-	// We do not use defer cdc.mtx.Unlock() here due to performance overhead of
-	// defer in go1.11 (and prior versions). Ensure new code paths unlock the
-	// mutex.
 	cdc.mtx.RLock()
+	defer cdc.mtx.RUnlock()
 
 	info, ok := cdc.disfixToTypeInfo[df]
 	if !ok {
 		err = fmt.Errorf("unrecognized disambiguation+prefix bytes %X", df)
-		cdc.mtx.RUnlock()
 		return
 	}
-	cdc.mtx.RUnlock()
 	return
 }
 
 func (cdc *Codec) getTypeInfoFromName_rlock(name string) (info *TypeInfo, err error) {
-	// We do not use defer cdc.mtx.Unlock() here due to performance overhead of
-	// defer in go1.11 (and prior versions). Ensure new code paths unlock the
-	// mutex.
 	cdc.mtx.RLock()
+	defer cdc.mtx.RUnlock()
 
 	info, ok := cdc.nameToTypeInfo[name]
 	if !ok {
 		err = fmt.Errorf("unrecognized concrete type name %s", name)
-		cdc.mtx.RUnlock()
 		return
 	}
-	cdc.mtx.RUnlock()
 	return
 }
 
@@ -525,17 +505,8 @@ func (cdc *Codec) parseFieldOptions(field reflect.StructField) (skip bool, fopts
 	}
 
 	// Parse amino tags.
-	aminoTags := strings.Split(aminoTag, ",")
-	for _, aminoTag := range aminoTags {
-		if aminoTag == "unsafe" {
-			fopts.Unsafe = true
-		}
-		if aminoTag == "write_empty" {
-			fopts.WriteEmpty = true
-		}
-		if aminoTag == "empty_elements" {
-			fopts.EmptyElements = true
-		}
+	if aminoTag == "unsafe" {
+		fopts.Unsafe = true
 	}
 
 	return

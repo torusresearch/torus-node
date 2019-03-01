@@ -32,7 +32,7 @@ func (s *cacheShard) get(key string, hashedKey uint64) ([]byte, error) {
 	if itemIndex == 0 {
 		s.lock.RUnlock()
 		s.miss()
-		return nil, notFound(key)
+		return nil, ErrEntryNotFound
 	}
 
 	wrappedEntry, err := s.entries.Get(int(itemIndex))
@@ -47,7 +47,7 @@ func (s *cacheShard) get(key string, hashedKey uint64) ([]byte, error) {
 		}
 		s.lock.RUnlock()
 		s.collision()
-		return nil, notFound(key)
+		return nil, ErrEntryNotFound
 	}
 	s.lock.RUnlock()
 	s.hit()
@@ -91,7 +91,7 @@ func (s *cacheShard) del(key string, hashedKey uint64) error {
 	if itemIndex == 0 {
 		s.lock.RUnlock()
 		s.delmiss()
-		return notFound(key)
+		return ErrEntryNotFound
 	}
 
 	wrappedEntry, err := s.entries.Get(int(itemIndex))
@@ -140,13 +140,16 @@ func (s *cacheShard) getOldestEntry() ([]byte, error) {
 }
 
 func (s *cacheShard) getEntry(index int) ([]byte, error) {
-	return s.entries.Get(index)
+	s.lock.RLock()
+	entry, err := s.entries.Get(index)
+	s.lock.RUnlock()
+
+	return entry, err
 }
 
 func (s *cacheShard) copyKeys() (keys []uint32, next int) {
-	keys = make([]uint32, len(s.hashmap))
-
 	s.lock.RLock()
+	keys = make([]uint32, len(s.hashmap))
 
 	for _, index := range s.hashmap {
 		keys[next] = index

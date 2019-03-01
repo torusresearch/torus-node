@@ -51,13 +51,3 @@ type Options struct {
 }
 
 type Option func(o *Options)
-
-// Copy snapshot
-func Copy(s *Snapshot) *Snapshot {
-	cs := *(s.ChangeSet)
-
-	return &Snapshot{
-		ChangeSet: &cs,
-		Version:   s.Version,
-	}
-}

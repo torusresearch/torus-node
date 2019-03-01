@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	simple "github.com/bitly/go-simplejson"
@@ -23,8 +22,9 @@ type jsonValue struct {
 
 func newValues(ch *source.ChangeSet) (reader.Values, error) {
 	sj := simple.New()
-	if err := sj.UnmarshalJSON(ch.Data); err != nil {
-		sj.SetPath(nil, string(ch.Data))
+	err := sj.UnmarshalJSON(ch.Data)
+	if err != nil {
+		return nil, err
 	}
 	return &jsonValues{ch, sj}, nil
 }
@@ -160,13 +160,6 @@ func (j *jsonValue) Duration(def time.Duration) time.Duration {
 }
 
 func (j *jsonValue) StringSlice(def []string) []string {
-	v, err := j.Json.String()
-	if err == nil {
-		sl := strings.Split(v, ",")
-		if len(sl) > 1 {
-			return sl
-		}
-	}
 	return j.Json.MustStringArray(def)
 }
 

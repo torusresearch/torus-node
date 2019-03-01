@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2016 The btcsuite developers
+// Copyright (c) 2013-2014 Conformal Systems LLC.
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,6 @@ package btcec
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"math/big"
 )
@@ -18,7 +17,7 @@ type PrivateKey ecdsa.PrivateKey
 
 // PrivKeyFromBytes returns a private and public key for `curve' based on the
 // private key passed as an argument as a byte slice.
-func PrivKeyFromBytes(curve elliptic.Curve, pk []byte) (*PrivateKey,
+func PrivKeyFromBytes(curve *KoblitzCurve, pk []byte) (*PrivateKey,
 	*PublicKey) {
 	x, y := curve.ScalarBaseMult(pk)
 
@@ -36,7 +35,7 @@ func PrivKeyFromBytes(curve elliptic.Curve, pk []byte) (*PrivateKey,
 
 // NewPrivateKey is a wrapper for ecdsa.GenerateKey that returns a PrivateKey
 // instead of the normal ecdsa.PrivateKey.
-func NewPrivateKey(curve elliptic.Curve) (*PrivateKey, error) {
+func NewPrivateKey(curve *KoblitzCurve) (*PrivateKey, error) {
 	key, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		return nil, err
@@ -54,12 +53,14 @@ func (p *PrivateKey) ToECDSA() *ecdsa.PrivateKey {
 	return (*ecdsa.PrivateKey)(p)
 }
 
-// Sign generates an ECDSA signature for the provided hash (which should be the result
-// of hashing a larger message) using the private key. Produced signature
-// is deterministic (same message and same key yield the same signature) and canonical
-// in accordance with RFC6979 and BIP0062.
+// Sign wraps ecdsa.Sign to sign the provided hash (which should be the result
+// of hashing a larger message) using the private key.
 func (p *PrivateKey) Sign(hash []byte) (*Signature, error) {
-	return signRFC6979(p, hash)
+	r, s, err := ecdsa.Sign(rand.Reader, p.ToECDSA(), hash)
+	if err != nil {
+		return nil, err
+	}
+	return &Signature{R: r, S: s}, nil
 }
 
 // PrivKeyBytesLen defines the length in bytes of a serialized private key.

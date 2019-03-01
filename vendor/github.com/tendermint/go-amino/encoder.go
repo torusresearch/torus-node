@@ -2,10 +2,8 @@ package amino
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
-	"math/bits"
 	"time"
 )
 
@@ -76,9 +74,6 @@ func EncodeUint64(w io.Writer, u uint64) (err error) {
 	return
 }
 
-// EncodeUvarint is used to encode golang's int, int32, int64 by default. unless specified differently by the
-// `binary:"fixed32"`, `binary:"fixed64"`, or `binary:"zigzag32"` `binary:"zigzag64"` tags.
-// It matches protobufs varint encoding.
 func EncodeUvarint(w io.Writer, u uint64) (err error) {
 	var buf [10]byte
 	n := binary.PutUvarint(buf[:], u)
@@ -87,10 +82,9 @@ func EncodeUvarint(w io.Writer, u uint64) (err error) {
 }
 
 func UvarintSize(u uint64) int {
-	if u == 0 {
-		return 1
-	}
-	return (bits.Len64(u) + 6) / 7
+	var buf [10]byte
+	n := binary.PutUvarint(buf[:], u)
+	return n
 }
 
 //----------------------------------------
@@ -115,63 +109,33 @@ func EncodeFloat64(w io.Writer, f float64) (err error) {
 	return EncodeUint64(w, math.Float64bits(f))
 }
 
-const (
-	// seconds of 01-01-0001
-	minSeconds int64 = -62135596800
-	// seconds of 10000-01-01
-	maxSeconds int64 = 253402300800
-
-	// nanos have to be in interval: [0, 999999999]
-	maxNanos = 999999999
-)
-
-type InvalidTimeErr string
-
-func (e InvalidTimeErr) Error() string {
-	return "invalid time: " + string(e)
-}
-
 // EncodeTime writes the number of seconds (int64) and nanoseconds (int32),
 // with millisecond resolution since January 1, 1970 UTC to the Writer as an
-// UInt64.
+// Int64.
 // Milliseconds are used to ease compatibility with Javascript,
 // which does not support finer resolution.
 func EncodeTime(w io.Writer, t time.Time) (err error) {
-	s := t.Unix()
+	var s = t.Unix()
+	var ns = int32(t.Nanosecond()) // this int64 -> int32 is safe.
+
 	// TODO: We are hand-encoding a struct until MarshalAmino/UnmarshalAmino is supported.
-	// skip if default/zero value:
-	if s != 0 {
-		if s < minSeconds || s >= maxSeconds {
-			return InvalidTimeErr(fmt.Sprintf("seconds have to be >= %d and < %d, got: %d",
-				minSeconds, maxSeconds, s))
-		}
-		err = encodeFieldNumberAndTyp3(w, 1, Typ3_Varint)
-		if err != nil {
-			return
-		}
-		err = EncodeUvarint(w, uint64(s))
-		if err != nil {
-			return
-		}
+
+	err = encodeFieldNumberAndTyp3(w, 1, Typ3_8Byte)
+	if err != nil {
+		return
 	}
-	ns := int32(t.Nanosecond()) // this int64 -> int32 cast is safe (nanos are in [0, 999999999])
-	// skip if default/zero value:
-	if ns != 0 {
-		// do not encode if nanos exceed allowed interval
-		if ns < 0 || ns > maxNanos {
-			// we could as well panic here:
-			// time.Time.Nanosecond() guarantees nanos to be in [0, 999,999,999]
-			return InvalidTimeErr(fmt.Sprintf("nanoseconds have to be >= 0 and <= %v, got: %d",
-				maxNanos, s))
-		}
-		err = encodeFieldNumberAndTyp3(w, 2, Typ3_Varint)
-		if err != nil {
-			return
-		}
-		err = EncodeUvarint(w, uint64(ns))
-		if err != nil {
-			return
-		}
+	err = EncodeInt64(w, s)
+	if err != nil {
+		return
+	}
+
+	err = encodeFieldNumberAndTyp3(w, 2, Typ3_4Byte)
+	if err != nil {
+		return
+	}
+	err = EncodeInt32(w, ns)
+	if err != nil {
+		return
 	}
 
 	return

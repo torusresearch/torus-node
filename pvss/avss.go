@@ -9,6 +9,7 @@ import (
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
+// GenerateRandomBivariatePolynomial -
 // create a bivariate polynomial which is defined by coeffs of
 // all possible combinations of powers of x and y, such that powers
 // of x and y are less than t (threshold). accepts param secret = f(0,0)
@@ -33,7 +34,7 @@ func GenerateRandomBivariatePolynomial(secret big.Int, threshold int) [][]big.In
 
 }
 
-// get a pedersen commitment matrix from two bivar polys
+// GetCommitmentMatrix - get a pedersen commitment matrix from two bivar polys
 func GetCommitmentMatrix(f [][]big.Int, fprime [][]big.Int) [][]common.Point {
 	threshold := len(f)
 	bivarPolyCommits := make([][]common.Point, threshold)
@@ -52,7 +53,7 @@ func GetCommitmentMatrix(f [][]big.Int, fprime [][]big.Int) [][]common.Point {
 	return bivarPolyCommits
 }
 
-// evaluate bivar poly at given x
+// EvaluateBivarPolyAtX - evaluate bivar poly at given x
 func EvaluateBivarPolyAtX(bivarPoly [][]big.Int, index big.Int) common.PrimaryPolynomial {
 	fiY := common.PrimaryPolynomial{
 		Coeff:     make([]big.Int, len(bivarPoly)),
@@ -72,7 +73,7 @@ func EvaluateBivarPolyAtX(bivarPoly [][]big.Int, index big.Int) common.PrimaryPo
 	return fiY
 }
 
-// evaluate bivar poly at given y
+// EvaluateBivarPolyAtY - evaluate bivar poly at given y
 func EvaluateBivarPolyAtY(bivarPoly [][]big.Int, index big.Int) common.PrimaryPolynomial {
 	fiX := common.PrimaryPolynomial{
 		Coeff:     make([]big.Int, len(bivarPoly)),
@@ -168,7 +169,7 @@ func AVSSVerifyPoint(
 	return true
 }
 
-// Verify-share from Cachin et al. 2002
+// AVSSVerifyShare - Verify-share from Cachin et al. 2002
 func AVSSVerifyShare(C [][]common.Point, m big.Int, sigma big.Int, sigmaprime big.Int) bool {
 	gsigma := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(sigma.Bytes()))
 	hsigmaprime := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, sigmaprime.Bytes()))

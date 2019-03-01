@@ -56,11 +56,12 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			if err != nil {
 				fmt.Println("KEYGEN: could not broadcast initiateKeygeneration", err)
 			}
-			selfInitiateStatus, selfInitiateStatusFound := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]["initiate_keygen"]
+
+			fsm, fsmExists := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]
 			allInitiateStatus, allInitiateStatusFound := suite.ABCIApp.state.LocalStatus["all_initiate_keygen"]
 
 			// TODO: expecting keygen process to take longer than 1 second
-			if (selfInitiateStatusFound && selfInitiateStatus == "Y") || (allInitiateStatusFound && (allInitiateStatus == "Y" || allInitiateStatus == "IP")) {
+			if (fsmExists && fsm.Current() == "initiated_keygen") || (allInitiateStatusFound && (allInitiateStatus == "Y" || allInitiateStatus == "IP")) {
 				break
 			}
 		}

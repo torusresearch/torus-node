@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/looplab/fsm"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
@@ -104,21 +106,35 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, errors.New("Epoch mismatch for tx")
 		}
 
-		// initialize inner mapping if it does not exist
+		// initialize fsm if it does not exist
+		// TODO: create dictionary for states, lets initialize elsewhere
 		if app.state.NodeStatus[uint(nodeIndex)] == nil {
-			app.state.NodeStatus[uint(nodeIndex)] = make(map[string]string)
+			app.state.NodeStatus[uint(nodeIndex)] = fsm.NewFSM(
+				"standby",
+				fsm.Events{
+					{Name: "initiate_keygen", Src: []string{"standby"}, Dst: "initiated_keygen"},
+					{Name: "keygen_complete", Src: []string{"initiated_keygen"}, Dst: "keygen_completed"},
+					{Name: "end_keygen", Src: []string{"keygen_completed"}, Dst: "standby"},
+				},
+				fsm.Callbacks{
+					"enter_state": func(e *fsm.Event) { fmt.Printf("STATUSTX: status set for node from %s to %s", e.Src, e.Dst) },
+				},
+			)
 		}
 
 		// set status
 
-		app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
+		// app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
+		app.state.NodeStatus[uint(nodeIndex)].Event(statusTx.StatusType)
 		fmt.Println("STATUSTX: status set for node", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
 
 		// Update LocalStatus based on rules
 		// check if all nodes have broadcasted keygen_complete == "Y"
+		// TODO: shift into fsm callback
 		counter := 0
 		for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
-			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] == "Y" {
+			fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
+			if ok && fsm.Current() == "keygen_completed" {
 				counter++
 			}
 		}
@@ -129,7 +145,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			app.state.LocalStatus["all_keygen_complete"] = "Y" // TODO: make epoch variable
 			// reset all other nodes' keygen completion status
 			for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
-				app.state.NodeStatus[uint(nodeI.Index.Int64())]["keygen_complete"] = ""
+				app.state.NodeStatus[uint(nodeI.Index.Int64())].Event("end_keygen")
 			}
 			fmt.Println("STATUSTX: app state is:", app.state)
 			// update total number of available keys
@@ -150,7 +166,8 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		// check if all nodes have broadcasted initiate_keygen == "Y"
 		counter = 0
 		for _, nodeI := range app.Suite.EthSuite.NodeList {
-			if app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] == "Y" {
+			fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
+			if ok && fsm.Current() == "initiated_keygen" {
 				stopIndex := string(statusTx.Data)
 				fmt.Println("STATUSTX: Initiate Key Gen Registered till ", stopIndex)
 				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
@@ -169,9 +186,9 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		if counter == len(app.Suite.EthSuite.NodeList) {
 			fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
 			app.state.LocalStatus["all_initiate_keygen"] = "Y" // TODO: make epoch variable
-			for _, nodeI := range app.Suite.EthSuite.NodeList {
-				app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
-			}
+			// for _, nodeI := range app.Suite.EthSuite.NodeList {
+			// 	app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
+			// }
 			fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
 		} else {
 			fmt.Println("Number of keygen initiation messages does not match number of nodes")

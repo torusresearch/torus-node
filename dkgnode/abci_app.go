@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/torusresearch/torus-public/secp256k1"
+	"github.com/looplab/fsm"
+
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/version"
+	"github.com/torusresearch/torus-public/secp256k1"
 )
 
 var (
@@ -23,16 +25,16 @@ var (
 // Nothing in state should be a pointer
 // Remember to initialize mappings in NewABCIApp()
 type State struct {
-	Epoch               uint                       `json:"epoch"`
-	Height              int64                      `json:"height"`
-	AppHash             []byte                     `json:"app_hash"`
-	LastUnassignedIndex uint                       `json:"last_unassigned_index"`
-	LastCreatedIndex    uint                       `json:"last_created_index`
-	EmailMapping        map[string]uint            `json:"email_mapping"`
-	NodeStatus          map[uint]map[string]string `json:"node_status"` // Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
-	LocalStatus         map[string]string          `json:"-"`           //
-	ValidatorSet        []types.ValidatorUpdate    `json:"-"`           // `json:"validator_set"`
-	UpdateValidators    bool                       `json:"-"`           // `json:"update_validators"`
+	Epoch               uint                    `json:"epoch"`
+	Height              int64                   `json:"height"`
+	AppHash             []byte                  `json:"app_hash"`
+	LastUnassignedIndex uint                    `json:"last_unassigned_index"`
+	LastCreatedIndex    uint                    `json:"last_created_index`
+	EmailMapping        map[string]uint         `json:"email_mapping"`
+	NodeStatus          map[uint]*fsm.FSM       `json:"node_status"` // Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
+	LocalStatus         map[string]string       `json:"-"`           //
+	ValidatorSet        []types.ValidatorUpdate `json:"-"`           // `json:"validator_set"`
+	UpdateValidators    bool                    `json:"-"`           // `json:"update_validators"`
 }
 
 type ABCITransaction struct {
@@ -87,7 +89,7 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 			LastUnassignedIndex: 0,
 			LastCreatedIndex:    0,
 			EmailMapping:        make(map[string]uint),
-			NodeStatus:          make(map[uint]map[string]string),
+			NodeStatus:          make(map[uint]*fsm.FSM),
 			LocalStatus:         make(map[string]string),
 		}}
 	return &abciApp

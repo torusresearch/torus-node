@@ -221,7 +221,7 @@ func TestAVSS(t *testing.T) {
 	}
 	shareprimes := make([]common.PrimaryShare, total)
 	for i := range shareprimes {
-		shares[i] = common.PrimaryShare{Index: int(nodes[i].Index.Int64()), Value: nodes[i].AIprimeY.Coeff[0]}
+		shareprimes[i] = common.PrimaryShare{Index: int(nodes[i].Index.Int64()), Value: nodes[i].AIprimeY.Coeff[0]}
 	}
 
 	assert.Equal(t, LagrangeScalar(shares[:7], 0).Text(16), LagrangeScalar(shares[1:8], 0).Text(16))

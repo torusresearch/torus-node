@@ -9,3 +9,4 @@ bft.db
 log*.txt
 /temporary
 .build
+*.org

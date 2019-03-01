@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
+	tmbtcec "github.com/YZhenY/btcd/btcec"
+	"github.com/YZhenY/tendermint/abci/types"
+	"github.com/YZhenY/tendermint/libs/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
-	tmbtcec "github.com/tendermint/btcd/btcec"
-	"github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
 )
 
 //Validates transactions to be delivered to the BFT. is the master switch for all tx

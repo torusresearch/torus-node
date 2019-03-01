@@ -3,9 +3,9 @@ package dkgnode
 import (
 	"os"
 
-	"github.com/tendermint/tendermint/abci/server"
-	"github.com/tendermint/tendermint/libs/common"
-	"github.com/tendermint/tendermint/libs/log"
+	"github.com/YZhenY/tendermint/abci/server"
+	"github.com/YZhenY/tendermint/libs/common"
+	"github.com/YZhenY/tendermint/libs/log"
 )
 
 func RunABCIServer(suite *Suite) error {

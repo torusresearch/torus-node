@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/torusresearch/torus-public/secp256k1"
+	"github.com/YZhenY/tendermint/abci/example/code"
+	"github.com/YZhenY/tendermint/abci/types"
+	"github.com/YZhenY/tendermint/libs/common"
+	dbm "github.com/YZhenY/tendermint/libs/db"
+	"github.com/YZhenY/tendermint/version"
 	tmbtcec "github.com/tendermint/btcd/btcec"
-	"github.com/tendermint/tendermint/abci/example/code"
-	"github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"github.com/tendermint/tendermint/version"
+	"github.com/torusresearch/torus-public/secp256k1"
 )
 
 var (

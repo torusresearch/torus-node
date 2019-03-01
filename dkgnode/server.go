@@ -13,11 +13,11 @@ import (
 	"strconv"
 	"time"
 
+	tmquery "github.com/YZhenY/tendermint/libs/pubsub/query"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
-	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/pvss"

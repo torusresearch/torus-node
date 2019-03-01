@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/YZhenY/tendermint/rpc/client"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/torusresearch/torus-public/common"
 )
 

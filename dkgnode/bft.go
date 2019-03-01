@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/rpc/client"
-	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
+	"github.com/YZhenY/tendermint/node"
+	"github.com/YZhenY/tendermint/rpc/client"
+	rpcclient "github.com/YZhenY/tendermint/rpc/lib/client"
 	"github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/logging"
 )

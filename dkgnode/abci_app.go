@@ -32,7 +32,7 @@ type State struct {
 	LastCreatedIndex    uint                    `json:"last_created_index`
 	EmailMapping        map[string]uint         `json:"email_mapping"`
 	NodeStatus          map[uint]*fsm.FSM       `json:"node_status"` // Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
-	LocalStatus         map[string]string       `json:"-"`           //
+	LocalStatus         *fsm.FSM                `json:"-"`           //
 	ValidatorSet        []types.ValidatorUpdate `json:"-"`           // `json:"validator_set"`
 	UpdateValidators    bool                    `json:"-"`           // `json:"update_validators"`
 }
@@ -81,6 +81,20 @@ type ABCIApp struct {
 
 func NewABCIApp(suite *Suite) *ABCIApp {
 	db := dbm.NewMemDB()
+
+	//FSM Code elsewhere?
+	localStatusFsm := fsm.NewFSM(
+		"standby",
+		fsm.Events{
+			{Name: "all_initiate_keygen", Src: []string{"standby"}, Dst: "ready_for_keygen"},
+			{Name: "start_keygen", Src: []string{"ready_for_keygen"}, Dst: "running_keygen"},
+			{Name: "all_keygen_complete", Src: []string{"running_keygen"}, Dst: "standby"},
+			// {Name: "end_keygen", Src: []string{"keygen_completed"}, Dst: "standby"},
+		},
+		fsm.Callbacks{
+			"enter_state": func(e *fsm.Event) { fmt.Printf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+		},
+	)
 	abciApp := ABCIApp{
 		Suite: suite, db: db,
 		state: &State{
@@ -90,7 +104,7 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 			LastCreatedIndex:    0,
 			EmailMapping:        make(map[string]uint),
 			NodeStatus:          make(map[uint]*fsm.FSM),
-			LocalStatus:         make(map[string]string),
+			LocalStatus:         localStatusFsm,
 		}}
 	return &abciApp
 }
@@ -183,7 +197,8 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 		fmt.Println("GOT A QUERY FOR GETKEYGENCOMPLETE")
 		fmt.Println("for Epoch: ", string(reqQuery.Data))
 		return types.ResponseQuery{
-			Value: []byte(app.state.LocalStatus["all_keygen_complete"]),
+			// Value: []byte(app.state.LocalStatus["all_keygen_complete"]),
+			Value: []byte(app.state.LocalStatus.Current()),
 		}
 
 	default:

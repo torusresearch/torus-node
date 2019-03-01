@@ -21,7 +21,8 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 	for {
 		fmt.Println("KEYGEN: in start keygen monitor", suite.ABCIApp.state.LocalStatus)
 		time.Sleep(1 * time.Second)
-		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
+		// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
+		if suite.ABCIApp.state.LocalStatus.Current() == "runnning_keygen" {
 			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS", suite.ABCIApp.state.LocalStatus)
 			continue
 		}
@@ -58,10 +59,10 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			}
 
 			fsm, fsmExists := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]
-			allInitiateStatus, allInitiateStatusFound := suite.ABCIApp.state.LocalStatus["all_initiate_keygen"]
+			allInitiateStatus := suite.ABCIApp.state.LocalStatus.Current()
 
 			// TODO: expecting keygen process to take longer than 1 second
-			if (fsmExists && fsm.Current() == "initiated_keygen") || (allInitiateStatusFound && (allInitiateStatus == "Y" || allInitiateStatus == "IP")) {
+			if (fsmExists && fsm.Current() == "initiated_keygen") || (allInitiateStatus == "ready_for_keygen" || allInitiateStatus == "running_keygen") {
 				break
 			}
 		}
@@ -69,10 +70,11 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y", suite.ABCIApp.state.LocalStatus)
 			fmt.Println(suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
-			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
+			// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
+			if suite.ABCIApp.state.LocalStatus.Current() == "ready_for_keygen" {
 				fmt.Println("STATUSTX: localstatus all initiate keygen is Y, appstate", suite.ABCIApp.state.LocalStatus)
 				//reset keygen flag
-				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "IP"
+				suite.ABCIApp.state.LocalStatus.Event("start_keygen")
 				//report back to main process
 				keyGenMonitorUpdates <- KeyGenUpdates{
 					Type:    "start_keygen",

@@ -303,13 +303,13 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	for {
 		time.Sleep(1 * time.Second)
 		// TODO: make epoch variable
-		allKeygenComplete := suite.ABCIApp.state.LocalStatus["all_keygen_complete"]
-		if allKeygenComplete != "Y" {
+		allKeygenComplete := suite.ABCIApp.state.LocalStatus.Current()
+		if allKeygenComplete == "running_keygen" {
 			fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
 			continue
 		}
 		fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
-		suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
+		// suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
 		// err := suite.BftSuite.DeregisterQuery("keygeneration.sharecollection='1'")
 		// if err != nil {
 		// 	fmt.Println("Could not deregister", err)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"time"
 
 	"github.com/looplab/fsm"
 
@@ -142,7 +141,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		if counter == len(app.Suite.EthSuite.NodeList) {
 			fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
 			// set all_keygen_complete to Y
-			app.state.LocalStatus["all_keygen_complete"] = "Y" // TODO: make epoch variable
+			app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
 			// reset all other nodes' keygen completion status
 			for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
 				app.state.NodeStatus[uint(nodeI.Index.Int64())].Event("end_keygen")
@@ -152,10 +151,10 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
 			fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
 			// start listening again for the next time we initiate a keygen
-			go func() {
-				time.Sleep(5 * time.Second)
-				app.state.LocalStatus["all_initiate_keygen"] = ""
-			}()
+			// go func() {
+			// 	time.Sleep(5 * time.Second)
+			// 	app.state.LocalStatus["all_initiate_keygen"] = ""
+			// }()
 			app.state.Epoch = app.state.Epoch + uint(1)
 			fmt.Println("STATUSTX: state is", app.state)
 			fmt.Println("STATUSTX: epoch is", app.state.Epoch)
@@ -185,7 +184,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		fmt.Println("STATUSTX: another counter is at", counter)
 		if counter == len(app.Suite.EthSuite.NodeList) {
 			fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
-			app.state.LocalStatus["all_initiate_keygen"] = "Y" // TODO: make epoch variable
+			app.state.LocalStatus.Event("all_initiate_keygen") // TODO: make epoch variable
 			// for _, nodeI := range app.Suite.EthSuite.NodeList {
 			// 	app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
 			// }

@@ -2,87 +2,88 @@ package dkgnode
 
 /* All useful imports */
 import (
-	"fmt"
-	"strings"
+	"flag"
 
 	"github.com/micro/go-config"
+	"github.com/micro/go-config/source/env"
 	"github.com/micro/go-config/source/file"
+	cflag "github.com/micro/go-config/source/flag"
+	"github.com/torusresearch/torus-public/logging"
 )
 
+const DefaultConfigPath = "~/.torus/config.json"
+
 type Config struct {
+	// QUESTION(TEAM): I think struct tags should be either camelCase, or the_traditional_one
+	// but definitely standardized, and in the case of go-config, i think it's better if we use camelCase
 	MyPort                     string `json:"myport"`
 	MainServerAddress          string `json:"mainserveraddress"`
 	EthConnection              string `json:"ethconnection"`
 	EthPrivateKey              string `json:"ethprivatekey"`
-	BftURI                     string `json:"bfturi`
-	ABCIServer                 string `json:"abciserver`
-	P2PListenAddress           string `json"p2plistenaddress"`
+	BftURI                     string `json:"bfturi"`
+	ABCIServer                 string `json:"abciserver"`
+	P2PListenAddress           string `json:"p2plistenaddress"`
 	NodeListAddress            string `json:"nodelistaddress"`
 	HostName                   string `json:"hostname"`
 	NumberOfNodes              int    `json:"numberofnodes"`
 	Threshold                  int    `json:"threshold"`
 	KeysPerEpoch               int    `json:"keysperepoch"`
 	KeyBufferTriggerPercentage int    `json:"keybuffertriggerpercetage"` //percetage threshold of keys left to trigger buffering 90 - 20
-	BuildPath                  string `json:"buildpath"`
+	BasePath                   string `json:"buildpath"`
+
+	ShouldRegister    bool   `json:"register"`
+	CPUProfileToFile  string `json:"cpuProfile"`
+	IsProduction      bool   `json:"production"`
+	ProvidedIPAddress string `json:"ipAddress"`
 }
 
-func loadConfig(suite *Suite, path string, nodeAddress string, privateKey string, buildPath string, ethConnection string, nodeListAddress string, production bool) {
+func loadConfig() *Config {
+	register := flag.Bool("register", true, "defaults to true")
+	production := flag.Bool("production", false, "defaults to false")
+	privateKey := flag.String("ethprivateKey", "", "provide private key here to run node on")
+	nodeIPAddress := flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
+	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
+	ethConnection := flag.String("ethConnection", "", "ethereum endpoint")
+	nodeListAddress := flag.String("nodeListAddress", "", "node list address on ethereum")
+
+	flagSource := cflag.NewSource()
 
 	conf := defaultConfigSettings()
+
 	nodeIP, err := findExternalIP()
 	if err != nil {
-		fmt.Println(err)
+		// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
+		logging.Errorf("%s", err)
 	}
 
-	if path != "" {
-		fmt.Println("Running on Configuration File")
-		/* Load Config */
-		config.Load(file.NewSource(
-			file.WithPath(path),
-		))
-		config.Scan(&conf)
-		//if in production use configured nodeIP for server. else use https dev host address "localhost"
-		if production {
-			conf.MainServerAddress = nodeIP + ":" + conf.MyPort
-		} else {
-			conf.MainServerAddress = "localhost" + ":" + conf.MyPort
-		}
-		// retrieve map[string]interface{}
-	} else if nodeAddress != "" {
-		fmt.Println("Running on Specified IP Address")
-		//Specified for docker configurations
-		// conf.BftURI = "tcp://" + nodeAddress + ":" + strings.Split(conf.BftURI, ":")[2]
-		// conf.ABCIServer = "tcp://" + nodeAddress + ":" + strings.Split(conf.ABCIServer, ":")[2]
-		// conf.P2PListenAddress = "tcp://" + nodeAddress + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
-		conf.MainServerAddress = nodeAddress + ":" + conf.MyPort
-		conf.HostName = nodeAddress
-	} else {
-		fmt.Println("Running on Default Configurations")
-		//In default configurations we find server IP
-		conf.BftURI = "tcp://" + nodeIP + ":" + strings.Split(conf.BftURI, ":")[2]
-		conf.ABCIServer = "tcp://" + nodeIP + ":" + strings.Split(conf.ABCIServer, ":")[2]
-		conf.P2PListenAddress = "tcp://" + nodeIP + ":" + strings.Split(conf.P2PListenAddress, ":")[2]
-		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
-	}
+	// First we have the default settings
+	config.Load(
+		// Then we override with the config file
+		file.NewSource(file.WithPath(DefaultConfigPath)),
+		// Then we override with ENV vars.
+		env.NewSource(),
+		// Then override env with flags
+		flagSource,
+	)
 
-	//replace config private key if flat is provided
+	config.Scan(&conf)
+	// ^^^^^
 	//TODO: validation checks on private key
-	if privateKey != "" {
-		conf.EthPrivateKey = privateKey
+
+	//if in production use configured nodeIP for server. else use https dev host address "localhost"
+	if conf.IsProduction {
+		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
+	} else {
+		conf.MainServerAddress = "localhost" + ":" + conf.MyPort
 	}
-	if buildPath != "" && buildPath != "./.build" {
-		conf.BuildPath = buildPath
+	// retrieve map[string]interface{}
+	if conf.ProvidedIPAddress != "" {
+		logging.Infof("Running on Specified IP Address: %s", conf.ProvidedIPAddress)
+		conf.MainServerAddress = conf.ProvidedIPAddress + ":" + conf.MyPort
+		conf.HostName = conf.ProvidedIPAddress
 	}
-	if nodeListAddress != "" {
-		conf.NodeListAddress = nodeListAddress
-	}
-	if ethConnection != "" {
-		conf.EthConnection = ethConnection
-	}
-	fmt.Println("Configuration: ")
-	fmt.Printf("%+v\n", conf)
-	//edit the config to use nodeAddress
-	suite.Config = &conf
+
+	return &conf
 }
 
 func defaultConfigSettings() Config {
@@ -100,6 +101,6 @@ func defaultConfigSettings() Config {
 		Threshold:                  3,
 		KeysPerEpoch:               100,
 		KeyBufferTriggerPercentage: 80,
-		BuildPath:                  "/.build",
+		BasePath:                   "/.torus",
 	}
 }

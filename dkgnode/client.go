@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -24,7 +25,6 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
 	"github.com/torusresearch/torus-public/secp256k1"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
@@ -117,9 +117,8 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(defaultTmConfig.NodeKeyFile())
 	if err != nil {
-		logging.Debug("Node Key generation issue")
-		logging.Error(err.Error())
-		// QUESTION(TEAM): Why is this error unhandled?
+		fmt.Println("Node Key generation issue")
+		fmt.Println(err)
 	}
 
 	genDoc := tmtypes.GenesisDoc{
@@ -141,10 +140,10 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	}
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
-	logging.Debugf("PERSISTANT PEERS: %s", defaultTmConfig.P2P.PersistentPeers)
+	fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
 	genDoc.Validators = temp
 
-	logging.Debugf("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
+	fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
 		fmt.Print(err)
 	}
@@ -159,7 +158,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
 	defaultTmConfig.LogLevel = "*:error"
-	logging.Debugf("NodeKey ID: %s", nodeKey.ID())
+	fmt.Println("NodeKey ID: ", nodeKey.ID())
 	//save config
 	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
 
@@ -178,14 +177,14 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	// )
 
 	if err != nil {
-		logging.Fatalf("Failed to create tendermint node: %v", err)
+		log.Fatal("Failed to create tendermint node: %v", err)
 	}
 
 	//Start Tendermint Node
-	logging.Debugf("Tendermint P2P Connection on: %s", defaultTmConfig.P2P.ListenAddress)
-	logging.Debugf("Tendermint Node RPC listening on: %s", defaultTmConfig.RPC.ListenAddress)
+	fmt.Println("Tendermint P2P Connection on: ", defaultTmConfig.P2P.ListenAddress)
+	fmt.Println("Tendermint Node RPC listening on: ", defaultTmConfig.RPC.ListenAddress)
 	if err := n.Start(); err != nil {
-		logging.Fatalf("Failed to start tendermint node: %v", err)
+		log.Fatal("Failed to start tendermint node: %v", err)
 	}
 	logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
 
@@ -201,8 +200,8 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	nodeList := suite.EthSuite.NodeList
 	bftRPC := suite.BftSuite.BftRPC
 
-	logging.Debugf("Required number of nodes reached")
-	logging.Debugf("KEYGEN: Sending shares -----------", suite.ABCIApp.state.LocalStatus)
+	fmt.Println("Required number of nodes reached")
+	fmt.Println("KEYGEN: Sending shares -----------", suite.ABCIApp.state.LocalStatus)
 
 	secretMapping := make(map[int]SecretStore)
 	siMapping := make(map[int]SiStore)
@@ -219,11 +218,9 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// create shares and public polynomial commitment
 		shares, pubpoly, err := pvss.CreateShares(nodes, *secret, suite.Config.Threshold)
 		if err != nil {
-			// QUESTION(TEAM) - shouldn't you return an error here, as the startKeyGeneration procedure
-			// has failed? Before there was only a fmt.Println here
-			logging.Error(err.Error())
+			fmt.Println(err)
 		}
-		logging.Debugf("Shares created %v", shares)
+		fmt.Println("Shares created", shares)
 		// commit pubpoly by signing it and broadcasting it
 		pubPolyTx := PubPolyBFTTx{
 			PubPoly:    *pubpoly,
@@ -236,13 +233,11 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// broadcast signed pubpoly
 		var id *common.Hash
 		action := func(attempt uint) error {
-			logging.Debugf("KEYGEN: trying to broadcast for shareIndex", shareIndex, "attempt", attempt)
+			fmt.Println("KEYGEN: trying to broadcast for shareIndex", shareIndex, "attempt", attempt)
 			id, err = bftRPC.Broadcast(wrapper)
 			if err != nil {
-				// QUESTION(TEAM): I think this was not formatted properly, leaving it commented out
-				// logging.Debugf("failed to fetch (attempt #%d) with error: %d", err)
-				// err = fmt.Errorf("failed to fetch (attempt #%d) with error: %d", err)
-				err = fmt.Errorf("failed to fetch (attempt %d) with error: %s", attempt, err)
+				fmt.Println("failed to fetch (attempt #%d) with error: %d", err)
+				err = fmt.Errorf("failed to fetch (attempt #%d) with error: %d", err)
 			}
 			return err
 		}
@@ -250,15 +245,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			action,
 			strategy.Backoff(backoff.Fibonacci(10*time.Millisecond)),
 		)
-
-		if err != nil {
-			// QUESTION(TEAM): Should this error remain unhandled? and the client should continue?
-			// logging.Debugf("Failed to publish pub poly with error %q", err)
-
-			logging.Errorf("failed to publish pub poly with error %s", err)
+		if nil != err {
+			fmt.Println("Failed to publish pub poly with error %q", err)
 		}
-
-		logging.Debugf("KEYGEN: broadcasted shareIndex: %d", shareIndex)
+		fmt.Println("KEYGEN: broadcasted shareIndex", shareIndex)
 		// signcrypt data
 		signcryptedData := make([]*common.SigncryptedOutput, len(nodes))
 		for index, share := range *shares {
@@ -276,26 +266,24 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			// 	broadcastIdBytes = append(make([]byte, 1), broadcastIdBytes...)
 			// }
 			// if err != nil {
-			// 	logging.Debugf("Failed during padding of broadcastId bytes")
+			// 	fmt.Println("Failed during padding of broadcastId bytes")
 			// }
 			// data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
 			// signcryption, err := pvss.Signcrypt(nodes[index].PubKey, data, *suite.EthSuite.NodePrivateKey.D)
 			if err != nil {
-				logging.Debugf("KEYGEN: Failed during signcryption", shareIndex)
+				fmt.Println("KEYGEN: Failed during signcryption", shareIndex)
 			}
 			signcryptedData[index] = &common.SigncryptedOutput{NodePubKey: nodes[index].PubKey, NodeIndex: share.Index, SigncryptedShare: *signcryption}
-			logging.Debugf("KEYGEN: Signcrypted %d", shareIndex)
+			fmt.Println("KEYGEN: Signcrypted", shareIndex)
 		}
 		errArr := sendSharesToNodes(suite, signcryptedData, nodeList, shareIndex)
 		if errArr != nil {
-
-			// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
-			logging.Debugf("errors sending shares")
-			logging.Errorf("%v", errArr)
+			fmt.Println("errors sending shares")
+			fmt.Println(errArr)
 		}
 		secretMapping[shareIndex] = SecretStore{secret, false}
 	}
-	logging.Debugf("KEYGEN: broadcasting keygencomplete status", suite.ABCIApp.state.LocalStatus)
+	fmt.Println("KEYGEN: broadcasting keygencomplete status", suite.ABCIApp.state.LocalStatus)
 	statusTx := StatusBFTTx{
 		StatusType:  "keygen_complete",
 		StatusValue: "Y",
@@ -309,7 +297,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	// wait for websocket to be up
 	for suite.BftSuite.BftRPCWSStatus != "up" {
 		time.Sleep(1 * time.Second)
-		logging.Debugf("bftsuite websocket connection is not up")
+		fmt.Println("bftsuite websocket connection is not up")
 	}
 
 	for {
@@ -317,21 +305,21 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// TODO: make epoch variable
 		allKeygenComplete := suite.ABCIApp.state.LocalStatus["all_keygen_complete"]
 		if allKeygenComplete != "Y" {
-			logging.Debugf("KEYGEN: nodes have not finished sending shares for epoch, appstate: %v", suite.ABCIApp.state)
+			fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
 			continue
 		}
-		logging.Debugf("KEYGEN: all nodes have finished sending shares for epoch, appstate: %v", suite.ABCIApp.state)
+		fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
 		suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
 		// err := suite.BftSuite.DeregisterQuery("keygeneration.sharecollection='1'")
 		// if err != nil {
-		// 	logging.Debugf("Could not deregister", err)
+		// 	fmt.Println("Could not deregister", err)
 		// }
 		break
 	}
 
 	// Signcrypted shares are received by the other nodes and handled in server.go
 
-	logging.Debugf("KEYGEN: STARTING TO GATHER SHARES AND PUT THEM TOGETHER - %d %d", shareStartingIndex, shareEndingIndex)
+	fmt.Println("KEYGEN: STARTING TO GATHER SHARES AND PUT THEM TOGETHER", shareStartingIndex, shareEndingIndex)
 	// gather shares, decrypt and verify with pubpoly
 	// - check if shares are here
 	// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
@@ -353,20 +341,21 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 					nodeId = append(nodeId, i+1)
 				}
 			} else {
-				logging.Debugf("Could not find mapping for node %d", i)
+				fmt.Println("Could not find mapping for node ", i)
 				break
 			}
 		}
 		// Retrieve previously broadcasted signed pubpoly data
 		broadcastedDataArray := make([][]common.Point, len(broadcastIdArray))
 		for index, broadcastId := range broadcastIdArray {
-			logging.Debugf("BROADCASTID WAS: ", broadcastId)
+			fmt.Println("BROADCASTID WAS: ", broadcastId)
 
 			pubPolyTx := PubPolyBFTTx{}
 			wrappedPubPolyTx := DefaultBFTTxWrapper{&pubPolyTx}
 			err := bftRPC.Retrieve(broadcastId, &wrappedPubPolyTx) // TODO: use a goroutine to run this concurrently
 			if err != nil {
-				logging.Debugf("Could not retrieve broadcast with err: %s", err)
+				fmt.Println("Could not retrieve broadcast")
+				fmt.Println(err)
 				continue
 			}
 
@@ -375,7 +364,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 		// verify share against pubpoly
 		//TODO: shift to function in pvss.go
-		logging.Debugf("KEYGEN: share verification %d", shareIndex)
+		fmt.Println("KEYGEN: share verification", shareIndex)
 		s := secp256k1.Curve
 		for index, pubpoly := range broadcastedDataArray {
 			var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))
@@ -386,25 +375,25 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 				}
 			}
 			nodeI := myNodeReference.Index
-			logging.Debugf("nodeI %d", nodeI)
+			fmt.Println("nodeI ", nodeI)
 			for ind, pt := range pubpoly {
 				x_i := new(big.Int)
 				x_i.Exp(nodeI, big.NewInt(int64(ind)), secp256k1.GeneratorOrder)
 				tempX, tempY := s.ScalarMult(&pt.X, &pt.Y, x_i.Bytes())
 				sumX, sumY = s.Add(sumX, sumY, tempX, tempY)
 			}
-			logging.Debugf("SHOULD EQL PUB %s %s", sumX, sumY)
+			fmt.Println("SHOULD EQL PUB", sumX, sumY)
 			subshare := unsigncryptedShares[index]
 			tempX, tempY := s.ScalarBaseMult(subshare.Bytes())
-			logging.Debugf("SHOULD EQL REC %s %d", tempX, tempY)
+			fmt.Println("SHOULD EQL REC", tempX, tempY)
 			if sumX.Text(16) != tempX.Text(16) || sumY.Text(16) != tempY.Text(16) {
-				logging.Debug("Could not verify share from node")
+				fmt.Println("Could not verify share from node")
 			} else {
-				logging.Debug("Share verified")
+				fmt.Println("Share verified")
 			}
 		}
 
-		logging.Debug("KEYGEN: storing Si")
+		fmt.Println("KEYGEN: storing Si")
 		// form Si
 		tempSi := new(big.Int)
 		for i := range unsigncryptedShares {
@@ -418,12 +407,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			}
 		}
 		si := SiStore{Index: nodeIndex, Value: tempSi}
-		logging.Debugf("STORED Si: %d", shareIndex)
+		fmt.Println("STORED Si: ", shareIndex)
 		siMapping[shareIndex] = si
 	}
-
-	logging.Debug("KEYGEN: replacing Simapping and secret mapping")
-
+	fmt.Println("KEYGEN: replacing Simapping and secret mapping")
 	if previousSiMapping, found := suite.CacheSuite.CacheInstance.Get("Si_MAPPING"); !found {
 		suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 	} else {
@@ -445,21 +432,20 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	cacheItems := suite.CacheSuite.CacheInstance.Items()
 	cacheJSON, err := json.Marshal(cacheItems)
 	if err != nil {
-		// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd, although its Marshalling only and probably fails on the next one
-		logging.Error(err.Error())
+		fmt.Println(err)
 	}
-	err = ioutil.WriteFile(suite.Config.BasePath+"/"+time.Now().String()+"_secrets.json", cacheJSON, 0644)
+	err = ioutil.WriteFile(suite.Config.BuildPath+"/"+time.Now().String()+"_secrets.json", cacheJSON, 0644)
 	if err != nil {
-		logging.Error(err.Error())
+		fmt.Println(err)
 	}
 	return err
 }
 
 func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
-	logging.Debugf("KEYGEN: SHARES BEING SENT TO OTHER NODES %d", len(signcryptedOutput))
+	fmt.Println("KEYGEN: SHARES BEING SENT TO OTHER NODES", len(signcryptedOutput))
 	errorSlice := make([]error, len(signcryptedOutput))
-	// logging.Debugf("GIVEN SIGNCRYPTION")
-	// logging.Debugf(signcryptedOutput[0].SigncryptedShare.Ciphertext)
+	// fmt.Println("GIVEN SIGNCRYPTION")
+	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
 	for i := range signcryptedOutput {
 		for j := range signcryptedOutput { // TODO: this is because we aren't sure about the ordering of nodeList/signcryptedOutput...
 			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
@@ -480,7 +466,7 @@ func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutp
 				}
 				_, err := suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{broadcastMessage})
 				if err != nil {
-					logging.Errorf("KEYGEN: FAILED TO BROADCAST %d msg : %s", shareIndex, broadcastMessage)
+					fmt.Println("KEYGEN: FAILED TO BROADCAST", shareIndex, "msg", broadcastMessage)
 				}
 			}
 		}

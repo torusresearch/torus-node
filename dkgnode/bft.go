@@ -3,13 +3,13 @@ package dkgnode
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 	"github.com/tidwall/gjson"
-	"github.com/torusresearch/torus-public/logging"
 )
 
 type BftSuite struct {
@@ -36,7 +36,7 @@ func SetUpBft(suite *Suite) {
 			time.Sleep(1 * time.Second)
 			err := bftClientWS.Start()
 			if err != nil {
-				logging.Errorf("COULDNOT START THE BFTWS %s", err)
+				fmt.Println("COULDNOT START THE BFTWS", err)
 			} else {
 				suite.BftSuite.BftRPCWSStatus = "up"
 				break
@@ -52,15 +52,15 @@ func SetUpBft(suite *Suite) {
 			}
 			break
 		}
-		logging.Debug("BFTWS: listening to responsesCh")
+		fmt.Println("BFTWS: listening to responsesCh")
 		for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
 			queryString := gjson.GetBytes(e.Result, "query").String()
-			logging.Debugf("BFTWS: query %s", queryString)
+			fmt.Println("BFTWS: query", queryString)
 			if e.Error != nil {
-				logging.Errorf("BFTWS: websocket subscription received error: %s", e.Error.Error())
+				fmt.Println("BFTWS: websocket subscription received error:, ", e.Error.Error())
 			}
 			if suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString] == nil {
-				logging.Debugf("BFTWS: websocket subscription received message but no listener, querystring: %s", queryString)
+				fmt.Println("BFTWS: websocket subscription received message but no listener, querystring", queryString)
 				continue
 			}
 			suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString] <- e.Result
@@ -72,7 +72,7 @@ func SetUpBft(suite *Suite) {
 					ctx := context.Background()
 					err := suite.BftSuite.BftRPCWS.Unsubscribe(ctx, queryString)
 					if err != nil {
-						logging.Errorf("BFTWS: websocket could not unsubscribe, queryString: %s", queryString)
+						fmt.Println("BFTWS: websocket could not unsubscribe, queryString", queryString)
 					}
 					delete(suite.BftSuite.BftRPCWSQueryHandler.QueryCount, queryString)
 				}
@@ -94,7 +94,7 @@ type BftRPCWSQueryHandler struct {
 }
 
 func (bftSuite *BftSuite) RegisterQuery(query string, count int) (chan []byte, error) {
-	logging.Debugf("BFTWS: registering query %s", query)
+	fmt.Println("BFTWS: registering query", query)
 	if bftSuite.BftRPCWSQueryHandler.QueryMap[query] != nil {
 		return nil, errors.New("BFTWS: query has already been registered for query: " + query)
 	}
@@ -106,15 +106,16 @@ func (bftSuite *BftSuite) RegisterQuery(query string, count int) (chan []byte, e
 	responseCh := make(chan []byte, 1)
 	bftSuite.BftRPCWSQueryHandler.QueryMap[query] = responseCh
 	bftSuite.BftRPCWSQueryHandler.QueryCount[query] = count
+	fmt.Println(bftSuite.BftRPCWSQueryHandler.QueryMap)
 	return responseCh, nil
 }
 
 func (bftSuite *BftSuite) DeregisterQuery(query string) error {
-	logging.Debugf("BFTWS: deregistering query %s", query)
+	fmt.Println("BFTWS: deregistering query", query)
 	ctx := context.Background()
 	err := bftSuite.BftRPCWS.Unsubscribe(ctx, query)
 	if err != nil {
-		logging.Debugf("BFTWS: websocket could not unsubscribe, queryString: %s", query)
+		fmt.Println("BFTWS: websocket could not unsubscribe, queryString", query)
 		return err
 	}
 	if responseCh, found := bftSuite.BftRPCWSQueryHandler.QueryMap[query]; found {

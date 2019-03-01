@@ -4,7 +4,7 @@
 # for detailed Gopkg.toml documentation.
 #
 # required = ["github.com/user/thing/cmd/thing"]
-# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
+ignored = ["github.com/tendermint/tendermint"]
 #
 # [[constraint]]
 #   name = "github.com/user/project"
@@ -24,22 +24,46 @@
 #   go-tests = true
 #   unused-packages = true
 
+
 [[constraint]]
-  name = "github.com/tendermint/btcd"
-  version = "BTCD_0_12_0_BETA"
+  name = "github.com/Rican7/retry"
+  version = "0.1.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/anthdm/hbbft"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/btcsuite/btcd"
+
+[[constraint]]
+  name = "github.com/ethereum/go-ethereum"
+  version = "1.8.20"
+
+[[constraint]]
+  name = "github.com/fatih/structs"
+  version = "1.1.0"
 
 [[constraint]]
   name = "github.com/google/go-cmp"
   version = "0.2.0"
-
 
 [[constraint]]
   branch = "master"
   name = "github.com/intel-go/fastjson"
 
 [[constraint]]
+  branch = "master"
+  name = "github.com/jinzhu/copier"
+
+[[constraint]]
+  name = "github.com/mattn/go-sqlite3"
+  version = "1.10.0"
+
+[[constraint]]
   name = "github.com/micro/go-config"
-  version = "0.9.0"
+  version = "0.14.0"
 
 [[constraint]]
   name = "github.com/osamingo/jsonrpc"
@@ -50,22 +74,41 @@
   version = "2.1.0"
 
 [[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.1"
+
+[[constraint]]
+  name = "github.com/rs/cors"
+  version = "1.6.0"
+
+[[constraint]]
   name = "github.com/stretchr/testify"
-  version = "1.2.2"
+  version = "1.3.0"
+
+[[constraint]]
+  name = "github.com/tendermint/btcd"
+  version = "0.1.1"
+
+[[constraint]]
+  name = "github.com/tidwall/gjson"
+  version = "1.2.1"
+
+[[constraint]]
+  name = "github.com/tsenart/vegeta"
+  version = "6.3.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/xlab-si/emmy"
 
 [[constraint]]
   name = "github.com/ybbus/jsonrpc"
   version = "2.1.2"
 
 [[constraint]]
-  name = "github.com/tidwall/gjson"
-  version = "1.1.3"
+  name = "gopkg.in/h2non/baloo.v3"
+  version = "3.0.2"
 
 [prune]
   go-tests = true
   unused-packages = true
-
-[[prune.project]]
-    name = "github.com/ethereum/go-ethereum"
-    non-go = false
-    unused-packages = false

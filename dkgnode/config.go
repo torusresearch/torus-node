@@ -38,13 +38,13 @@ type Config struct {
 }
 
 func loadConfig() *Config {
-	register := flag.Bool("register", true, "defaults to true")
-	production := flag.Bool("production", false, "defaults to false")
-	privateKey := flag.String("ethprivateKey", "", "provide private key here to run node on")
-	nodeIPAddress := flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
-	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
-	ethConnection := flag.String("ethConnection", "", "ethereum endpoint")
-	nodeListAddress := flag.String("nodeListAddress", "", "node list address on ethereum")
+	_ = flag.Bool("register", true, "defaults to true")
+	_ = flag.Bool("production", false, "defaults to false")
+	_ = flag.String("ethprivateKey", "", "provide private key here to run node on")
+	_ = flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
+	_ = flag.String("cpuProfile", "", "write cpu profile to file")
+	_ = flag.String("ethConnection", "", "ethereum endpoint")
+	_ = flag.String("nodeListAddress", "", "node list address on ethereum")
 
 	flagSource := cflag.NewSource()
 

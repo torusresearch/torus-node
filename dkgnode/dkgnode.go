@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	tmsecp "github.com/YZhenY/tendermint/crypto/secp256k1"
-	tmnode "github.com/YZhenY/tendermint/node"
-	"github.com/YZhenY/tendermint/p2p"
-	tmtypes "github.com/YZhenY/tendermint/types"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	tmbtcec "github.com/tendermint/btcd/btcec"
+	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
+	tmnode "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/torusresearch/torus-public/logging"
 )
 

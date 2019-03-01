@@ -102,7 +102,7 @@ func (c *BigCache) Close() error {
 }
 
 // Get reads entry for the key.
-// It returns an ErrEntryNotFound when
+// It returns an EntryNotFoundError when
 // no entry exists for the given key.
 func (c *BigCache) Get(key string) ([]byte, error) {
 	hashedKey := c.hash.Sum64(key)

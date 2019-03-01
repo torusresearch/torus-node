@@ -3,10 +3,10 @@ package tmabci
 import (
 	"os"
 
-	"github.com/YZhenY/tendermint/abci/server"
-	"github.com/YZhenY/tendermint/abci/types"
-	"github.com/YZhenY/tendermint/libs/common"
-	"github.com/YZhenY/tendermint/libs/log"
+	"github.com/tendermint/tendermint/abci/server"
+	"github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/libs/log"
 )
 
 func RunABCIServer() error {

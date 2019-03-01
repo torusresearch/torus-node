@@ -2,7 +2,6 @@ package dkgnode
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"strconv"
 	"time"
@@ -167,16 +166,16 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				counter++
 			}
 		}
-		fmt.Println("STATUSTX: another counter is at", counter)
+		logging.Debug("STATUSTX: another counter is at", counter)
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
+			logging.Debug("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
 			app.state.LocalStatus["all_initiate_keygen"] = "Y" // TODO: make epoch variable
 			for _, nodeI := range app.Suite.EthSuite.NodeList {
 				app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
 			}
-			fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
+			logging.Debug("STATUSTX: app.state is", app.state.NodeStatus, app.state)
 		} else {
-			fmt.Println("Number of keygen initiation messages does not match number of nodes")
+			logging.Debug("Number of keygen initiation messages does not match number of nodes")
 		}
 
 		tags = []common.KVPair{
@@ -185,7 +184,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		return true, &tags, nil
 
 	case byte(6): // ValidatorUpdateBFTTx
-		fmt.Println("Validator update tx sent")
+		logging.Debug("Validator update tx sent")
 		ValidatorUpdateTx := DefaultBFTTxWrapper{&ValidatorUpdateBFTTx{}}
 		err := ValidatorUpdateTx.DecodeBFTTx(txNoSig)
 		if err != nil {
@@ -211,8 +210,8 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				Power: int64(validatorUpdateTx.ValidatorPower[i]),
 			}
 		}
-		fmt.Println("comparint validator structs", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
-		fmt.Println("it was:  ", cmp.Equal(validatorUpdateStruct,
+		logging.Debug("comparint validator structs", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
+		logging.Debug("it was:  ", cmp.Equal(validatorUpdateStruct,
 			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
 			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")))
 		//check agasint internal nodelist
@@ -223,7 +222,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			app.state.ValidatorSet = validatorUpdateStruct
 			//set val update to true to trigger endblock
 			app.state.UpdateValidators = true
-			fmt.Println("update validator set to true")
+			logging.Debug("update validator set to true")
 		} else {
 			//validators not accepted, might trigger cause nodelist not completely updated? perhpas call node list first
 			return false, nil, errors.New("Validator update not accepted")

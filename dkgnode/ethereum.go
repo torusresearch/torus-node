@@ -7,16 +7,16 @@ import (
 	"crypto/elliptic"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"math/big"
 
-	"github.com/torusresearch/torus-public/secp256k1"
-	"github.com/torusresearch/torus-public/solidity/goContracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/torusresearch/torus-public/logging"
+	"github.com/torusresearch/torus-public/secp256k1"
+	nodelist "github.com/torusresearch/torus-public/solidity/goContracts"
 )
 
 type EthSuite struct {
@@ -58,9 +58,9 @@ func SetUpEth(suite *Suite) error {
 	nodeAddress := ethCrypto.PubkeyToAddress(*nodePublicKeyEC)
 	nodeListAddress := common.HexToAddress(suite.Config.NodeListAddress)
 
-	fmt.Println("We have an eth connection to ", suite.Config.EthConnection)
-	fmt.Println("Node Private Key: ", suite.Config.EthPrivateKey)
-	fmt.Println("Node Public Key: ", nodeAddress.Hex())
+	logging.Info("We have an eth connection to ", suite.Config.EthConnection)
+	logging.Info("Node Private Key: ", suite.Config.EthPrivateKey)
+	logging.Info("Node Public Key: ", nodeAddress.Hex())
 
 	/*Creating contract instances */
 	NodeListContract, err := nodelist.NewNodelist(nodeListAddress, client)

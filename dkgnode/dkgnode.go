@@ -3,7 +3,6 @@ package dkgnode
 //TODO: export all "tm" imports to common folder
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"log"
 	"math/big"
 	"os"
@@ -173,7 +172,7 @@ func New() {
 			}
 
 		case coreMsg := <-tmCoreMsgs:
-			fmt.Println("received", coreMsg)
+			logging.Debug("received", coreMsg)
 			if coreMsg == "started_tmcore" {
 				time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
 				//Start key generation monitor when bft is done setting up

@@ -146,7 +146,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 
 	logging.Debugf("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
-		logging.Error(err)
+		logging.Errorf("%s", err)
 	}
 
 	//Other changes to config go here

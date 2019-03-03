@@ -6,14 +6,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/torusresearch/torus-public/logging"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	"github.com/torusresearch/torus-public/logging"
 )
 
 //Validates transactions to be delivered to the BFT. is the master switch for all tx
@@ -166,14 +165,14 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				counter++
 			}
 		}
-		logging.Debug("STATUSTX: another counter is at", counter)
+		logging.Debugf("STATUSTX: another counter is at %v", counter)
 		if counter == len(app.Suite.EthSuite.NodeList) {
-			logging.Debug("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
+			logging.Debugf("STATUSTX: counter is equal at here %v %v", counter, app.Suite.EthSuite.NodeList)
 			app.state.LocalStatus["all_initiate_keygen"] = "Y" // TODO: make epoch variable
 			for _, nodeI := range app.Suite.EthSuite.NodeList {
 				app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
 			}
-			logging.Debug("STATUSTX: app.state is", app.state.NodeStatus, app.state)
+			logging.Debugf("STATUSTX: app.state is %v %v", app.state.NodeStatus, app.state)
 		} else {
 			logging.Debug("Number of keygen initiation messages does not match number of nodes")
 		}
@@ -210,8 +209,8 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				Power: int64(validatorUpdateTx.ValidatorPower[i]),
 			}
 		}
-		logging.Debug("comparint validator structs", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
-		logging.Debug("it was:  ", cmp.Equal(validatorUpdateStruct,
+		logging.Debugf("comparint validator structs %v", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
+		logging.Debugf("it was:  %v", cmp.Equal(validatorUpdateStruct,
 			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
 			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")))
 		//check agasint internal nodelist

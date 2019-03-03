@@ -8,12 +8,11 @@ import (
 	"math/big"
 	"net"
 
-	"github.com/torusresearch/torus-public/logging"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
@@ -118,7 +117,7 @@ func PointsArrayToBytesArray(pointsArray *[]common.Point) []byte {
 func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 	if len(byteArray)%32 > 0 {
 		logging.Debug("Error with data, not an array of U256s")
-		logging.Debug(len(byteArray), byteArray)
+		logging.Debugf("%d, %v", len(byteArray), byteArray)
 		return
 	}
 	bigIntArray := make([]*big.Int, len(byteArray)/32)
@@ -126,7 +125,7 @@ func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 		bigInt, ok := ethMath.ParseBig256("0x" + hex.EncodeToString(byteArray[index*32:index*32+32]))
 		if !ok {
 			logging.Debug("Error with data, could not parse big256")
-			logging.Debug(byteArray[index*32 : index*32+32])
+			logging.Debugf("%v", byteArray[index*32:index*32+32])
 			return
 		}
 		bigIntArray[index] = bigInt
@@ -134,7 +133,7 @@ func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 
 	if len(bigIntArray)%2 == 1 {
 		logging.Debug("Error with data, not an even number of bigInts")
-		logging.Debug(bigIntArray)
+		logging.Debugf("%v", bigIntArray)
 		return
 	}
 

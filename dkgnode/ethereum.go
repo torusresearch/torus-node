@@ -58,9 +58,9 @@ func SetUpEth(suite *Suite) error {
 	nodeAddress := ethCrypto.PubkeyToAddress(*nodePublicKeyEC)
 	nodeListAddress := common.HexToAddress(suite.Config.NodeListAddress)
 
-	logging.Info("We have an eth connection to ", suite.Config.EthConnection)
-	logging.Info("Node Private Key: ", suite.Config.EthPrivateKey)
-	logging.Info("Node Public Key: ", nodeAddress.Hex())
+	logging.Infof("We have an eth connection to %s", suite.Config.EthConnection)
+	logging.Infof("Node Private Key: %s", suite.Config.EthPrivateKey)
+	logging.Infof("Node Public Key: %s", nodeAddress.Hex())
 
 	/*Creating contract instances */
 	NodeListContract, err := nodelist.NewNodelist(nodeListAddress, client)

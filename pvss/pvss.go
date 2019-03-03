@@ -8,9 +8,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/torusresearch/torus-public/logging"
-
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
@@ -144,9 +143,9 @@ func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey
 	hR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
 	testsenderPubKey := common.BigIntToPoint(secp256k1.Curve.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if senderPubKey.X.Cmp(&testsenderPubKey.X) != 0 {
-		logging.Debug(senderPubKey.X.Cmp(&testsenderPubKey.X))
-		logging.Debug(senderPubKey)
-		logging.Debug(testsenderPubKey)
+		logging.Debugf("%d", senderPubKey.X.Cmp(&testsenderPubKey.X))
+		logging.Debugf("%v", senderPubKey)
+		logging.Debugf("%v", testsenderPubKey)
 		return nil, errors.New("sending node PK does not register with signcryption unsigncrypt")
 	}
 
@@ -251,9 +250,9 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 	hR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
 	testSendingNodePubKey := common.BigIntToPoint(secp256k1.Curve.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X) != 0 {
-		logging.Debug(sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X))
-		logging.Debug(sendingNodePubKey)
-		logging.Debug(testSendingNodePubKey)
+		logging.Debugf("%d", sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X))
+		logging.Debugf("%v", sendingNodePubKey)
+		logging.Debugf("%v", testSendingNodePubKey)
 		return nil, errors.New("sending node PK does not register with signcryption")
 	}
 

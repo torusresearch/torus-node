@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/torusresearch/torus-public/logging"
-
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/version"
+	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
@@ -160,7 +159,7 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 }
 
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
-	logging.Debug(app.state)
+	logging.Debugf("%v", app.state)
 	logging.Debugf("QUERY TO ABCIAPP %s %s", reqQuery.Data, string(reqQuery.Data))
 	switch reqQuery.Path {
 
@@ -169,8 +168,8 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 		val, found := app.state.EmailMapping[string(reqQuery.Data)]
 		if !found {
 			logging.Debug("val not found for query")
-			logging.Debug(reqQuery)
-			logging.Debug(reqQuery.Data)
+			logging.Debugf("%v", reqQuery)
+			logging.Debugf("%v", reqQuery.Data)
 			logging.Debug(string(reqQuery.Data))
 			return types.ResponseQuery{Value: []byte("")}
 		}

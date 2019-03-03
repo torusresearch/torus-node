@@ -20,24 +20,24 @@ type KeyGenUpdates struct {
 
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
-		logging.Debug("KEYGEN: in start keygen monitor", suite.ABCIApp.state.LocalStatus)
+		logging.Debugf("KEYGEN: in start keygen monitor %v", suite.ABCIApp.state.LocalStatus)
 		time.Sleep(1 * time.Second)
 		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
-			logging.Debug("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS", suite.ABCIApp.state.LocalStatus)
+			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %v", suite.ABCIApp.state.LocalStatus)
 			continue
 		}
 		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
 		if percentLeft > uint(suite.Config.KeyBufferTriggerPercentage) {
-			logging.Debug("KEYGEN: keygeneration trigger percent left not reached", percentLeft)
+			logging.Debugf("KEYGEN: keygeneration trigger percent left not reached %d", percentLeft)
 			continue
 		}
 		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
 		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex)
 
-		logging.Debug("KEYGEN: we are starting keygen", suite.ABCIApp.state.LocalStatus)
+		logging.Debugf("KEYGEN: we are starting keygen %v", suite.ABCIApp.state.LocalStatus)
 		nodeIndex, err := matchNode(suite, suite.EthSuite.NodePublicKey.X.Text(16), suite.EthSuite.NodePublicKey.Y.Text(16))
 		if err != nil {
-			logging.Error("KEYGEN: could not get nodeIndex", err)
+			logging.Errorf("KEYGEN: could not get nodeIndex %s", err)
 			continue
 		}
 		go listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
@@ -55,7 +55,7 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			}
 			_, err := suite.BftSuite.BftRPC.Broadcast(initiateKeyGenerationStatusWrapper)
 			if err != nil {
-				logging.Error("KEYGEN: could not broadcast initiateKeygeneration", err)
+				logging.Errorf("KEYGEN: could not broadcast initiateKeygeneration %s", err)
 			}
 			selfInitiateStatus, selfInitiateStatusFound := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]["initiate_keygen"]
 			allInitiateStatus, allInitiateStatusFound := suite.ABCIApp.state.LocalStatus["all_initiate_keygen"]
@@ -66,11 +66,11 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			}
 		}
 		for {
-			logging.Debug("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y", suite.ABCIApp.state.LocalStatus)
-			logging.Debug(suite.ABCIApp.state)
+			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y %v", suite.ABCIApp.state.LocalStatus)
+			logging.Debugf("%v", suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
 			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
-				logging.Debug("STATUSTX: localstatus all initiate keygen is Y, appstate", suite.ABCIApp.state.LocalStatus)
+				logging.Debugf("STATUSTX: localstatus all initiate keygen is Y, appstate %v", suite.ABCIApp.state.LocalStatus)
 				//reset keygen flag
 				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "IP"
 				//report back to main process
@@ -94,10 +94,10 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil, epoch)
 		// If we can't reach ethereum node, lets try next time
 		if err != nil {
-			logging.Error("Could not View Nodes on ETH Network", err)
+			logging.Errorf("Could not View Nodes on ETH Network %s", err)
 		} else {
 			// Build count of nodes connected to
-			logging.Debug("Indexes", positions, ethList)
+			logging.Debugf("Indexes %v %v", positions, ethList)
 			connectedNodes := 0
 			nodeList := make([]*NodeReference, len(ethList))
 			if len(ethList) > 0 {
@@ -105,7 +105,7 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 					// Check if node is online by pinging
 					temp, err := connectToJSONRPCNode(suite, *epoch, ethList[i])
 					if err != nil {
-						logging.Error(err)
+						logging.Errorf("%s", err)
 					}
 
 					if temp != nil {

@@ -198,38 +198,28 @@ func (l *logger) WithLevelString(levelString string) Logger {
 var std = NewDefault()
 
 // Debug writes to Out with level Debug
-func Debug(messages ...string) {
-	for _, msg := range messages {
-		std.Debug(msg)
-	}
+func Debug(msg string) {
+	std.Debug(msg)
 }
 
 // Info writes to Out with level Info
-func Info(messages ...string) {
-	for _, msg := range messages {
-		std.Info(msg)
-	}
+func Info(msg string) {
+	std.Info(msg)
 }
 
 // Warning writes to Out with level Warning
-func Warning(messages ...string) {
-	for _, msg := range messages {
-		std.Warning(msg)
-	}
+func Warning(msg string) {
+	std.Warning(msg)
 }
 
 // Error writes to Out with level Error
-func Error(messages ...string) {
-	for _, msg := range messages {
-		std.Error(msg)
-	}
+func Error(msg string) {
+	std.Error(msg)
 }
 
 // Fatal writes to Out with level Fatal
-func Fatal(messages ...string) {
-	for _, msg := range messages {
-		std.Fatal(msg)
-	}
+func Fatal(msg string) {
+	std.Fatal(msg)
 }
 
 // Debugf formats according to a format specifier and writes to Out with level Debug

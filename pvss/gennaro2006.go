@@ -20,9 +20,9 @@ func getCommitH(polynomial common.PrimaryPolynomial) []common.Point {
 	return commits
 }
 
-// Creating shares for gennaro DKG
+// CreateSharesGen - Creating shares for gennaro DKG
 func CreateSharesGen(nodes []common.Node, secret big.Int, threshold int) (*[]common.PrimaryShare, *[]common.PrimaryShare, *[]common.Point, *[]common.Point, error) {
-	//generate two polynomials, one for pederson commitments
+	// generate two polynomials, one for pederson commitments
 	polynomial := *generateRandomZeroPolynomial(secret, threshold)
 	polynomialPrime := *generateRandomZeroPolynomial(*RandomBigInt(), threshold)
 
@@ -44,7 +44,7 @@ func CreateSharesGen(nodes []common.Node, secret big.Int, threshold int) (*[]com
 }
 
 // Verify Pederson commitment, Equation (4) in Gennaro 2006
-func VerifyPedersonCommitment(share common.PrimaryShare, sharePrime common.PrimaryShare, ci []common.Point, index big.Int) (bool, error) {
+func VerifyPedersonCommitment(share common.PrimaryShare, sharePrime common.PrimaryShare, ci []common.Point, index big.Int) bool {
 
 	// committing to polynomial
 	gSik := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(share.Value.Bytes()))
@@ -63,10 +63,9 @@ func VerifyPedersonCommitment(share common.PrimaryShare, sharePrime common.Prima
 	}
 
 	if lhs.X.Cmp(&rhs.X) == 0 {
-		return true, nil
-	} else {
-		return false, nil
+		return true
 	}
+	return false
 }
 
 // verifies share against public polynomial
@@ -74,7 +73,7 @@ func VerifyShare(share common.PrimaryShare, pubPoly []common.Point, index big.In
 
 	lhs := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(share.Value.Bytes()))
 
-	//computing RHS
+	// computing RHS
 	rhs := common.Point{X: *new(big.Int).SetInt64(0), Y: *new(big.Int).SetInt64(0)}
 	for i := range pubPoly {
 		jt := new(big.Int).Set(&index)

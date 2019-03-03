@@ -12,14 +12,16 @@ import (
 )
 
 func TestPedersonCommitment(t *testing.T) {
-	nodeList, _ := createRandomNodes(21)
+	total := 21
+	threshold := 15
+	nodeList, _ := createRandomNodes(total)
 	secrets := make([]big.Int, len(nodeList.Nodes))
 	allShares := make([][]common.PrimaryShare, len(nodeList.Nodes))
 	allSharesPrime := make([][]common.PrimaryShare, len(nodeList.Nodes))
 	allPubPoly := make([][]common.Point, len(nodeList.Nodes))
 	allCi := make([][]common.Point, len(nodeList.Nodes))
 	for i := range nodeList.Nodes {
-		shares, sharePrimes, pubPoly, ci, err := CreateSharesGen(nodeList.Nodes, secrets[i], 11)
+		shares, sharePrimes, pubPoly, ci, err := CreateSharesGen(nodeList.Nodes, secrets[i], threshold)
 		allShares[i] = *shares
 		allSharesPrime[i] = *sharePrimes
 		allPubPoly[i] = *pubPoly
@@ -32,7 +34,7 @@ func TestPedersonCommitment(t *testing.T) {
 	for j := range nodeList.Nodes {
 		for i := range nodeList.Nodes {
 			index := new(big.Int).SetInt64(int64(allShares[i][j].Index))
-			correct, _ := VerifyPedersonCommitment(allShares[i][j], allSharesPrime[i][j], allCi[i], *index)
+			correct := VerifyPedersonCommitment(allShares[i][j], allSharesPrime[i][j], allCi[i], *index)
 			assert.True(t, correct, fmt.Sprintf("Not correct for node %d from %d (index %d)", j, i, index))
 		}
 	}
@@ -40,14 +42,16 @@ func TestPedersonCommitment(t *testing.T) {
 }
 
 func TestGennaroDKG(t *testing.T) {
-	nodeList, _ := createRandomNodes(21)
-	secrets := make([]big.Int, len(nodeList.Nodes))
-	allShares := make([][]common.PrimaryShare, len(nodeList.Nodes))
-	allSharesPrime := make([][]common.PrimaryShare, len(nodeList.Nodes))
-	allPubPoly := make([][]common.Point, len(nodeList.Nodes))
-	allCi := make([][]common.Point, len(nodeList.Nodes))
+	total := 21
+	threshold := 15
+	nodeList, _ := createRandomNodes(total)
+	secrets := make([]big.Int, total)
+	allShares := make([][]common.PrimaryShare, total)
+	allSharesPrime := make([][]common.PrimaryShare, total)
+	allPubPoly := make([][]common.Point, total)
+	allCi := make([][]common.Point, total)
 	for i := range nodeList.Nodes {
-		shares, sharePrimes, pubPoly, ci, err := CreateSharesGen(nodeList.Nodes, secrets[i], 11)
+		shares, sharePrimes, pubPoly, ci, err := CreateSharesGen(nodeList.Nodes, secrets[i], threshold)
 		allShares[i] = *shares
 		allSharesPrime[i] = *sharePrimes
 		allPubPoly[i] = *pubPoly
@@ -57,18 +61,18 @@ func TestGennaroDKG(t *testing.T) {
 		}
 	}
 
-	//verify pederson commitments
+	// verify pederson commitments
 	for j := range nodeList.Nodes {
 		for i := range nodeList.Nodes {
 			index := new(big.Int).SetInt64(int64(allShares[i][j].Index))
-			correct, _ := VerifyPedersonCommitment(allShares[i][j], allSharesPrime[i][j], allCi[i], *index)
+			correct := VerifyPedersonCommitment(allShares[i][j], allSharesPrime[i][j], allCi[i], *index)
 			assert.True(t, correct, fmt.Sprintf("Pederson commitment not correct for node %d from %d (index %d)", j, i, index))
 		}
 	}
 
-	//complain and create valid qualifying set here
+	// complain and create valid qualifying set here
 
-	//here we broadcast pub polys for qualifying set, verify summed up share against pub poly
+	// here we broadcast pub polys for qualifying set, verify summed up share against pub poly
 	// or equation (5) in gennaro
 	for j := range nodeList.Nodes {
 		for i := range nodeList.Nodes {
@@ -79,8 +83,8 @@ func TestGennaroDKG(t *testing.T) {
 	}
 
 	// we complain against nodes who do not fufill (5), we then do reconstruction of their share
-	//form si, points on the polynomial f(z) = r + a1z + a2z^2....
-	allSi := make([]common.PrimaryShare, len(nodeList.Nodes))
+	// from si, points on the polynomial f(z) = r + a1z + a2z^2....
+	allSi := make([]common.PrimaryShare, total)
 	for j := range nodeList.Nodes {
 		sum := new(big.Int)
 		for i := range nodeList.Nodes {
@@ -90,14 +94,15 @@ func TestGennaroDKG(t *testing.T) {
 		allSi[j] = common.PrimaryShare{j + 1, *sum}
 	}
 
-	//form r (and other components) to test lagrange
+	// form r (and other components) to test lagrange
 	r := new(big.Int)
 	for i := range nodeList.Nodes {
 		r.Add(r, &secrets[i])
 	}
 	r.Mod(r, secp256k1.GeneratorOrder)
 
-	testr := LagrangeScalar(allSi[:11], 0)
-
+	testr := LagrangeScalar(allSi[:threshold], 0)
+	testr2 := LagrangeScalar(allSi[1:threshold+1], 0)
 	assert.True(t, testr.Cmp(r) == 0)
+	assert.True(t, testr2.Cmp(r) == 0)
 }

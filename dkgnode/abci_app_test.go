@@ -5,8 +5,8 @@ import (
 )
 
 func TestDeliver(t *testing.T) {
-	var byteStr = []byte(`{"Type":"publicpoly","Payload":{"Type":"inner","Payload":null}}`)
-	app := NewKVStoreApplication()
-	resp := app.DeliverTx(byteStr)
-	t.Log(resp)
+	// var byteStr = []byte(`{"Type":"publicpoly","Payload":{"Type":"inner","Payload":null}}`)
+	// app := NewKVStoreApplication()
+	// resp := app.DeliverTx(byteStr)
+	// t.Log(resp)
 }

@@ -1,0 +1,86 @@
+version: '3'
+
+services:
+  ganache:
+    image: trufflesuite/ganache-cli:latest
+    ports:
+      - "8545:8545"
+    command: --deterministic
+    networks:
+      localnet:
+
+  node_one:
+    build: 
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "26656-26657:26656-26657"
+    volumes:
+      - ./config/config.local.1.json:/.torus/config.json
+    links:
+      - ganache
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.2
+  node_two:
+    build: 
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "26659-26660:26656-26657"
+    volumes:
+      - ./config/config.local.2.json:/.torus/config.json
+    links:
+      - ganache
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.3
+
+  node_three:
+    build: 
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "26661-26662:26656-26657"
+    volumes:
+      - ./config/config.local.3.json:/.torus/config.json
+    links:
+      - ganache
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.4
+  node_four:
+    build: 
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "26663-26664:26656-26657"
+    volumes:
+      - ./config/config.local.4.json:/.torus/config.json
+    links:
+      - ganache
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.5
+  node_five:
+    build: 
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "26665-26666:26656-26657"
+    volumes:
+      - ./config/config.local.5.json:/.torus/config.json
+    links:
+      - ganache
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.6
+
+networks:
+  localnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      -
+        subnet: 192.167.10.0/16

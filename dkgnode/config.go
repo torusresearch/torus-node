@@ -5,13 +5,9 @@ import (
 	"flag"
 
 	"github.com/micro/go-config"
-	"github.com/micro/go-config/source/env"
 	"github.com/micro/go-config/source/file"
-	cflag "github.com/micro/go-config/source/flag"
 	"github.com/torusresearch/torus-public/logging"
 )
-
-const DefaultConfigPath = "~/.torus/config.json"
 
 type Config struct {
 	// QUESTION(TEAM): I think struct tags should be either camelCase, or the_traditional_one
@@ -37,7 +33,7 @@ type Config struct {
 	ProvidedIPAddress string `json:"ipAddress"`
 }
 
-func loadConfig() *Config {
+func loadConfig(configPath string) *Config {
 	_ = flag.Bool("register", true, "defaults to true")
 	_ = flag.Bool("production", false, "defaults to false")
 	_ = flag.String("ethprivateKey", "", "provide private key here to run node on")
@@ -46,7 +42,7 @@ func loadConfig() *Config {
 	_ = flag.String("ethConnection", "", "ethereum endpoint")
 	_ = flag.String("nodeListAddress", "", "node list address on ethereum")
 
-	flagSource := cflag.NewSource()
+	// flagSource := cflag.NewSource()
 
 	conf := defaultConfigSettings()
 
@@ -59,11 +55,11 @@ func loadConfig() *Config {
 	// First we have the default settings
 	config.Load(
 		// Then we override with the config file
-		file.NewSource(file.WithPath(DefaultConfigPath)),
-		// Then we override with ENV vars.
-		env.NewSource(),
-		// Then override env with flags
-		flagSource,
+		file.NewSource(file.WithPath(configPath)),
+		// // Then we override with ENV vars.
+		// env.NewSource(),
+		// // Then override env with flags
+		// flagSource,
 	)
 
 	config.Scan(&conf)

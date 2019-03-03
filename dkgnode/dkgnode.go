@@ -20,6 +20,8 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 )
 
+const DefaultConfigPath = "/.torus/config.json"
+
 type Suite struct {
 	EthSuite   *EthSuite
 	BftSuite   *BftSuite
@@ -42,7 +44,8 @@ func New() {
 	// Wouldn't it be better to have a "config" package that has an init()
 	// that sets all the config variables and is available globally for read?
 	// it should be immutable after initializing, but if not we can always stick a mutex.
-	cfg := loadConfig()
+	cfg := loadConfig(DefaultConfigPath)
+	logging.Infof("Loaded config, BFTUri: %s, Hostname: %s, p2plistenaddress: %s", cfg.BftURI, cfg.HostName, cfg.P2PListenAddress)
 
 	//Main suite of functions used in node
 	suite := Suite{}
@@ -164,7 +167,7 @@ func New() {
 					if len(suite.EthSuite.NodeList) == suite.Config.NumberOfNodes {
 						logging.Infof("Starting tendermint core... NodeList: %v", suite.EthSuite.NodeList)
 						//initialize app val set for the first time and update validators to false
-						go startTendermintCore(&suite, cfg.BasePath, suite.EthSuite.NodeList, tmCoreMsgs)
+						go startTendermintCore(&suite, cfg.BasePath+"/tendermint", suite.EthSuite.NodeList, tmCoreMsgs)
 					} else {
 						logging.Warning("ethlist not equal in length to nodelist")
 					}

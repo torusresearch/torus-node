@@ -4,16 +4,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log"
 	"math/big"
 	"net"
 
-	"github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/secp256k1"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
+	"github.com/torusresearch/torus-public/secp256k1"
 )
 
 type ECDSASignature struct {
@@ -107,7 +107,6 @@ func PointsArrayToBytesArray(pointsArray *[]common.Point) []byte {
 	for _, item := range *pointsArray {
 		var num []byte
 		num = abi.U256(&item.X) // this has length of 32
-		// fmt.Println(len(num))
 		arrBytes = append(arrBytes, num...)
 		num = abi.U256(&item.Y)
 		arrBytes = append(arrBytes, num...)
@@ -117,24 +116,24 @@ func PointsArrayToBytesArray(pointsArray *[]common.Point) []byte {
 
 func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 	if len(byteArray)%32 > 0 {
-		fmt.Println("Error with data, not an array of U256s")
-		fmt.Println(len(byteArray), byteArray)
+		logging.Debug("Error with data, not an array of U256s")
+		logging.Debugf("%d, %v", len(byteArray), byteArray)
 		return
 	}
 	bigIntArray := make([]*big.Int, len(byteArray)/32)
 	for index := 0; index < len(byteArray)/32; index++ {
 		bigInt, ok := ethMath.ParseBig256("0x" + hex.EncodeToString(byteArray[index*32:index*32+32]))
 		if !ok {
-			fmt.Println("Error with data, could not parse big256")
-			fmt.Println(byteArray[index*32 : index*32+32])
+			logging.Debug("Error with data, could not parse big256")
+			logging.Debugf("%v", byteArray[index*32:index*32+32])
 			return
 		}
 		bigIntArray[index] = bigInt
 	}
 
 	if len(bigIntArray)%2 == 1 {
-		fmt.Println("Error with data, not an even number of bigInts")
-		fmt.Println(bigIntArray)
+		logging.Debug("Error with data, not an even number of bigInts")
+		logging.Debugf("%v", bigIntArray)
 		return
 	}
 
@@ -142,7 +141,7 @@ func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 		if bigIntArray[ind] != nil && bigIntArray[ind+1] != nil {
 			pointsArray = append(pointsArray, &common.Point{X: *bigIntArray[ind], Y: *bigIntArray[ind+1]})
 		} else {
-			fmt.Println("Error fatal, bigIntArray is malformed")
+			logging.Debug("Error fatal, bigIntArray is malformed")
 		}
 	}
 	return

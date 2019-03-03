@@ -175,6 +175,7 @@ func New() {
 			}
 
 		case coreMsg := <-tmCoreMsgs:
+			logging.Debugf("received: %s", coreMsg)
 			if coreMsg == "started_tmcore" {
 				time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
 				//Start key generation monitor when bft is done setting up

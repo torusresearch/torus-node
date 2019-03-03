@@ -146,7 +146,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 
 	logging.Debugf("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
-		fmt.Print(err)
+		logging.Errorf("%s", err)
 	}
 
 	//Other changes to config go here
@@ -221,6 +221,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		if err != nil {
 			// QUESTION(TEAM) - shouldn't you return an error here, as the startKeyGeneration procedure
 			// has failed? Before there was only a fmt.Println here
+			// yeap but we'd need a failure mode its a TODO
 			logging.Error(err.Error())
 		}
 		logging.Debugf("Shares created %v", shares)

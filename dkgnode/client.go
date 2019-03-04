@@ -300,6 +300,8 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		fmt.Println("bftsuite websocket connection is not up")
 	}
 
+	// Check if node is ready for verification phase
+	// TODO: Include our time bound here
 	for {
 		time.Sleep(1 * time.Second)
 		// TODO: make epoch variable
@@ -309,11 +311,29 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			continue
 		}
 		fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
-		// suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
-		// err := suite.BftSuite.DeregisterQuery("keygeneration.sharecollection='1'")
-		// if err != nil {
-		// 	fmt.Println("Could not deregister", err)
-		// }
+
+		// Check if we have received all shares from nodes
+		var sharesNotIn = false
+		for shareIndex := shareStartingIndex; shareIndex < shareEndingIndex; shareIndex++ {
+			for i := 0; i < suite.Config.NumberOfNodes; i++ {
+				data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING")
+				if found {
+					var shareMapping = data.(map[int]ShareLog)
+					if _, ok := shareMapping[shareIndex]; !ok {
+						sharesNotIn = true
+						break
+					}
+				} else {
+					fmt.Println("KEYGEN: Could not find mapping for node ", i, nodeList[i].Address.Hex())
+					sharesNotIn = true
+					break
+				}
+			}
+		}
+
+		if sharesNotIn {
+			continue
+		}
 		break
 	}
 
@@ -341,7 +361,8 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 					nodeId = append(nodeId, i+1)
 				}
 			} else {
-				fmt.Println("Could not find mapping for node ", i)
+				fmt.Println("Could not find mapping for node ", i, nodeList[i].Address.Hex())
+				fmt.Println("NODELIST: ", nodeList[i])
 				break
 			}
 		}
@@ -438,6 +459,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// Change state back to standby if all shares are verified
+	//TODO: Failure mode
+	suite.ABCIApp.state.LocalStatus.Event("shares_verified")
 	return err
 }
 

@@ -20,9 +20,10 @@ type KeyGenUpdates struct {
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
 		fmt.Println("KEYGEN: in start keygen monitor", suite.ABCIApp.state.LocalStatus)
+		fmt.Println("KEYGEN: current localstatus", suite.ABCIApp.state.LocalStatus.Current())
 		time.Sleep(1 * time.Second)
 		// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
-		if suite.ABCIApp.state.LocalStatus.Current() == "runnning_keygen" {
+		if suite.ABCIApp.state.LocalStatus.Current() == "runnning_keygen" || suite.ABCIApp.state.LocalStatus.Current() == "verifying_shares" {
 			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS", suite.ABCIApp.state.LocalStatus)
 			continue
 		}

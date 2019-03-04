@@ -88,7 +88,8 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 		fsm.Events{
 			{Name: "all_initiate_keygen", Src: []string{"standby"}, Dst: "ready_for_keygen"},
 			{Name: "start_keygen", Src: []string{"ready_for_keygen"}, Dst: "running_keygen"},
-			{Name: "all_keygen_complete", Src: []string{"running_keygen"}, Dst: "standby"},
+			{Name: "all_keygen_complete", Src: []string{"running_keygen"}, Dst: "verifying_shares"},
+			{Name: "shares_verified", Src: []string{"verifying_shares"}, Dst: "standby"},
 			// {Name: "end_keygen", Src: []string{"keygen_completed"}, Dst: "standby"},
 		},
 		fsm.Callbacks{

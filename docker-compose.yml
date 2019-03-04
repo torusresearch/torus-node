@@ -17,6 +17,7 @@ services:
       - "26656-26657:26656-26657"
     volumes:
       - ./config/config.local.1.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
     links:
       - ganache
     networks:
@@ -30,6 +31,7 @@ services:
       - "26659-26660:26656-26657"
     volumes:
       - ./config/config.local.2.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
     links:
       - ganache
     networks:
@@ -43,6 +45,7 @@ services:
     ports:
       - "26661-26662:26656-26657"
     volumes:
+      - ./tests/openssl:/.torus/openssl
       - ./config/config.local.3.json:/.torus/config.json
     links:
       - ganache
@@ -57,6 +60,7 @@ services:
       - "26663-26664:26656-26657"
     volumes:
       - ./config/config.local.4.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
     links:
       - ganache
     networks:
@@ -70,6 +74,7 @@ services:
       - "26665-26666:26656-26657"
     volumes:
       - ./config/config.local.5.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
     links:
       - ganache
     networks:

@@ -3,11 +3,13 @@ package dkgnode
 /* All useful imports */
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -504,12 +506,23 @@ func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Add
 
 	// if in production use https
 	var nodeIPAddress string
+	var rpcClient jsonrpcclient.RPCClient
 	if suite.Flags.Production {
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
+		rpcClient = jsonrpcclient.NewClient(nodeIPAddress)
 	} else {
+		// When running in testing, skip verification of self signed certificates.
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		httpClient := &http.Client{
+			Transport: tr,
+		}
+		rpcClient = jsonrpcclient.NewClientWithOpts(nodeIPAddress, &jsonrpcclient.RPCClientOpts{
+			HTTPClient: httpClient,
+		})
 	}
-	rpcClient := jsonrpcclient.NewClient(nodeIPAddress)
 
 	_, err = rpcClient.Call("Ping", &Message{suite.EthSuite.NodeAddress.Hex()})
 	if err != nil {

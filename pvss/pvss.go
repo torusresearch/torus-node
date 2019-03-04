@@ -288,7 +288,7 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {
-		//when x =0
+		// when x = 0
 		delta := new(big.Int).SetInt64(int64(1))
 		upper := new(big.Int).SetInt64(int64(1))
 		lower := new(big.Int).SetInt64(int64(1))
@@ -307,7 +307,7 @@ func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 				lower.Mod(lower, secp256k1.GeneratorOrder)
 			}
 		}
-		//elliptic devision
+		// elliptic division
 		inv := new(big.Int)
 		inv.ModInverse(lower, secp256k1.GeneratorOrder)
 		delta.Mul(upper, inv)

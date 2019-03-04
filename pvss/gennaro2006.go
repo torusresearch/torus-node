@@ -68,8 +68,8 @@ func VerifyPedersonCommitment(share common.PrimaryShare, sharePrime common.Prima
 	return false
 }
 
-// verifies share against public polynomial
-func VerifyShare(share common.PrimaryShare, pubPoly []common.Point, index big.Int) (bool, error) {
+// VerifyShare - verifies share against public polynomial
+func VerifyShare(share common.PrimaryShare, pubPoly []common.Point, index big.Int) bool {
 
 	lhs := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(share.Value.Bytes()))
 
@@ -83,8 +83,28 @@ func VerifyShare(share common.PrimaryShare, pubPoly []common.Point, index big.In
 	}
 
 	if lhs.X.Cmp(&rhs.X) == 0 {
-		return true, nil
+		return true
 	} else {
-		return false, nil
+		return false
+	}
+}
+
+// VerifyShareCommitment - checks if a dlog commitment matches the original pubpoly
+func VerifyShareCommitment(shareCommitment common.Point, pubPoly []common.Point, index big.Int) bool {
+	lhs := shareCommitment
+
+	// computing RHS
+	rhs := common.Point{X: *new(big.Int).SetInt64(0), Y: *new(big.Int).SetInt64(0)}
+	for i := range pubPoly {
+		jt := new(big.Int).Set(&index)
+		jt.Exp(jt, new(big.Int).SetInt64(int64(i)), secp256k1.GeneratorOrder)
+		polyValue := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&pubPoly[i].X, &pubPoly[i].Y, jt.Bytes()))
+		rhs = common.BigIntToPoint(secp256k1.Curve.Add(&rhs.X, &rhs.Y, &polyValue.X, &polyValue.Y))
+	}
+
+	if lhs.X.Cmp(&rhs.X) == 0 {
+		return true
+	} else {
+		return false
 	}
 }

@@ -46,6 +46,9 @@ func TestGennaroDKG(t *testing.T) {
 	threshold := 15
 	nodeList, _ := createRandomNodes(total)
 	secrets := make([]big.Int, total)
+	for i := range secrets {
+		secrets[i] = *RandomBigInt()
+	}
 	allShares := make([][]common.PrimaryShare, total)
 	allSharesPrime := make([][]common.PrimaryShare, total)
 	allPubPoly := make([][]common.Point, total)
@@ -77,7 +80,7 @@ func TestGennaroDKG(t *testing.T) {
 	for j := range nodeList.Nodes {
 		for i := range nodeList.Nodes {
 			index := new(big.Int).SetInt64(int64(allShares[i][j].Index))
-			correct, _ := VerifyShare(allShares[i][j], allPubPoly[i], *index)
+			correct := VerifyShare(allShares[i][j], allPubPoly[i], *index)
 			assert.True(t, correct, fmt.Sprintf("public poly not correct for node %d from %d (index %d)", j, i, index))
 		}
 	}

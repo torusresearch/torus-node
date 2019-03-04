@@ -9,5 +9,7 @@
   "hostname": "dkg2.tetrator.us",
   "abciserver": "tcp://0.0.0.0:8011",
   "p2plistenaddress": "tcp://0.0.0.0:26659",
-  "keysperepoch": 10
+  "keysperepoch": 10,
+  "ipAddress": "192.167.10.3",
+  "register": true
 }

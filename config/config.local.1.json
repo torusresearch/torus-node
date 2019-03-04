@@ -9,5 +9,7 @@
   "hostname": "node_one",
   "abciserver": "tcp://0.0.0.0:8010",
   "p2plistenaddress": "tcp://0.0.0.0:26656",
-  "keysperepoch": 10
+  "keysperepoch": 10,
+  "ipAddress": "192.167.10.2",
+  "register": true
 }

@@ -98,5 +98,6 @@ func defaultConfigSettings() Config {
 		KeysPerEpoch:               100,
 		KeyBufferTriggerPercentage: 80,
 		BasePath:                   "/.torus",
+		IsProduction:               false,
 	}
 }

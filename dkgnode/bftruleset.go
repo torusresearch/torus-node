@@ -117,81 +117,82 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				},
 				fsm.Callbacks{
 					"enter_state": func(e *fsm.Event) { fmt.Printf("STATUSTX: status set for node from %s to %s", e.Src, e.Dst) },
+					"after_initiate_keygen": func(e *fsm.Event) {
+						// check if all nodes have broadcasted initiate_keygen == "Y"
+						counter := 0
+						for _, nodeI := range app.Suite.EthSuite.NodeList {
+							fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
+							if ok && fsm.Current() == "initiated_keygen" {
+								//statusTx.Data
+								fmt.Println("STATUSTX: DATA")
+								stopIndex := string(e.Args[0].([]byte))
+								fmt.Println(e.Args)
+								fmt.Println(stopIndex)
+								fmt.Println("STATUSTX: Initiate Key Gen Registered till ", stopIndex)
+								if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
+									fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
+									continue
+								}
+								percentLeft := 100 * (app.state.LastCreatedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
+								if percentLeft > uint(app.Suite.Config.KeyBufferTriggerPercentage) {
+									fmt.Println("KEYGEN: Haven't hit buffer amount, percentLeft, lastcreatedindex, lastunassignedindex", percentLeft, app.state.LastCreatedIndex, app.state.LastUnassignedIndex)
+									continue
+								}
+								counter++
+							}
+						}
+						fmt.Println("STATUSTX: another counter is at", counter)
+						// if so we change local status to be ready for keygen
+						if counter == len(app.Suite.EthSuite.NodeList) {
+							fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
+							app.state.LocalStatus.Event("all_initiate_keygen") // TODO: make epoch variable
+							fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
+						} else {
+							fmt.Println("Number of keygen initiation messages does not match number of nodes")
+						}
+					},
+					"after_keygen_complete": func(e *fsm.Event) {
+						// Update LocalStatus based on rules
+						// check if all nodes have broadcasted keygen_complete == "Y"
+						counter := 0
+						for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
+							fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
+							if ok && fsm.Current() == "keygen_completed" {
+								counter++
+							}
+						}
+						fmt.Println("STATUSTX: counter is at ", counter)
+						if counter == len(app.Suite.EthSuite.NodeList) {
+							fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
+							// set all_keygen_complete to Y
+							app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
+							// reset all other nodes' keygen completion status
+							for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
+								app.state.NodeStatus[uint(nodeI.Index.Int64())].Event("end_keygen")
+							}
+							fmt.Println("STATUSTX: app state is:", app.state)
+							// update total number of available keys
+							app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
+							fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
+							// start listening again for the next time we initiate a keygen
+							// go func() {
+							// 	time.Sleep(5 * time.Second)
+							// 	app.state.LocalStatus["all_initiate_keygen"] = ""
+							// }()
+							app.state.Epoch = app.state.Epoch + uint(1)
+							fmt.Println("STATUSTX: state is", app.state)
+							fmt.Println("STATUSTX: epoch is", app.state.Epoch)
+						} else {
+							fmt.Println("Number of keygen initiation messages does not match number of nodes")
+						}
+					},
 				},
 			)
 		}
 
 		// set status
-
-		// app.state.NodeStatus[uint(nodeIndex)][statusTx.StatusType] = statusTx.StatusValue
-		app.state.NodeStatus[uint(nodeIndex)].Event(statusTx.StatusType)
+		app.state.NodeStatus[uint(nodeIndex)].Event(statusTx.StatusType, statusTx.Data)
 		fmt.Println("STATUSTX: status set for node", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
-
-		// Update LocalStatus based on rules
-		// check if all nodes have broadcasted keygen_complete == "Y"
-		// TODO: shift into fsm callback
-		counter := 0
-		for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
-			fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
-			if ok && fsm.Current() == "keygen_completed" {
-				counter++
-			}
-		}
-		fmt.Println("STATUSTX: counter is at ", counter)
-		if counter == len(app.Suite.EthSuite.NodeList) {
-			fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
-			// set all_keygen_complete to Y
-			app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
-			// reset all other nodes' keygen completion status
-			for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
-				app.state.NodeStatus[uint(nodeI.Index.Int64())].Event("end_keygen")
-			}
-			fmt.Println("STATUSTX: app state is:", app.state)
-			// update total number of available keys
-			app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
-			fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
-			// start listening again for the next time we initiate a keygen
-			// go func() {
-			// 	time.Sleep(5 * time.Second)
-			// 	app.state.LocalStatus["all_initiate_keygen"] = ""
-			// }()
-			app.state.Epoch = app.state.Epoch + uint(1)
-			fmt.Println("STATUSTX: state is", app.state)
-			fmt.Println("STATUSTX: epoch is", app.state.Epoch)
-		} else {
-			fmt.Println("Number of keygen initiation messages does not match number of nodes")
-		}
-
-		// check if all nodes have broadcasted initiate_keygen == "Y"
-		counter = 0
-		for _, nodeI := range app.Suite.EthSuite.NodeList {
-			fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
-			if ok && fsm.Current() == "initiated_keygen" {
-				stopIndex := string(statusTx.Data)
-				fmt.Println("STATUSTX: Initiate Key Gen Registered till ", stopIndex)
-				if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
-					fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
-					continue
-				}
-				percentLeft := 100 * (app.state.LastCreatedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
-				if percentLeft > uint(app.Suite.Config.KeyBufferTriggerPercentage) {
-					fmt.Println("KEYGEN: Haven't hit buffer amount, percentLeft, lastcreatedindex, lastunassignedindex", percentLeft, app.state.LastCreatedIndex, app.state.LastUnassignedIndex)
-					continue
-				}
-				counter++
-			}
-		}
-		fmt.Println("STATUSTX: another counter is at", counter)
-		if counter == len(app.Suite.EthSuite.NodeList) {
-			fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
-			app.state.LocalStatus.Event("all_initiate_keygen") // TODO: make epoch variable
-			// for _, nodeI := range app.Suite.EthSuite.NodeList {
-			// 	app.state.NodeStatus[uint(nodeI.Index.Int64())]["initiate_keygen"] = ""
-			// }
-			fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
-		} else {
-			fmt.Println("Number of keygen initiation messages does not match number of nodes")
-		}
 
 		tags = []common.KVPair{
 			{Key: []byte("status"), Value: []byte("1")},

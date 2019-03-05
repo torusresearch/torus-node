@@ -190,15 +190,6 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 								return
 							}
 							fmt.Println("KEYGEN: changed state to verifying", app.state.LocalStatus.Current())
-
-							fmt.Println("STATUSTX: app state is:", app.state)
-							// update total number of available keys
-							app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
-							fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
-
-							app.state.Epoch = app.state.Epoch + uint(1)
-							fmt.Println("STATUSTX: state is", app.state)
-							fmt.Println("STATUSTX: epoch is", app.state.Epoch)
 						} else {
 							fmt.Println("Number of keygen initiation messages does not match number of nodes")
 						}

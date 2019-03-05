@@ -1,6 +1,6 @@
 {
   "myport": "8001",
-  "ethconnection": "http://127.0.0.1:14103",
+  "ethconnection": "http://ganache:8545",
   "ethprivatekey": "318437152af791c195d32218ea759e10b8ac5ac78e1cb2e131997a2d682c6613",
   "bfturi": "tcp://0.0.0.0:26660",
   "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
@@ -9,5 +9,7 @@
   "hostname": "dkg2.tetrator.us",
   "abciserver": "tcp://0.0.0.0:8011",
   "p2plistenaddress": "tcp://0.0.0.0:26659",
-  "keysperepoch": 10
+  "keysperepoch": 10,
+  "ipAddress": "192.167.10.3",
+  "register": true
 }

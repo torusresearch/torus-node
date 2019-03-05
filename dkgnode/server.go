@@ -20,6 +20,7 @@ import (
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
 )
 
@@ -75,7 +76,6 @@ func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
-	// fmt.Println("Ping called from " + p.Message)
 
 	return PingResult{
 		Message: h.ethSuite.NodeAddress.Hex(),
@@ -90,7 +90,7 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 		return jsonrpc.ErrParse()
 	}
 	if suite.EthSuite.NodePublicKey.X.Cmp(tmpToPubKeyX) != 0 {
-		fmt.Println("Signcrypted share received but is not addressed to us")
+		logging.Debug("Signcrypted share received but is not addressed to us")
 		return nil
 	}
 	tmpRx, parsed := new(big.Int).SetString(p.RX, 16)
@@ -124,12 +124,9 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 		R:          common.Point{X: *tmpRx, Y: *tmpRy},
 		Signature:  *tmpSig,
 	}
-	// fmt.Println("RECIEVED SIGNCRYPTION")
-	// fmt.Println(signcryption)
 	unsigncryptedData, err := pvss.UnsigncryptShare(signcryption, *suite.EthSuite.NodePrivateKey.D, common.Point{*tmpPubKeyX, *tmpPubKeyY})
 	if err != nil {
-		fmt.Println("Error unsigncrypting share")
-		fmt.Println(err)
+		logging.Errorf("Error unsigncrypting share %s", err)
 		return &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "error unsigncrypting share " + err.Error()}
 	}
 
@@ -138,7 +135,7 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 	shareBytes := (*unsigncryptedData)[:n-32]
 	broadcastId := (*unsigncryptedData)[n-32:]
 
-	fmt.Println("KEYGEN: Saved share from ", p.FromAddress)
+	logging.Debugf("KEYGEN: Saved share from %s", p.FromAddress)
 	savedLog, found := suite.CacheSuite.CacheInstance.Get(p.FromAddress + "_LOG")
 	newShareLog := ShareLog{time.Now().UTC(), 0, int(p.ShareIndex), shareBytes, broadcastId}
 	// if not found, we create a new mapping
@@ -163,11 +160,9 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 	} else {
 		newMapping := make(map[int]ShareLog)
 		newMapping[int(p.ShareIndex)] = newShareLog
-		// fmt.Println("CACHING SHARE FROM | ", h.suite.EthSuite.NodeAddress.Hex(), "=>", p.FromAddress)
-		// fmt.Println(newShareLog)
 		suite.CacheSuite.CacheInstance.Set(p.FromAddress+"_MAPPING", newMapping, cache.NoExpiration)
 	}
-	fmt.Println("KEYGEN: SAVED SHARE FINISHED for index", p.ShareIndex)
+	logging.Debugf("KEYGEN: SAVED SHARE FINISHED for index %d", p.ShareIndex)
 	return nil
 }
 
@@ -184,13 +179,13 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 	siMapping := tmpSi.(map[int]SiStore)
 	if _, ok := siMapping[p.Index]; !ok {
-		fmt.Println("LOOKUP: siMapping", siMapping)
+		logging.Debugf("LOOKUP: siMapping %v", siMapping)
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "Could not lookup p.Index in siMapping"}
 	}
 	tmpInt := siMapping[p.Index].Value
 	if p.IDToken == "blublu" { // TODO: remove
-		fmt.Println("Share requested")
-		fmt.Println("SHARE: ", tmpInt.Text(16))
+		logging.Debug("Share requested")
+		logging.Debugf("SHARE: %s", tmpInt.Text(16))
 
 		return ShareRequestResult{
 			Index:    siMapping[p.Index].Index,
@@ -228,20 +223,20 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
-	fmt.Println("CHECKING IF EMAIL IS PROVIDED")
+	logging.Debug("CHECKING IF EMAIL IS PROVIDED")
 	// no email provided TODO: email validation/ ddos protection
 	if p.Email == "" {
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email is empty"}
 	}
-	fmt.Println("CHECKING IF CAN GET EMAIL ADDRESS")
+	logging.Debug("CHECKING IF CAN GET EMAIL ADDRESS")
 
 	// try to get get email index
-	fmt.Println("CHECKING IF ALREADY ASSIGNED")
+	logging.Debug("CHECKING IF ALREADY ASSIGNED")
 	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
 	// already assigned
 	if ok {
 		//create users publicKey
-		fmt.Println("previouslyAssignedIndex: ", previouslyAssignedIndex)
+		logging.Debugf("previouslyAssignedIndex: %d", previouslyAssignedIndex)
 		finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret from previously assigned index, please try again err, " + err.Error()}
@@ -250,7 +245,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		//form address eth
 		addr, err := common.PointToEthAddress(*finalUserPubKey)
 		if err != nil {
-			fmt.Println("derived user pub key has issues with address")
+			logging.Error("derived user pub key has issues with address")
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
 		}
 
@@ -269,7 +264,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32604, Message: "System is under heavy load for assignments, please try again later"}
 	}
 
-	fmt.Println("CHECKING IF REACHED NEW ASSIGNMENT")
+	logging.Debug("CHECKING IF REACHED NEW ASSIGNMENT")
 	// new assignment
 
 	// broadcast assignment transaction
@@ -278,23 +273,23 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast: " + err.Error()}
 	}
 
-	fmt.Println("CHECKING IF SUBSCRIBE TO UPDATES", randomInt)
+	logging.Debugf("CHECKING IF SUBSCRIBE TO UPDATES %d", randomInt)
 	// subscribe to updates
 	query := tmquery.MustParse("tx.hash='" + hash.String() + "'")
-	fmt.Println("BFTWS:, hashstring", hash.String(), randomInt)
-	fmt.Println("BFTWS: querystring", query.String(), randomInt)
+	logging.Debugf("BFTWS:, hashstring %s %d", hash.String(), randomInt)
+	logging.Debugf("BFTWS: querystring %s %d", query.String(), randomInt)
 
-	fmt.Println("CHECKING IF GOT RESPONSES", randomInt)
+	logging.Debugf("CHECKING IF GOT RESPONSES %d", randomInt)
 	// wait for block to be committed
 	var assignedIndex uint
 	responseCh, err := h.suite.BftSuite.RegisterQuery(query.String(), 1)
 	if err != nil {
-		fmt.Println("BFTWS: could not register query, ", query.String())
+		logging.Debugf("BFTWS: could not register query, %s", query.String())
 	}
 
 	for e := range responseCh {
-		fmt.Println("BFTWS: gjson:", gjson.GetBytes(e, "query").String(), randomInt)
-		fmt.Println("BFTWS: queryString", query.String(), randomInt)
+		logging.Debugf("BFTWS: gjson: %s %d", gjson.GetBytes(e, "query").String(), randomInt)
+		logging.Debugf("BFTWS: queryString %s %d", query.String(), randomInt)
 		if gjson.GetBytes(e, "query").String() != query.String() {
 			continue
 		}
@@ -310,7 +305,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for returned assignment index: " + fmt.Sprint(res) + " Error: " + err.Error()}
 		}
-		fmt.Println("EXITING RESPONSES LISTENER", randomInt)
+		logging.Debugf("EXITING RESPONSES LISTENER %d", randomInt)
 		break
 	}
 
@@ -325,8 +320,8 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 
 	if secretMapping[int(assignedIndex)].Secret == nil {
-		fmt.Println("LOOKUP: secretmapping", secretMapping)
-		fmt.Println("LOOKUP: SHOULD BE ERROR")
+		logging.Debugf("LOOKUP: secretmapping %v", secretMapping)
+		logging.Debug("LOOKUP: SHOULD BE ERROR")
 		// return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve secret from secret mapping, please try again"}
 	}
 
@@ -339,7 +334,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	//form address eth
 	addr, err := common.PointToEthAddress(*finalUserPubKey)
 	if err != nil {
-		fmt.Println("derived user pub key has issues with address")
+		logging.Debug("derived user pub key has issues with address")
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
 	}
 
@@ -358,7 +353,7 @@ func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("SEARCH RESULT NUMBER", resultPubPolys.TotalCount)
+	logging.Debugf("SEARCH RESULT NUMBER %d", resultPubPolys.TotalCount)
 
 	//create users publicKey
 	var finalUserPubKey common.Point //initialize empty pubkey to fill
@@ -368,7 +363,7 @@ func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) 
 		//get rid of signature on bft
 		err = defaultWrapper.DecodeBFTTx(resultPubPolys.Txs[i].Tx[len([]byte("mug00")):])
 		if err != nil {
-			fmt.Println("Could not decode pubpolybfttx", err)
+			logging.Debugf("Could not decode pubpolybfttx %s", err)
 		}
 		pubPolyTx := defaultWrapper.BFTTx.(*PubPolyBFTTx)
 		if i == 0 {
@@ -421,56 +416,56 @@ func setUpServer(suite *Suite, port string) {
 		// 	log.Fatalln(err)
 		// }
 		if err := http.ListenAndServeTLS(":"+port,
-			"../../tests/openssl/server.crt",
-			"../../tests/openssl/server.key",
+			"/.torus/openssl/server.crt",
+			"/.torus/openssl/server.key",
 			handler,
 		); err != nil {
 			log.Fatalln(err)
 		}
 
 	}
-	fmt.Println("SERVER STOPPED")
+	logging.Debug("SERVER STOPPED")
 }
 
 func listenForShares(suite *Suite, count int) {
-	fmt.Println("KEYGEN: listening for shares ", count)
+	logging.Debugf("KEYGEN: listening for shares %d", count)
 	query := tmquery.MustParse("keygeneration.sharecollection='1'")
-	fmt.Println("QUERY IS:", query)
+	logging.Debugf("QUERY IS: %s", query)
 	// note: we also get back the initial "{}"
 	// data comes back in bytes of utf-8 which correspond
 	// to a base64 encoding of the original data
 	responseCh, err := suite.BftSuite.RegisterQuery(query.String(), count)
 	if err != nil {
-		fmt.Println("BFTWS: failure to registerquery", query.String())
+		logging.Errorf("BFTWS: failure to registerquery %s", query.String())
 		return
 	}
 	for e := range responseCh {
-		fmt.Println("KEYGEN: got a share", e)
+		logging.Debugf("KEYGEN: got a share %s", e)
 		// if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
 		// 	continue
 		// }
-		fmt.Println("sub got ", string(e[:]))
+		logging.Debugf("sub got %s", string(e[:]))
 		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
 		if err != nil {
-			fmt.Println("error decoding b64", err)
+			logging.Errorf("error decoding b64 %s", err)
 			continue
 		}
 		// valid messages should start with mug00
 		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
-			fmt.Println("Message not prefixed with mug00")
+			logging.Debug("Message not prefixed with mug00")
 			continue
 		}
 		keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
 		err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
 		if err != nil {
-			fmt.Println("error decoding bfttx", err)
+			logging.Debugf("error decoding bfttx %s", err)
 			continue
 		}
 		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
-		fmt.Println("KEYGEN: handling signcryption for share", keyGenShareTx)
+		logging.Debugf("KEYGEN: handling signcryption for share %s", keyGenShareTx)
 		err = HandleSigncryptedShare(suite, *keyGenShareTx)
 		if err != nil {
-			fmt.Println("failed to handle signcrypted share", err)
+			logging.Errorf("failed to handle signcrypted share %s", err)
 			continue
 		}
 	}

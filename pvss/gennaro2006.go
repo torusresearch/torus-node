@@ -15,8 +15,6 @@ func getCommitH(polynomial common.PrimaryPolynomial) []common.Point {
 	for i := range commits {
 		commits[i] = common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, polynomial.Coeff[i].Bytes()))
 	}
-	// fmt.Println(commits[0].X.Text(16), commits[0].Y.Text(16), "commit0")
-	// fmt.Println(commits[1].X.Text(16), commits[1].Y.Text(16), "commit1")
 	return commits
 }
 

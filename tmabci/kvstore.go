@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/torusresearch/torus-public/logging"
+
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -85,7 +87,7 @@ func (app *KVStoreApplication) Info(req types.RequestInfo) (resInfo types.Respon
 // tx is either "key=value" or just arbitrary bytes
 func (app *KVStoreApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
-	fmt.Println("DELIVERINGTX", tx)
+	logging.Debug("DELIVERINGTX", tx)
 
 	// var p Message
 	// if err := rlp.DecodeBytes(tx, p); err != nil {

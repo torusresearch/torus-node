@@ -31,6 +31,7 @@ type Config struct {
 	CPUProfileToFile  string `json:"cpuProfile"`
 	IsProduction      bool   `json:"production"`
 	ProvidedIPAddress string `json:"ipAddress"`
+	LogLevel          string `json:"loglevel"`
 }
 
 func loadConfig(configPath string) *Config {
@@ -66,6 +67,8 @@ func loadConfig(configPath string) *Config {
 	// ^^^^^
 	//TODO: validation checks on private key
 
+	logging.SetLevelString(conf.LogLevel)
+
 	//if in production use configured nodeIP for server. else use https dev host address "localhost"
 	if conf.IsProduction {
 		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
@@ -99,5 +102,6 @@ func defaultConfigSettings() Config {
 		KeyBufferTriggerPercentage: 80,
 		BasePath:                   "/.torus",
 		IsProduction:               false,
+		LogLevel:                   "debug",
 	}
 }

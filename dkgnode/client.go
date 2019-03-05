@@ -273,16 +273,6 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 			data = append(data, broadcastIdBytes...)
 			signcryption, err := pvss.Signcrypt(nodes[index].PubKey, data, *suite.EthSuite.NodePrivateKey.D)
-			// Code for using sqlite db for bft
-			// broadcastIdBytes = append(broadcastIdBytes, big.NewInt(int64(id)).Bytes()...)
-			// if len(broadcastIdBytes) == 1 {
-			// 	broadcastIdBytes = append(make([]byte, 1), broadcastIdBytes...)
-			// }
-			// if err != nil {
-			// 	logging.Debugf("Failed during padding of broadcastId bytes")
-			// }
-			// data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
-			// signcryption, err := pvss.Signcrypt(nodes[index].PubKey, data, *suite.EthSuite.NodePrivateKey.D)
 			if err != nil {
 				logging.Debugf("KEYGEN: Failed during signcryption", shareIndex)
 			}
@@ -315,20 +305,40 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		logging.Debugf("bftsuite websocket connection is not up")
 	}
 
+	// Check if node is ready for verification phase
+	// TODO: Include our time bound here
 	for {
 		time.Sleep(1 * time.Second)
 		// TODO: make epoch variable
-		allKeygenComplete := suite.ABCIApp.state.LocalStatus["all_keygen_complete"]
-		if allKeygenComplete != "Y" {
-			logging.Debugf("KEYGEN: nodes have not finished sending shares for epoch, appstate: %v", suite.ABCIApp.state)
+		allKeygenComplete := suite.ABCIApp.state.LocalStatus.Current()
+		if allKeygenComplete == "running_keygen" {
+			fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
 			continue
 		}
-		logging.Debugf("KEYGEN: all nodes have finished sending shares for epoch, appstate: %v", suite.ABCIApp.state)
-		suite.ABCIApp.state.LocalStatus["all_keygen_complete"] = ""
-		// err := suite.BftSuite.DeregisterQuery("keygeneration.sharecollection='1'")
-		// if err != nil {
-		// 	logging.Debugf("Could not deregister", err)
-		// }
+		fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
+
+		// Check if we have received all shares from nodes
+		var sharesNotIn = false
+		for shareIndex := shareStartingIndex; shareIndex < shareEndingIndex; shareIndex++ {
+			for i := 0; i < suite.Config.NumberOfNodes; i++ {
+				data, found := suite.CacheSuite.CacheInstance.Get(nodeList[i].Address.Hex() + "_MAPPING")
+				if found {
+					var shareMapping = data.(map[int]ShareLog)
+					if _, ok := shareMapping[shareIndex]; !ok {
+						sharesNotIn = true
+						break
+					}
+				} else {
+					fmt.Println("KEYGEN: Could not find mapping for node ", i, nodeList[i].Address.Hex())
+					sharesNotIn = true
+					break
+				}
+			}
+		}
+
+		if sharesNotIn {
+			continue
+		}
 		break
 	}
 
@@ -455,6 +465,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	if err != nil {
 		logging.Error(err.Error())
 	}
+
+	// Change state back to standby if all shares are verified
+	//TODO: Failure mode
+	suite.ABCIApp.state.LocalStatus.Event("shares_verified")
 	return err
 }
 

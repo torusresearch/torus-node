@@ -20,12 +20,17 @@ type KeyGenUpdates struct {
 
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
-		logging.Debugf("KEYGEN: in start keygen monitor %v", suite.ABCIApp.state.LocalStatus)
+		logging.Debugf("KEYGEN: in start keygen monitor %s", suite.ABCIApp.state.LocalStatus)
 		time.Sleep(1 * time.Second)
-		if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
-			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %v", suite.ABCIApp.state.LocalStatus)
+		// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
+		var localStatus = suite.ABCIApp.state.LocalStatus.Current()
+		if localStatus == "running_keygen" || localStatus == "verifying_shares" {
+			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %s", suite.ABCIApp.state.LocalStatus)
 			continue
+		} else {
+			logging.Debugf("KEYGEN: KEYGEN NOT IN PROGRESS %s", localStatus)
 		}
+
 		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
 		if percentLeft > uint(suite.Config.KeyBufferTriggerPercentage) {
 			logging.Debugf("KEYGEN: keygeneration trigger percent left not reached %d", percentLeft)
@@ -57,11 +62,12 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			if err != nil {
 				logging.Errorf("KEYGEN: could not broadcast initiateKeygeneration %s", err)
 			}
-			selfInitiateStatus, selfInitiateStatusFound := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]["initiate_keygen"]
-			allInitiateStatus, allInitiateStatusFound := suite.ABCIApp.state.LocalStatus["all_initiate_keygen"]
+
+			fsm, fsmExists := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]
+			allInitiateStatus := suite.ABCIApp.state.LocalStatus.Current()
 
 			// TODO: expecting keygen process to take longer than 1 second
-			if (selfInitiateStatusFound && selfInitiateStatus == "Y") || (allInitiateStatusFound && (allInitiateStatus == "Y" || allInitiateStatus == "IP")) {
+			if (fsmExists && fsm.Current() == "initiated_keygen") || (allInitiateStatus == "ready_for_keygen" || allInitiateStatus == "running_keygen") {
 				break
 			}
 		}
@@ -69,10 +75,11 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y %v", suite.ABCIApp.state.LocalStatus)
 			logging.Debugf("%v", suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
-			if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
-				logging.Debugf("STATUSTX: localstatus all initiate keygen is Y, appstate %v", suite.ABCIApp.state.LocalStatus)
+			// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
+			if suite.ABCIApp.state.LocalStatus.Current() == "ready_for_keygen" {
+				logging.Debugf("STATUSTX: localstatus all initiate keygen is Y, appstate s%", suite.ABCIApp.state.LocalStatus)
 				//reset keygen flag
-				suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] = "IP"
+				suite.ABCIApp.state.LocalStatus.Event("start_keygen")
 				//report back to main process
 				keyGenMonitorUpdates <- KeyGenUpdates{
 					Type:    "start_keygen",

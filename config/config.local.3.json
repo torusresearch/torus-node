@@ -3,7 +3,7 @@
   "ethconnection": "http://ganache:8545",
   "ethprivatekey": "74e31abf0d78420fb095f6e82ad8a0d2158c92079807c46661ea463df3ad53b5",
   "bfturi": "tcp://0.0.0.0:26662",
-  "nodelistaddress": "0xcfeb869f69431e42cdb54a4f4f105c19c080a601",
+  "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
   "numberofnodes": 5,
   "threshold": 3,
   "abciserver": "tcp://0.0.0.0:8012",

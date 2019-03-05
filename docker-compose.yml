@@ -5,7 +5,7 @@ services:
     image: trufflesuite/ganache-cli:latest
     ports:
       - "8545:8545"
-    command: --deterministic
+    command: -s=something
     networks:
       localnet:
 

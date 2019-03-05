@@ -3,6 +3,7 @@ FROM golang:1.11.2-alpine AS node-build
 
 
 RUN apk update && apk add bash make git gcc libstdc++ g++ musl-dev
+L
 RUN apk add --no-cache \
     --repository http://nl.alpinelinux.org/alpine/edge/testing \
     leveldb-dev
@@ -28,6 +29,8 @@ RUN apk add --no-cache \
 
 RUN mkdir -p /torus
 RUN mkdir -p /.torus/tendermint
+RUN mkdir -p /.torus/tendermint/config
+RUN mkdir -p /.torus/tendermint/data
 
 COPY --from=node-build /go/src/github.com/torusresearch/torus-public/cmd/dkgnode/dkgnode /torus/dkgnode
 

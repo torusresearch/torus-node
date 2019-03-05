@@ -3,12 +3,13 @@ package dkgnode
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/torusresearch/torus-public/logging"
 )
 
 type AuthBodyGoogle struct {
@@ -56,8 +57,11 @@ func testOauth(suite *Suite, idToken string, email string) (bool, error) {
 	//TODO: should we return auth errors for developers get in jrpc response
 	timeSignedInt, err := strconv.Atoi(body.Iat)
 	if err != nil {
-		fmt.Println(err)
+		// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
+		// since there is a todo at the top. maybe worth looking at
+		logging.Error(err.Error())
 	}
+
 	timeSigned := time.Unix(int64(timeSignedInt), 0)
 	if timeSigned.Add(60 * time.Second).Before(time.Now()) {
 		return false, errors.New("timesigned is more than 60 seconds ago " + timeSigned.String())

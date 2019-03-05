@@ -1,10 +1,11 @@
 package dkgnode
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
 	"time"
+
+	"github.com/torusresearch/torus-public/logging"
 )
 
 type NodeListUpdates struct {
@@ -19,30 +20,29 @@ type KeyGenUpdates struct {
 
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
-		fmt.Println("KEYGEN: in start keygen monitor", suite.ABCIApp.state.LocalStatus)
-		fmt.Println("KEYGEN: current localstatus", suite.ABCIApp.state.LocalStatus.Current())
+		logging.Debugf("KEYGEN: in start keygen monitor %s", suite.ABCIApp.state.LocalStatus)
 		time.Sleep(1 * time.Second)
 		// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
 		var localStatus = suite.ABCIApp.state.LocalStatus.Current()
 		if localStatus == "running_keygen" || localStatus == "verifying_shares" {
-			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS", suite.ABCIApp.state.LocalStatus)
+			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %s", suite.ABCIApp.state.LocalStatus)
 			continue
 		} else {
-			fmt.Println("KEYGEN: KEYGEN NOT IN PROGRESS", localStatus)
+			logging.Debugf("KEYGEN: KEYGEN NOT IN PROGRESS %s", localStatus)
 		}
 
 		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)
 		if percentLeft > uint(suite.Config.KeyBufferTriggerPercentage) {
-			fmt.Println("KEYGEN: keygeneration trigger percent left not reached", percentLeft)
+			logging.Debugf("KEYGEN: keygeneration trigger percent left not reached %d", percentLeft)
 			continue
 		}
 		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
 		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex)
 
-		fmt.Println("KEYGEN: we are starting keygen", localStatus)
+		logging.Debugf("KEYGEN: we are starting keygen %v", suite.ABCIApp.state.LocalStatus)
 		nodeIndex, err := matchNode(suite, suite.EthSuite.NodePublicKey.X.Text(16), suite.EthSuite.NodePublicKey.Y.Text(16))
 		if err != nil {
-			fmt.Println("KEYGEN: could not get nodeIndex", err)
+			logging.Errorf("KEYGEN: could not get nodeIndex %s", err)
 			continue
 		}
 		go listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
@@ -60,7 +60,7 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			}
 			_, err := suite.BftSuite.BftRPC.Broadcast(initiateKeyGenerationStatusWrapper)
 			if err != nil {
-				fmt.Println("KEYGEN: could not broadcast initiateKeygeneration", err)
+				logging.Errorf("KEYGEN: could not broadcast initiateKeygeneration %s", err)
 			}
 
 			fsm, fsmExists := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]
@@ -72,12 +72,12 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 			}
 		}
 		for {
-			fmt.Println("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y", suite.ABCIApp.state.LocalStatus)
-			fmt.Println(suite.ABCIApp.state)
+			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y %v", suite.ABCIApp.state.LocalStatus)
+			logging.Debugf("%v", suite.ABCIApp.state)
 			time.Sleep(1 * time.Second)
 			// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
 			if suite.ABCIApp.state.LocalStatus.Current() == "ready_for_keygen" {
-				fmt.Println("STATUSTX: localstatus all initiate keygen is Y, appstate", suite.ABCIApp.state.LocalStatus)
+				logging.Debugf("STATUSTX: localstatus all initiate keygen is Y, appstate s%", suite.ABCIApp.state.LocalStatus)
 				//reset keygen flag
 				suite.ABCIApp.state.LocalStatus.Event("start_keygen")
 				//report back to main process
@@ -94,17 +94,17 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 
 func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 	for {
-		fmt.Println("Checking Node List...")
+		logging.Debug("Checking Node List...")
 		// Fetch Node List from contract address
 		//TODO: make epoch vairable
 		epoch := big.NewInt(int64(0))
 		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil, epoch)
 		// If we can't reach ethereum node, lets try next time
 		if err != nil {
-			fmt.Println("Could not View Nodes on ETH Network", err)
+			logging.Errorf("Could not View Nodes on ETH Network %s", err)
 		} else {
 			// Build count of nodes connected to
-			fmt.Println("Indexes", positions, ethList)
+			logging.Debugf("Indexes %v %v", positions, ethList)
 			connectedNodes := 0
 			nodeList := make([]*NodeReference, len(ethList))
 			if len(ethList) > 0 {
@@ -112,7 +112,7 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 					// Check if node is online by pinging
 					temp, err := connectToJSONRPCNode(suite, *epoch, ethList[i])
 					if err != nil {
-						fmt.Println(err)
+						logging.Errorf("%s", err)
 					}
 
 					if temp != nil {

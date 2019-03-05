@@ -2,12 +2,12 @@ package dkgnode
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
 )
 
 type BftRPC struct {
@@ -77,7 +77,6 @@ func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
 	txType := make([]byte, 1)
 	tx := wrapper.BFTTx
 	txType[0] = bftTxs[getType(tx)]
-	// fmt.Println("BFTTX: ", bftTxs, txType, getType(tx))
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return nil, err
@@ -98,7 +97,6 @@ func getType(myvar interface{}) string {
 	if t := reflect.TypeOf(myvar); t.Kind() == reflect.Ptr {
 		return t.Elem().Name()
 	} else {
-		fmt.Println(t)
 		return t.Name()
 	}
 }
@@ -121,7 +119,7 @@ func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("TENDERBFT RESPONSE: ", response)
+	logging.Debugf("TENDERBFT RESPONSE: %s", response)
 	if response.Code != 0 {
 		return nil, errors.New("Could not broadcast, ErrorCode: " + string(response.Code))
 	}
@@ -131,15 +129,13 @@ func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
 
 //Retrieves tx from the bft and gives back results. Takes off the donut
 func (bftrpc BftRPC) Retrieve(hash []byte, txStruct BFTTxWrapper) (err error) {
-	// fmt.Println("WE ARE RETRIEVING")
-
 	result, err := bftrpc.Tx(hash, false)
 	if err != nil {
 		return err
 	}
-	fmt.Println("WE ARE RETRIEVING", result)
+	logging.Debugf("WE ARE RETRIEVING %s", result)
 	if result.TxResult.Code != 0 {
-		fmt.Println("Transaction not accepted", result.TxResult.Code)
+		logging.Debugf("Transaction not accepted %s", result.TxResult.Code)
 	}
 
 	err = (txStruct).DecodeBFTTx(result.Tx[len([]byte("mug00")):])

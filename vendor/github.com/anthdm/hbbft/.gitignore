@@ -1,5 +1,0 @@
-vendor
-simulation/bin
-.vscode
-*.test
-*/debug

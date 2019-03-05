@@ -3,12 +3,13 @@ package dkgnode
 /* All useful imports */
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
 	"github.com/torusresearch/torus-public/secp256k1"
 	jsonrpcclient "github.com/ybbus/jsonrpc"
@@ -117,8 +119,9 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(defaultTmConfig.NodeKeyFile())
 	if err != nil {
-		fmt.Println("Node Key generation issue")
-		fmt.Println(err)
+		logging.Debug("Node Key generation issue")
+		logging.Error(err.Error())
+		// QUESTION(TEAM): Why is this error unhandled?
 	}
 
 	genDoc := tmtypes.GenesisDoc{
@@ -140,12 +143,12 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	}
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
-	fmt.Println("PERSISTANT PEERS: ", defaultTmConfig.P2P.PersistentPeers)
+	logging.Debugf("PERSISTANT PEERS: %s", defaultTmConfig.P2P.PersistentPeers)
 	genDoc.Validators = temp
 
-	fmt.Println("SAVED GENESIS FILE IN: ", defaultTmConfig.GenesisFile())
+	logging.Debugf("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
-		fmt.Print(err)
+		logging.Errorf("%s", err)
 	}
 
 	//Other changes to config go here
@@ -158,7 +161,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
 	defaultTmConfig.LogLevel = "*:error"
-	fmt.Println("NodeKey ID: ", nodeKey.ID())
+	logging.Debugf("NodeKey ID: %s", nodeKey.ID())
 	//save config
 	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
 
@@ -177,14 +180,14 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	// )
 
 	if err != nil {
-		log.Fatal("Failed to create tendermint node: %v", err)
+		logging.Fatalf("Failed to create tendermint node: %v", err)
 	}
 
 	//Start Tendermint Node
-	fmt.Println("Tendermint P2P Connection on: ", defaultTmConfig.P2P.ListenAddress)
-	fmt.Println("Tendermint Node RPC listening on: ", defaultTmConfig.RPC.ListenAddress)
+	logging.Debugf("Tendermint P2P Connection on: %s", defaultTmConfig.P2P.ListenAddress)
+	logging.Debugf("Tendermint Node RPC listening on: %s", defaultTmConfig.RPC.ListenAddress)
 	if err := n.Start(); err != nil {
-		log.Fatal("Failed to start tendermint node: %v", err)
+		logging.Fatalf("Failed to start tendermint node: %v", err)
 	}
 	logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
 
@@ -200,8 +203,8 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	nodeList := suite.EthSuite.NodeList
 	bftRPC := suite.BftSuite.BftRPC
 
-	fmt.Println("Required number of nodes reached")
-	fmt.Println("KEYGEN: Sending shares -----------", suite.ABCIApp.state.LocalStatus)
+	logging.Debugf("Required number of nodes reached")
+	logging.Debugf("KEYGEN: Sending shares -----------", suite.ABCIApp.state.LocalStatus)
 
 	secretMapping := make(map[int]SecretStore)
 	siMapping := make(map[int]SiStore)
@@ -218,9 +221,12 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// create shares and public polynomial commitment
 		shares, pubpoly, err := pvss.CreateShares(nodes, *secret, suite.Config.Threshold)
 		if err != nil {
-			fmt.Println(err)
+			// QUESTION(TEAM) - shouldn't you return an error here, as the startKeyGeneration procedure
+			// has failed? Before there was only a fmt.Println here
+			// yeap but we'd need a failure mode its a TODO
+			logging.Error(err.Error())
 		}
-		fmt.Println("Shares created", shares)
+		logging.Debugf("Shares created %v", shares)
 		// commit pubpoly by signing it and broadcasting it
 		pubPolyTx := PubPolyBFTTx{
 			PubPoly:    *pubpoly,
@@ -233,11 +239,13 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// broadcast signed pubpoly
 		var id *common.Hash
 		action := func(attempt uint) error {
-			fmt.Println("KEYGEN: trying to broadcast for shareIndex", shareIndex, "attempt", attempt)
+			logging.Debugf("KEYGEN: trying to broadcast for shareIndex", shareIndex, "attempt", attempt)
 			id, err = bftRPC.Broadcast(wrapper)
 			if err != nil {
-				fmt.Println("failed to fetch (attempt #%d) with error: %d", err)
-				err = fmt.Errorf("failed to fetch (attempt #%d) with error: %d", err)
+				// QUESTION(TEAM): I think this was not formatted properly, leaving it commented out
+				// logging.Debugf("failed to fetch (attempt #%d) with error: %d", err)
+				// err = fmt.Errorf("failed to fetch (attempt #%d) with error: %d", err)
+				err = fmt.Errorf("failed to fetch (attempt %d) with error: %s", attempt, err)
 			}
 			return err
 		}
@@ -245,10 +253,15 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			action,
 			strategy.Backoff(backoff.Fibonacci(10*time.Millisecond)),
 		)
-		if nil != err {
-			fmt.Println("Failed to publish pub poly with error %q", err)
+
+		if err != nil {
+			// QUESTION(TEAM): Should this error remain unhandled? and the client should continue?
+			// logging.Debugf("Failed to publish pub poly with error %q", err)
+
+			logging.Errorf("failed to publish pub poly with error %s", err)
 		}
-		fmt.Println("KEYGEN: broadcasted shareIndex", shareIndex)
+
+		logging.Debugf("KEYGEN: broadcasted shareIndex: %d", shareIndex)
 		// signcrypt data
 		signcryptedData := make([]*common.SigncryptedOutput, len(nodes))
 		for index, share := range *shares {
@@ -260,21 +273,22 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 			data = append(data, broadcastIdBytes...)
 			signcryption, err := pvss.Signcrypt(nodes[index].PubKey, data, *suite.EthSuite.NodePrivateKey.D)
-
 			if err != nil {
-				fmt.Println("KEYGEN: Failed during signcryption", shareIndex)
+				logging.Debugf("KEYGEN: Failed during signcryption", shareIndex)
 			}
 			signcryptedData[index] = &common.SigncryptedOutput{NodePubKey: nodes[index].PubKey, NodeIndex: share.Index, SigncryptedShare: *signcryption}
-			fmt.Println("KEYGEN: Signcrypted", shareIndex)
+			logging.Debugf("KEYGEN: Signcrypted %d", shareIndex)
 		}
 		errArr := sendSharesToNodes(suite, signcryptedData, nodeList, shareIndex)
 		if errArr != nil {
-			fmt.Println("errors sending shares")
-			fmt.Println(errArr)
+
+			// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
+			logging.Debugf("errors sending shares")
+			logging.Errorf("%v", errArr)
 		}
 		secretMapping[shareIndex] = SecretStore{secret, false}
 	}
-	fmt.Println("KEYGEN: broadcasting keygencomplete status", suite.ABCIApp.state.LocalStatus)
+	logging.Debugf("KEYGEN: broadcasting keygencomplete status", suite.ABCIApp.state.LocalStatus)
 	statusTx := StatusBFTTx{
 		StatusType:  "keygen_complete",
 		StatusValue: "Y",
@@ -288,7 +302,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	// wait for websocket to be up
 	for suite.BftSuite.BftRPCWSStatus != "up" {
 		time.Sleep(1 * time.Second)
-		fmt.Println("bftsuite websocket connection is not up")
+		logging.Debugf("bftsuite websocket connection is not up")
 	}
 
 	// Check if node is ready for verification phase
@@ -330,7 +344,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 	// Signcrypted shares are received by the other nodes and handled in server.go
 
-	fmt.Println("KEYGEN: STARTING TO GATHER SHARES AND PUT THEM TOGETHER", shareStartingIndex, shareEndingIndex)
+	logging.Debugf("KEYGEN: STARTING TO GATHER SHARES AND PUT THEM TOGETHER - %d %d", shareStartingIndex, shareEndingIndex)
 	// gather shares, decrypt and verify with pubpoly
 	// - check if shares are here
 	// Approach: for each shareIndex, we gather all shares shared by nodes for that share index
@@ -352,22 +366,20 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 					nodeId = append(nodeId, i+1)
 				}
 			} else {
-				fmt.Println("Could not find mapping for node ", i, nodeList[i].Address.Hex())
-				fmt.Println("NODELIST: ", nodeList[i])
+				logging.Debugf("Could not find mapping for node %d", i)
 				break
 			}
 		}
 		// Retrieve previously broadcasted signed pubpoly data
 		broadcastedDataArray := make([][]common.Point, len(broadcastIdArray))
 		for index, broadcastId := range broadcastIdArray {
-			fmt.Println("BROADCASTID WAS: ", broadcastId)
+			logging.Debugf("BROADCASTID WAS: ", broadcastId)
 
 			pubPolyTx := PubPolyBFTTx{}
 			wrappedPubPolyTx := DefaultBFTTxWrapper{&pubPolyTx}
 			err := bftRPC.Retrieve(broadcastId, &wrappedPubPolyTx) // TODO: use a goroutine to run this concurrently
 			if err != nil {
-				fmt.Println("Could not retrieve broadcast")
-				fmt.Println(err)
+				logging.Debugf("Could not retrieve broadcast with err: %s", err)
 				continue
 			}
 
@@ -376,7 +388,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 		// verify share against pubpoly
 		//TODO: shift to function in pvss.go
-		fmt.Println("KEYGEN: share verification", shareIndex)
+		logging.Debugf("KEYGEN: share verification %d", shareIndex)
 		s := secp256k1.Curve
 		for index, pubpoly := range broadcastedDataArray {
 			var sumX, sumY = big.NewInt(int64(0)), big.NewInt(int64(0))
@@ -387,25 +399,25 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 				}
 			}
 			nodeI := myNodeReference.Index
-			fmt.Println("nodeI ", nodeI)
+			logging.Debugf("nodeI %d", nodeI)
 			for ind, pt := range pubpoly {
 				x_i := new(big.Int)
 				x_i.Exp(nodeI, big.NewInt(int64(ind)), secp256k1.GeneratorOrder)
 				tempX, tempY := s.ScalarMult(&pt.X, &pt.Y, x_i.Bytes())
 				sumX, sumY = s.Add(sumX, sumY, tempX, tempY)
 			}
-			fmt.Println("SHOULD EQL PUB", sumX, sumY)
+			logging.Debugf("SHOULD EQL PUB %s %s", sumX, sumY)
 			subshare := unsigncryptedShares[index]
 			tempX, tempY := s.ScalarBaseMult(subshare.Bytes())
-			fmt.Println("SHOULD EQL REC", tempX, tempY)
+			logging.Debugf("SHOULD EQL REC %s %d", tempX, tempY)
 			if sumX.Text(16) != tempX.Text(16) || sumY.Text(16) != tempY.Text(16) {
-				fmt.Println("Could not verify share from node")
+				logging.Debug("Could not verify share from node")
 			} else {
-				fmt.Println("Share verified")
+				logging.Debug("Share verified")
 			}
 		}
 
-		fmt.Println("KEYGEN: storing Si")
+		logging.Debug("KEYGEN: storing Si")
 		// form Si
 		tempSi := new(big.Int)
 		for i := range unsigncryptedShares {
@@ -419,10 +431,12 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			}
 		}
 		si := SiStore{Index: nodeIndex, Value: tempSi}
-		fmt.Println("STORED Si: ", shareIndex)
+		logging.Debugf("STORED Si: %d", shareIndex)
 		siMapping[shareIndex] = si
 	}
-	fmt.Println("KEYGEN: replacing Simapping and secret mapping")
+
+	logging.Debug("KEYGEN: replacing Simapping and secret mapping")
+
 	if previousSiMapping, found := suite.CacheSuite.CacheInstance.Get("Si_MAPPING"); !found {
 		suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siMapping, -1)
 	} else {
@@ -444,11 +458,12 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 	cacheItems := suite.CacheSuite.CacheInstance.Items()
 	cacheJSON, err := json.Marshal(cacheItems)
 	if err != nil {
-		fmt.Println(err)
+		// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd, although its Marshalling only and probably fails on the next one
+		logging.Error(err.Error())
 	}
-	err = ioutil.WriteFile(suite.Config.BuildPath+"/"+time.Now().String()+"_secrets.json", cacheJSON, 0644)
+	err = ioutil.WriteFile(suite.Config.BasePath+"/"+time.Now().String()+"_secrets.json", cacheJSON, 0644)
 	if err != nil {
-		fmt.Println(err)
+		logging.Error(err.Error())
 	}
 
 	// Change state back to standby if all shares are verified
@@ -458,10 +473,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 }
 
 func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutput, nodeList []*NodeReference, shareIndex int) *[]error {
-	fmt.Println("KEYGEN: SHARES BEING SENT TO OTHER NODES", len(signcryptedOutput))
+	logging.Debugf("KEYGEN: SHARES BEING SENT TO OTHER NODES %d", len(signcryptedOutput))
 	errorSlice := make([]error, len(signcryptedOutput))
-	// fmt.Println("GIVEN SIGNCRYPTION")
-	// fmt.Println(signcryptedOutput[0].SigncryptedShare.Ciphertext)
+	// logging.Debugf("GIVEN SIGNCRYPTION")
+	// logging.Debugf(signcryptedOutput[0].SigncryptedShare.Ciphertext)
 	for i := range signcryptedOutput {
 		for j := range signcryptedOutput { // TODO: this is because we aren't sure about the ordering of nodeList/signcryptedOutput...
 			if signcryptedOutput[i].NodePubKey.X.Cmp(nodeList[j].PublicKey.X) == 0 {
@@ -482,7 +497,7 @@ func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutp
 				}
 				_, err := suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{broadcastMessage})
 				if err != nil {
-					fmt.Println("KEYGEN: FAILED TO BROADCAST", shareIndex, "msg", broadcastMessage)
+					logging.Errorf("KEYGEN: FAILED TO BROADCAST %d msg : %s", shareIndex, broadcastMessage)
 				}
 			}
 		}
@@ -505,12 +520,23 @@ func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Add
 
 	// if in production use https
 	var nodeIPAddress string
+	var rpcClient jsonrpcclient.RPCClient
 	if suite.Flags.Production {
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
+		rpcClient = jsonrpcclient.NewClient(nodeIPAddress)
 	} else {
+		// When running in testing, skip verification of self signed certificates.
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		httpClient := &http.Client{
+			Transport: tr,
+		}
+		rpcClient = jsonrpcclient.NewClientWithOpts(nodeIPAddress, &jsonrpcclient.RPCClientOpts{
+			HTTPClient: httpClient,
+		})
 	}
-	rpcClient := jsonrpcclient.NewClient(nodeIPAddress)
 
 	_, err = rpcClient.Call("Ping", &Message{suite.EthSuite.NodeAddress.Hex()})
 	if err != nil {

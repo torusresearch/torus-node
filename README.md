@@ -29,4 +29,27 @@ When an epoch ends, nodes decommission by using [proactive secret sharing](http:
 
 # Node Setup
 
-In order to a run a node, you need to run an instance of Torus. The easiest way to do this is to use our prepared Docker image, and provide your node private key and IP address as environment variables.
+## Local Development
+Requirements:
+- local Docker daemon running
+- docker-compose installed
+
+In the folder (TODO: Whichone?) you will find the `docker-compose.yml` which will start the following containres:
+- Ganache instance.
+- 5 Torus Nodes using default envs you can see here: TODO.
+
+To start it, execute:
+
+```
+docker-compose up
+```
+
+After that launch:
+```
+./scripts/bootstrap_nodes.sh
+```
+
+To deploy an ethereum smart contract to Ganache
+
+## Staging Environment / Testnet
+https://nodeX.staging.dev.tor.us

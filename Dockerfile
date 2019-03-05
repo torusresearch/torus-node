@@ -6,9 +6,14 @@ RUN apk update && apk add bash make git gcc libstdc++ g++ musl-dev
 RUN apk add --no-cache \
     --repository http://nl.alpinelinux.org/alpine/edge/testing \
     leveldb-dev
+RUN mkdir -p /go/src/github.com/tendermint/tendermint && \
+    git clone https://github.com/YZhenY/tendermint /go/src/github.com/tendermint/tendermint
+
+WORKDIR /go/src/github.com/tendermint/tendermint
+RUN make get_tools && make get_vendor_deps
+
 
 COPY . /go/src/github.com/torusresearch/torus-public
-
 WORKDIR /go/src/github.com/torusresearch/torus-public/cmd/dkgnode
 
 RUN go build
@@ -22,6 +27,10 @@ RUN apk add --no-cache \
   leveldb
 
 RUN mkdir -p /torus
+RUN mkdir -p /.torus/tendermint
+RUN mkdir -p /.torus/tendermint/config
+RUN mkdir -p /.torus/tendermint/data
+
 COPY --from=node-build /go/src/github.com/torusresearch/torus-public/cmd/dkgnode/dkgnode /torus/dkgnode
 
 EXPOSE 443 80 26656 26657

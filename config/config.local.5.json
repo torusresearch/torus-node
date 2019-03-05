@@ -1,13 +1,15 @@
 {
   "myport": "8004",
-  "ethconnection": "http://127.0.0.1:14103",
+  "ethconnection": "http://ganache:8545",
   "ethprivatekey": "83781f4a87b3a1fd7473652afc441f4abb111a46c44b404ec640f43b89202387",
-  "bfturi": "tcp://0.0.0.0:26666",
+  "bfturi": "tcp://0.0.0.0:26665",
   "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
   "numberofnodes": 5,
   "threshold": 3,
-  "hostname": "dkg5.tetrator.us",
+  "hostname": "node_five",
   "abciserver": "tcp://0.0.0.0:8014",
-  "p2plistenaddress": "tcp://0.0.0.0:26665",
-  "keysperepoch": 10
+  "p2plistenaddress": "tcp://0.0.0.0:26666",
+  "keysperepoch": 10,
+  "ipAddress": "192.167.10.6",
+  "register": true
 }

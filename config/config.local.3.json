@@ -1,6 +1,6 @@
 {
   "myport": "8002",
-  "ethconnection": "http://127.0.0.1:14103",
+  "ethconnection": "http://ganache:8545",
   "ethprivatekey": "74e31abf0d78420fb095f6e82ad8a0d2158c92079807c46661ea463df3ad53b5",
   "bfturi": "tcp://0.0.0.0:26662",
   "nodelistaddress": "0xd44f7724b0a0800e41283e97be5ec9e875f59811",
@@ -8,5 +8,7 @@
   "threshold": 3,
   "abciserver": "tcp://0.0.0.0:8012",
   "p2plistenaddress": "tcp://0.0.0.0:26661",
-  "keysperepoch": 10
+  "keysperepoch": 10,
+  "ipAddress": "192.167.10.4",
+  "register": true
 }

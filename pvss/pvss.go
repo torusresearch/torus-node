@@ -6,10 +6,10 @@ package pvss
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
@@ -23,7 +23,7 @@ func polyEval(polynomial common.PrimaryPolynomial, x int) *big.Int { // get priv
 	xi := big.NewInt(int64(x))
 	sum := new(big.Int)
 	// for i := polynomial.Threshold - 1; i >= 0; i-- {
-	// 	fmt.Println("i: ", i)
+	// 	logging.Debug("i: ", i)
 	// 	sum.Mul(sum, xi)
 	// 	sum.Add(sum, &polynomial.Coeff[i])
 	// }
@@ -64,12 +64,12 @@ func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
 func addPolynomials(poly1 common.PrimaryPolynomial, poly2 common.PrimaryPolynomial) *common.PrimaryPolynomial {
 	var sumPoly []big.Int
 	if poly1.Threshold != poly2.Threshold {
-		fmt.Println("thresholds of two polynomials are not equal")
+		logging.Error("thresholds of two polynomials are not equal")
 		return &common.PrimaryPolynomial{sumPoly, 0}
 	}
 
 	if len(poly1.Coeff) != len(poly2.Coeff) {
-		fmt.Println("order of two polynomials are not equal")
+		logging.Error("order of two polynomials are not equal")
 		return &common.PrimaryPolynomial{sumPoly, 0}
 	}
 
@@ -143,9 +143,9 @@ func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey
 	hR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
 	testsenderPubKey := common.BigIntToPoint(secp256k1.Curve.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if senderPubKey.X.Cmp(&testsenderPubKey.X) != 0 {
-		fmt.Println(senderPubKey.X.Cmp(&testsenderPubKey.X))
-		fmt.Println(senderPubKey)
-		fmt.Println(testsenderPubKey)
+		logging.Debugf("%d", senderPubKey.X.Cmp(&testsenderPubKey.X))
+		logging.Debugf("%v", senderPubKey)
+		logging.Debugf("%v", testsenderPubKey)
 		return nil, errors.New("sending node PK does not register with signcryption unsigncrypt")
 	}
 
@@ -250,9 +250,9 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 	hR := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&signcryption.R.X, &signcryption.R.Y, h.Bytes()))
 	testSendingNodePubKey := common.BigIntToPoint(secp256k1.Curve.Add(&sG.X, &sG.Y, &hR.X, &hR.Y))
 	if sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X) != 0 {
-		fmt.Println(sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X))
-		fmt.Println(sendingNodePubKey)
-		fmt.Println(testSendingNodePubKey)
+		logging.Debugf("%d", sendingNodePubKey.X.Cmp(&testSendingNodePubKey.X))
+		logging.Debugf("%v", sendingNodePubKey)
+		logging.Debugf("%v", testSendingNodePubKey)
 		return nil, errors.New("sending node PK does not register with signcryption")
 	}
 
@@ -288,7 +288,7 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {
-		//when x =0
+		// when x = 0
 		delta := new(big.Int).SetInt64(int64(1))
 		upper := new(big.Int).SetInt64(int64(1))
 		lower := new(big.Int).SetInt64(int64(1))
@@ -307,7 +307,7 @@ func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 				lower.Mod(lower, secp256k1.GeneratorOrder)
 			}
 		}
-		//elliptic devision
+		// elliptic division
 		inv := new(big.Int)
 		inv.ModInverse(lower, secp256k1.GeneratorOrder)
 		delta.Mul(upper, inv)

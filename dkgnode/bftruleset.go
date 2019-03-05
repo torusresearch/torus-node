@@ -14,6 +14,7 @@ import (
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	"github.com/torusresearch/torus-public/logging"
 )
 
 //Validates transactions to be delivered to the BFT. is the master switch for all tx
@@ -34,7 +35,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, err
 		}
 		pubPolyTx := PubPolyTx.BFTTx.(*PubPolyBFTTx)
-		fmt.Println("ATTACHING TAGS for pubpoly")
+		logging.Debug("ATTACHING TAGS for pubpoly")
 		tags = []common.KVPair{
 			{Key: []byte("pubpoly"), Value: []byte("1")},
 			{Key: []byte("share_index"), Value: []byte(strconv.Itoa(int(pubPolyTx.ShareIndex)))},
@@ -48,18 +49,18 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, err
 		}
 		// TODO: verify keygen share?
-		fmt.Println("ATTACHING TAGS for keygenshare")
+		logging.Debug("ATTACHING TAGS for keygenshare")
 		tags = []common.KVPair{
 			{Key: []byte("keygeneration.sharecollection"), Value: []byte("1")},
 		}
 		return true, &tags, nil
 
 	case byte(4): // AssignmentBFTTx
-		fmt.Println("assignmentbfttx happening")
+		logging.Debug("Assignmentbfttx happening")
 		AssignmentTx := DefaultBFTTxWrapper{&AssignmentBFTTx{}}
 		err := AssignmentTx.DecodeBFTTx(txNoSig)
 		if err != nil {
-			fmt.Println("assignmentbfttx failed with error", err)
+			logging.Errorf("assignmentbfttx failed with error %s", err)
 			return false, &tags, err
 		}
 		assignmentTx := AssignmentTx.BFTTx.(*AssignmentBFTTx)
@@ -68,7 +69,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		}
 
 		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok { //check if user has been assigned before
-			fmt.Println("assignmentbfttx failed with email already assigned")
+			logging.Errorf("assignmentbfttx failed with email already assigned")
 			return false, &tags, errors.New("Email " + assignmentTx.Email + " has already been assigned")
 		}
 		// assign user email to key index
@@ -76,7 +77,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, &tags, errors.New("Last assigned index is exceeding last created index")
 		}
 		app.state.EmailMapping[assignmentTx.Email] = uint(app.state.LastUnassignedIndex)
-		fmt.Println("assignmentbfttx happened with app state emailmapping now equal to", app.state.EmailMapping)
+		logging.Debugf("assignmentbfttx happened with app state emailmapping now equal to %s", app.state.EmailMapping)
 		tags = []common.KVPair{
 			{Key: []byte("assignment"), Value: []byte("1")},
 		}
@@ -85,14 +86,14 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		return true, &tags, nil
 
 	case byte(5): // StatusBFTTx
-		fmt.Println("Status broadcast")
+		logging.Debug("Status broadcast")
 		StatusTx := DefaultBFTTxWrapper{&StatusBFTTx{}}
 
 		// validation
 
 		err := StatusTx.DecodeBFTTx(txNoSig)
 		if err != nil {
-			fmt.Println("Statustx decoding failed with error", err)
+			logging.Errorf("Statustx decoding failed with error %s", err)
 		}
 		statusTx := StatusTx.BFTTx.(*StatusBFTTx)
 		// TODO: check signature from node
@@ -208,7 +209,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		return true, &tags, nil
 
 	case byte(6): // ValidatorUpdateBFTTx
-		fmt.Println("Validator update tx sent")
+		logging.Debug("Validator update tx sent")
 		ValidatorUpdateTx := DefaultBFTTxWrapper{&ValidatorUpdateBFTTx{}}
 		err := ValidatorUpdateTx.DecodeBFTTx(txNoSig)
 		if err != nil {
@@ -234,8 +235,8 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				Power: int64(validatorUpdateTx.ValidatorPower[i]),
 			}
 		}
-		fmt.Println("comparint validator structs", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
-		fmt.Println("it was:  ", cmp.Equal(validatorUpdateStruct,
+		logging.Debugf("comparint validator structs %v", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
+		logging.Debugf("it was:  %v", cmp.Equal(validatorUpdateStruct,
 			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
 			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")))
 		//check agasint internal nodelist
@@ -246,7 +247,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			app.state.ValidatorSet = validatorUpdateStruct
 			//set val update to true to trigger endblock
 			app.state.UpdateValidators = true
-			fmt.Println("update validator set to true")
+			logging.Debug("update validator set to true")
 		} else {
 			//validators not accepted, might trigger cause nodelist not completely updated? perhpas call node list first
 			return false, nil, errors.New("Validator update not accepted")

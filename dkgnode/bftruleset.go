@@ -211,49 +211,6 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		app.state.NodeStatus[uint(nodeIndex)].Event(statusTx.StatusType, statusTx.Data)
 		fmt.Println("STATUSTX: status set for node", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
 
-		// // Update LocalStatus based on rules
-		// // check if all nodes have broadcasted keygen_complete == "Y"
-		// counter := 0
-		// for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
-		// 	fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
-		// 	fmt.Println("For node ", uint(nodeI.Index.Int64()))
-		// 	fmt.Println("STATUSTX: FSM and ok", fsm, ok)
-		// 	if ok && fsm.Current() == "keygen_completed" {
-		// 		counter++
-		// 	}
-		// }
-		// fmt.Println("STATUSTX: counter is at ", counter)
-		// if counter == len(app.Suite.EthSuite.NodeList) {
-		// 	fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
-		// 	// set all_keygen_complete to Y
-		// 	err := app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
-		// 	if err != nil {
-		// 		fmt.Println("KEYGEN: Error changing state ", err)
-		// 	}
-		// 	// reset all other nodes' keygen completion status
-		// 	for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
-		// 		err = app.state.NodeStatus[uint(nodeI.Index.Int64())].Event("end_keygen")
-		// 		if err != nil {
-		// 			fmt.Println("KEYGEN: Error changing state ", err)
-		// 		}
-		// 	}
-
-		// 	fmt.Println("STATUSTX: app state is:", app.state)
-		// 	// update total number of available keys
-		// 	app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
-		// 	fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
-		// 	// start listening again for the next time we initiate a keygen
-		// 	// go func() {
-		// 	// 	time.Sleep(5 * time.Second)
-		// 	// 	app.state.LocalStatus["all_initiate_keygen"] = ""
-		// 	// }()
-		// 	app.state.Epoch = app.state.Epoch + uint(1)
-		// 	fmt.Println("STATUSTX: state is", app.state)
-		// 	fmt.Println("STATUSTX: epoch is", app.state.Epoch)
-		// } else {
-		// 	fmt.Println("Number of keygen initiation messages does not match number of nodes")
-		// }
-
 		tags = []common.KVPair{
 			{Key: []byte("status"), Value: []byte("1")},
 		}

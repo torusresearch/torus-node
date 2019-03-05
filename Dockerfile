@@ -3,7 +3,6 @@ FROM golang:1.11.2-alpine AS node-build
 
 
 RUN apk update && apk add bash make git gcc libstdc++ g++ musl-dev
-L
 RUN apk add --no-cache \
     --repository http://nl.alpinelinux.org/alpine/edge/testing \
     leveldb-dev

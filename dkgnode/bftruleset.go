@@ -158,8 +158,6 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 						counter := 0
 						for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
 							fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
-							fmt.Println("For node ", uint(nodeI.Index.Int64()))
-							fmt.Println("STATUSTX: FSM and ok", fsm, ok)
 							if ok && fsm.Current() == "keygen_completed" {
 								counter++
 							}
@@ -168,27 +166,36 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 						if counter == len(app.Suite.EthSuite.NodeList) {
 							fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
 							// set all_keygen_complete to Y
+
+							// reset all other nodes' keygen completion status
+							for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
+								fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
+								if ok {
+									go func() {
+										err = fsm.Event("end_keygen")
+										fmt.Println("KEYGEN: node status changed state to ", fsm.Current())
+										if err != nil {
+											fmt.Println("ERROR: Error changing state ", err)
+										}
+									}()
+								} else {
+									fmt.Println("KEYGEN: Could not find NodeStatus FSM for index ", uint(nodeI.Index.Int64()))
+								}
+							}
+							fmt.Println("KEYGEN: changed state to standby", app.state.NodeStatus)
+
 							err := app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
 							if err != nil {
 								fmt.Println("KEYGEN: Error changing state ", err)
+								return
 							}
-							// reset all other nodes' keygen completion status
-							for _, nodeI := range app.Suite.EthSuite.NodeList { // TODO: make epoch variable
-								err = app.state.NodeStatus[uint(nodeI.Index.Int64())].Event("end_keygen")
-								if err != nil {
-									fmt.Println("KEYGEN: Error changing state ", err)
-								}
-							}
+							fmt.Println("KEYGEN: changed state to verifying", app.state.LocalStatus.Current())
 
 							fmt.Println("STATUSTX: app state is:", app.state)
 							// update total number of available keys
 							app.state.LastCreatedIndex = app.state.LastCreatedIndex + uint(app.Suite.Config.KeysPerEpoch)
 							fmt.Println("STATUSTX: lastcreatedindex", app.state.LastCreatedIndex)
-							// start listening again for the next time we initiate a keygen
-							// go func() {
-							// 	time.Sleep(5 * time.Second)
-							// 	app.state.LocalStatus["all_initiate_keygen"] = ""
-							// }()
+
 							app.state.Epoch = app.state.Epoch + uint(1)
 							fmt.Println("STATUSTX: state is", app.state)
 							fmt.Println("STATUSTX: epoch is", app.state.Epoch)

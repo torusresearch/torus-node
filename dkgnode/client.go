@@ -260,16 +260,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 
 			data = append(data, broadcastIdBytes...)
 			signcryption, err := pvss.Signcrypt(nodes[index].PubKey, data, *suite.EthSuite.NodePrivateKey.D)
-			// Code for using sqlite db for bft
-			// broadcastIdBytes = append(broadcastIdBytes, big.NewInt(int64(id)).Bytes()...)
-			// if len(broadcastIdBytes) == 1 {
-			// 	broadcastIdBytes = append(make([]byte, 1), broadcastIdBytes...)
-			// }
-			// if err != nil {
-			// 	fmt.Println("Failed during padding of broadcastId bytes")
-			// }
-			// data = append(data, broadcastIdBytes...) // length of big.Int is 2 bytes
-			// signcryption, err := pvss.Signcrypt(nodes[index].PubKey, data, *suite.EthSuite.NodePrivateKey.D)
+
 			if err != nil {
 				fmt.Println("KEYGEN: Failed during signcryption", shareIndex)
 			}

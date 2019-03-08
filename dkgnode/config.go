@@ -33,6 +33,8 @@ type Config struct {
 	LogLevel          string `json:"loglevel" env:"LOG_LEVEL"`
 }
 
+// mergeWithFlags explicitly merges flags for a given instance of Config
+// NOTE: It will note override with defaults
 func (c *Config) mergeWithFlags() *Config {
 	register := flag.Bool("register", true, "defaults to true")
 	production := flag.Bool("production", false, "defaults to false")
@@ -41,7 +43,9 @@ func (c *Config) mergeWithFlags() *Config {
 	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
 	ethConnection := flag.String("ethConnection", "", "ethereum endpoint")
 	nodeListAddress := flag.String("nodeListAddress", "", "node list address on ethereum")
+
 	flag.Parse()
+
 	if isFlagPassed("register") {
 		c.ShouldRegister = *register
 	}

@@ -5,7 +5,9 @@ import (
 	"flag"
 
 	"github.com/micro/go-config"
+	"github.com/micro/go-config/source/env"
 	"github.com/micro/go-config/source/file"
+	cflag "github.com/micro/go-config/source/flag"
 	"github.com/torusresearch/torus-public/logging"
 )
 
@@ -43,7 +45,9 @@ func loadConfig(configPath string) *Config {
 	_ = flag.String("ethConnection", "", "ethereum endpoint")
 	_ = flag.String("nodeListAddress", "", "node list address on ethereum")
 
-	// flagSource := cflag.NewSource()
+	flagSource := cflag.NewSource(
+		cflag.IncludeUnset(true),
+	)
 
 	conf := defaultConfigSettings()
 
@@ -58,9 +62,9 @@ func loadConfig(configPath string) *Config {
 		// Then we override with the config file
 		file.NewSource(file.WithPath(configPath)),
 		// // Then we override with ENV vars.
-		// env.NewSource(),
+		env.NewSource(),
 		// // Then override env with flags
-		// flagSource,
+		flagSource,
 	)
 
 	config.Scan(&conf)

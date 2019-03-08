@@ -2,53 +2,106 @@ package dkgnode
 
 /* All useful imports */
 import (
+	"encoding/json"
 	"flag"
+	"io/ioutil"
+	"os"
 
-	"github.com/micro/go-config"
-	"github.com/micro/go-config/source/env"
-	"github.com/micro/go-config/source/file"
-	cflag "github.com/micro/go-config/source/flag"
+	"github.com/caarlos0/env"
 	"github.com/torusresearch/torus-public/logging"
 )
 
 type Config struct {
-	// QUESTION(TEAM): I think struct tags should be either camelCase, or the_traditional_one
-	// but definitely standardized, and in the case of go-config, i think it's better if we use camelCase
-	MyPort                     string `json:"myport"`
-	MainServerAddress          string `json:"mainserveraddress"`
-	EthConnection              string `json:"ethconnection"`
-	EthPrivateKey              string `json:"ethprivatekey"`
-	BftURI                     string `json:"bfturi"`
-	ABCIServer                 string `json:"abciserver"`
-	P2PListenAddress           string `json:"p2plistenaddress"`
-	NodeListAddress            string `json:"nodelistaddress"`
-	HostName                   string `json:"hostname"`
-	NumberOfNodes              int    `json:"numberofnodes"`
-	Threshold                  int    `json:"threshold"`
-	KeysPerEpoch               int    `json:"keysperepoch"`
-	KeyBufferTriggerPercentage int    `json:"keybuffertriggerpercetage"` //percetage threshold of keys left to trigger buffering 90 - 20
-	BasePath                   string `json:"buildpath"`
+	MyPort                     string `json:"myport" env:"MYPORT"`
+	MainServerAddress          string `json:"mainserveraddress" env:"MAIN_SERVER_ADDRESS"`
+	EthConnection              string `json:"ethconnection" env:"ETH_CONNECTION"`
+	EthPrivateKey              string `json:"ethprivatekey" env:"ETH_PRIVATE_KEY"`
+	BftURI                     string `json:"bfturi" env:"BFT_URI"`
+	ABCIServer                 string `json:"abciserver" env:"ABCI_SERVER"`
+	P2PListenAddress           string `json:"p2plistenaddress" env:"P2P_LISTEN_ADDRESS"`
+	NodeListAddress            string `json:"nodelistaddress" env:"NODE_LIST_ADDRESS"`
+	NumberOfNodes              int    `json:"numberofnodes" env:"NUMBER_OF_NODES"`
+	Threshold                  int    `json:"threshold" env:"THRESHOLD"`
+	KeysPerEpoch               int    `json:"keysperepoch" env:"KEYS_PER_EPOCH"`
+	KeyBufferTriggerPercentage int    `json:"keybuffertriggerpercetage" env:"KEY_BUFFER_TRIGGER_PERCENTAGE"` //percetage threshold of keys left to trigger buffering 90 - 20
+	BasePath                   string `json:"basepath" env:"BASE_PATH"`
 
-	ShouldRegister    bool   `json:"register"`
-	CPUProfileToFile  string `json:"cpuProfile"`
-	IsProduction      bool   `json:"production"`
-	ProvidedIPAddress string `json:"ipAddress"`
-	LogLevel          string `json:"loglevel"`
+	ShouldRegister    bool   `json:"register" env:"REGISTER"`
+	CPUProfileToFile  string `json:"cpuProfile" env:"CPU_PROFILE"`
+	IsProduction      bool   `json:"production" env:"PRODUCTION"`
+	ProvidedIPAddress string `json:"ipAddress" env:"IP_ADDRESS"`
+	LogLevel          string `json:"loglevel" env:"LOG_LEVEL"`
+}
+
+func (c *Config) mergeWithFlags() *Config {
+	register := flag.Bool("register", true, "defaults to true")
+	production := flag.Bool("production", false, "defaults to false")
+	ethPrivateKey := flag.String("ethprivateKey", "", "provide private key here to run node on")
+	ipAddress := flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
+	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
+	ethConnection := flag.String("ethConnection", "", "ethereum endpoint")
+	nodeListAddress := flag.String("nodeListAddress", "", "node list address on ethereum")
+	flag.Parse()
+	if isFlagPassed("register") {
+		c.ShouldRegister = *register
+	}
+	if isFlagPassed("production") {
+		c.IsProduction = *production
+	}
+	if isFlagPassed("ethprivateKey") {
+		c.EthPrivateKey = *ethPrivateKey
+	}
+	if isFlagPassed("ipAddress") {
+		c.ProvidedIPAddress = *ipAddress
+	}
+	if isFlagPassed("cpuProfile") {
+		c.CPUProfileToFile = *cpuProfile
+	}
+	if isFlagPassed("ethConnection") {
+		c.EthConnection = *ethConnection
+	}
+	if isFlagPassed("nodeListAddress") {
+		c.NodeListAddress = *nodeListAddress
+	}
+
+	return c
+}
+
+// Source: https://stackoverflow.com/a/54747682
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func readAndMarshallJSONConfig(configPath string, c *Config) error {
+	jsonConfig, err := os.Open(configPath)
+	if err != nil {
+		return err
+	}
+
+	defer jsonConfig.Close()
+
+	b, err := ioutil.ReadAll(jsonConfig)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(b, &c)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func loadConfig(configPath string) *Config {
-	_ = flag.Bool("register", true, "defaults to true")
-	_ = flag.Bool("production", false, "defaults to false")
-	_ = flag.String("ethprivateKey", "", "provide private key here to run node on")
-	_ = flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
-	_ = flag.String("cpuProfile", "", "write cpu profile to file")
-	_ = flag.String("ethConnection", "", "ethereum endpoint")
-	_ = flag.String("nodeListAddress", "", "node list address on ethereum")
 
-	flagSource := cflag.NewSource(
-		cflag.IncludeUnset(true),
-	)
-
+	// Default config is initalized here
 	conf := defaultConfigSettings()
 
 	nodeIP, err := findExternalIP()
@@ -57,19 +110,17 @@ func loadConfig(configPath string) *Config {
 		logging.Errorf("%s", err)
 	}
 
-	// First we have the default settings
-	config.Load(
-		// Then we override with the config file
-		file.NewSource(file.WithPath(configPath)),
-		// // Then we override with ENV vars.
-		env.NewSource(),
-		// // Then override env with flags
-		flagSource,
-	)
+	err = readAndMarshallJSONConfig(configPath, &conf)
+	if err != nil {
+		logging.Warningf("failed to read JSON config with err: %s", err)
+	}
 
-	config.Scan(&conf)
-	// ^^^^^
-	//TODO: validation checks on private key
+	err = env.Parse(&conf)
+	if err != nil {
+		logging.Error(err.Error())
+	}
+
+	conf.mergeWithFlags()
 
 	logging.SetLevelString(conf.LogLevel)
 
@@ -83,7 +134,6 @@ func loadConfig(configPath string) *Config {
 	if conf.ProvidedIPAddress != "" {
 		logging.Infof("Running on Specified IP Address: %s", conf.ProvidedIPAddress)
 		conf.MainServerAddress = conf.ProvidedIPAddress + ":" + conf.MyPort
-		conf.HostName = conf.ProvidedIPAddress
 	}
 
 	return &conf
@@ -99,7 +149,6 @@ func defaultConfigSettings() Config {
 		ABCIServer:                 "tcp://0.0.0.0:8010",
 		P2PListenAddress:           "tcp://0.0.0.0:26656",
 		NodeListAddress:            "0x4e8fce1336c534e0452410c2cb8cd628949dcc85",
-		HostName:                   "",
 		NumberOfNodes:              5,
 		Threshold:                  3,
 		KeysPerEpoch:               100,

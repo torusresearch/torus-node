@@ -45,7 +45,7 @@ func New() {
 	// that sets all the config variables and is available globally for read?
 	// it should be immutable after initializing, but if not we can always stick a mutex.
 	cfg := loadConfig(DefaultConfigPath)
-	logging.Infof("Loaded config, BFTUri: %s, Hostname: %s, p2plistenaddress: %s", cfg.BftURI, cfg.HostName, cfg.P2PListenAddress)
+	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, p2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.P2PListenAddress)
 
 	//Main suite of functions used in node
 	suite := Suite{}

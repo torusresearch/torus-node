@@ -9,7 +9,6 @@
   "abciserver": "tcp://0.0.0.0:8012",
   "p2plistenaddress": "tcp://0.0.0.0:26661",
   "keysperepoch": 10,
-  "ipAddress": "192.167.10.4",
   "register": true,
   "serverCert": "../../tests/openssl/server.crt",
   "serverKey": "../../tests/openssl/server.key"

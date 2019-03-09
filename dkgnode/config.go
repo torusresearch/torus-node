@@ -31,11 +31,45 @@ type Config struct {
 	IsProduction      bool   `json:"production" env:"PRODUCTION"`
 	ProvidedIPAddress string `json:"ipAddress" env:"IP_ADDRESS"`
 	LogLevel          string `json:"loglevel" env:"LOG_LEVEL"`
+	ServerCert        string `json:"serverCert" env:"SERVER_CERT"`
+	ServerKey         string `json:"serverKey" env:"SERVER_KEY"`
 }
 
 // mergeWithFlags explicitly merges flags for a given instance of Config
 // NOTE: It will note override with defaults
-func (c *Config) mergeWithFlags() *Config {
+func (c *Config) mergeWithFlags(flagConfig *Config) *Config {
+
+	if isFlagPassed("register") {
+		c.ShouldRegister = flagConfig.ShouldRegister
+	}
+	if isFlagPassed("production") {
+		c.IsProduction = flagConfig.IsProduction
+	}
+	if isFlagPassed("ethprivateKey") {
+		c.EthPrivateKey = flagConfig.EthPrivateKey
+	}
+	if isFlagPassed("ipAddress") {
+		c.ProvidedIPAddress = flagConfig.ProvidedIPAddress
+	}
+	if isFlagPassed("cpuProfile") {
+		c.CPUProfileToFile = flagConfig.CPUProfileToFile
+	}
+	if isFlagPassed("ethConnection") {
+		c.EthConnection = flagConfig.EthConnection
+	}
+	if isFlagPassed("nodeListAddress") {
+		c.NodeListAddress = flagConfig.NodeListAddress
+	}
+	if isFlagPassed("basePath") {
+		c.BasePath = flagConfig.BasePath
+	}
+
+	return c
+}
+
+// createConfigWithFlags edits a config with flags parsed in.
+// NOTE: It will note override with defaults
+func (c *Config) createConfigWithFlags() string {
 	register := flag.Bool("register", true, "defaults to true")
 	production := flag.Bool("production", false, "defaults to false")
 	ethPrivateKey := flag.String("ethprivateKey", "", "provide private key here to run node on")
@@ -44,7 +78,7 @@ func (c *Config) mergeWithFlags() *Config {
 	ethConnection := flag.String("ethConnection", "", "ethereum endpoint")
 	nodeListAddress := flag.String("nodeListAddress", "", "node list address on ethereum")
 	basePath := flag.String("basePath", "/.torus", "basePath for Torus node artifacts")
-
+	configPath := flag.String("configPath", "", "override configPath")
 	flag.Parse()
 
 	if isFlagPassed("register") {
@@ -72,7 +106,7 @@ func (c *Config) mergeWithFlags() *Config {
 		c.BasePath = *basePath
 	}
 
-	return c
+	return *configPath
 }
 
 // Source: https://stackoverflow.com/a/54747682
@@ -111,6 +145,7 @@ func loadConfig(configPath string) *Config {
 
 	// Default config is initalized here
 	conf := defaultConfigSettings()
+	flagConf := defaultConfigSettings()
 
 	nodeIP, err := findExternalIP()
 	if err != nil {
@@ -118,7 +153,7 @@ func loadConfig(configPath string) *Config {
 		logging.Errorf("%s", err)
 	}
 
-	providedCF := *flag.String("configPath", "", "override configPath")
+	providedCF := flagConf.createConfigWithFlags()
 	if providedCF != "" {
 		logging.Infof("overriding configPath to: %s", providedCF)
 		configPath = providedCF
@@ -134,7 +169,7 @@ func loadConfig(configPath string) *Config {
 		logging.Error(err.Error())
 	}
 
-	conf.mergeWithFlags()
+	conf.mergeWithFlags(&flagConf)
 
 	logging.SetLevelString(conf.LogLevel)
 
@@ -149,6 +184,8 @@ func loadConfig(configPath string) *Config {
 		logging.Infof("Running on Specified IP Address: %s", conf.ProvidedIPAddress)
 		conf.MainServerAddress = conf.ProvidedIPAddress + ":" + conf.MyPort
 	}
+
+	logging.Infof("Final Configuration: %s", conf)
 
 	return &conf
 }
@@ -170,5 +207,7 @@ func defaultConfigSettings() Config {
 		BasePath:                   "/.torus",
 		IsProduction:               false,
 		LogLevel:                   "debug",
+		ServerCert:                 "/.torus/openssl/server.crt",
+		ServerKey:                  "/.torus/openssl/server.key",
 	}
 }

@@ -11,5 +11,7 @@
   "p2plistenaddress": "tcp://0.0.0.0:26666",
   "keysperepoch": 10,
   "ipAddress": "192.167.10.6",
-  "register": true
+  "register": true,
+  "serverCert": "../../tests/openssl/server.crt",
+  "serverKey": "../../tests/openssl/server.key"
 }

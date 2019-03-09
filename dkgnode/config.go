@@ -43,6 +43,7 @@ func (c *Config) mergeWithFlags() *Config {
 	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
 	ethConnection := flag.String("ethConnection", "", "ethereum endpoint")
 	nodeListAddress := flag.String("nodeListAddress", "", "node list address on ethereum")
+	basePath := flag.String("basePath", "/.torus", "basePath for Torus node artifacts")
 
 	flag.Parse()
 
@@ -66,6 +67,9 @@ func (c *Config) mergeWithFlags() *Config {
 	}
 	if isFlagPassed("nodeListAddress") {
 		c.NodeListAddress = *nodeListAddress
+	}
+	if isFlagPassed("basePath") {
+		c.BasePath = *basePath
 	}
 
 	return c
@@ -112,6 +116,12 @@ func loadConfig(configPath string) *Config {
 	if err != nil {
 		// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
 		logging.Errorf("%s", err)
+	}
+
+	providedCF := *flag.String("configPath", "", "override configPath")
+	if providedCF != "" {
+		logging.Infof("overriding configPath to: %s", providedCF)
+		configPath = providedCF
 	}
 
 	err = readAndMarshallJSONConfig(configPath, &conf)

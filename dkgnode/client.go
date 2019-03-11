@@ -521,7 +521,7 @@ func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Add
 	// if in production use https
 	var nodeIPAddress string
 	var rpcClient jsonrpcclient.RPCClient
-	if suite.Flags.Production {
+	if suite.Config.IsProduction {
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
 		rpcClient = jsonrpcclient.NewClient(nodeIPAddress)
 	} else {

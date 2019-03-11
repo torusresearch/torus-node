@@ -93,6 +93,7 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 }
 
 func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
+	logging.Info("Started Node List Monitor")
 	for {
 		logging.Debug("Checking Node List...")
 		// Fetch Node List from contract address
@@ -108,12 +109,13 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 			connectedNodes := 0
 			nodeList := make([]*NodeReference, len(ethList))
 			if len(ethList) > 0 {
-				for i := range ethList {
+				for _, ethListNode := range ethList {
 					// Check if node is online by pinging
-					temp, err := connectToJSONRPCNode(suite, *epoch, ethList[i])
+					temp, err := connectToJSONRPCNode(suite, *epoch, ethListNode)
 					if err != nil {
-						logging.Errorf("%s", err)
+						logging.Errorf("%v", err)
 					}
+					logging.Debugf("Connecting to ethlist node %v with index %v", ethListNode, temp.Index.Int64())
 
 					if temp != nil {
 						if nodeList[int(temp.Index.Int64())-1] == nil { // TODO: use mapping

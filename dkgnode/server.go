@@ -416,8 +416,8 @@ func setUpServer(suite *Suite, port string) {
 		// 	log.Fatalln(err)
 		// }
 		if err := http.ListenAndServeTLS(":"+port,
-			"/.torus/openssl/server.crt",
-			"/.torus/openssl/server.key",
+			suite.Config.ServerCert,
+			suite.Config.ServerKey,
 			handler,
 		); err != nil {
 			log.Fatalln(err)

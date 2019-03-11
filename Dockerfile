@@ -27,9 +27,6 @@ RUN apk add --no-cache \
   leveldb
 
 RUN mkdir -p /torus
-RUN mkdir -p /.torus/tendermint
-RUN mkdir -p /.torus/tendermint/config
-RUN mkdir -p /.torus/tendermint/data
 
 COPY --from=node-build /go/src/github.com/torusresearch/torus-public/cmd/dkgnode/dkgnode /torus/dkgnode
 

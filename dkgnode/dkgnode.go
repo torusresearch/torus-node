@@ -45,7 +45,7 @@ func New() {
 	// that sets all the config variables and is available globally for read?
 	// it should be immutable after initializing, but if not we can always stick a mutex.
 	cfg := loadConfig(DefaultConfigPath)
-	logging.Infof("Loaded config, BFTUri: %s, Hostname: %s, p2plistenaddress: %s", cfg.BftURI, cfg.HostName, cfg.P2PListenAddress)
+	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, p2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.P2PListenAddress)
 
 	//Main suite of functions used in node
 	suite := Suite{}
@@ -63,6 +63,7 @@ func New() {
 			pprof.StopCPUProfile()
 		}()
 	}
+
 	// QUESTION(TEAM) - SIGTERM and SIGKILL handling should be present
 	// TODO: we need a graceful shutdown
 
@@ -94,6 +95,9 @@ func New() {
 	SetUpCache(&suite)
 
 	//build folders for tendermint logs
+	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/config", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/config", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
 	// we generate nodekey first cause we need it in node list TODO: find a better way
@@ -127,7 +131,6 @@ func New() {
 
 	if cfg.ShouldRegister && whitelisted {
 		// register Node
-		logging.Info("Registering node...")
 		var externalAddr string
 		if cfg.ProvidedIPAddress != "" {
 			//for external deploymets
@@ -135,6 +138,7 @@ func New() {
 		} else {
 			externalAddr = suite.Config.P2PListenAddress
 		}
+		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		//TODO: Make epoch variable when needeed
 		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		if err != nil {

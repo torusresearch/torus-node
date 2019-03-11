@@ -63,6 +63,7 @@ func New() {
 			pprof.StopCPUProfile()
 		}()
 	}
+
 	// QUESTION(TEAM) - SIGTERM and SIGKILL handling should be present
 	// TODO: we need a graceful shutdown
 
@@ -94,6 +95,9 @@ func New() {
 	SetUpCache(&suite)
 
 	//build folders for tendermint logs
+	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/config", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/config", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
 	// we generate nodekey first cause we need it in node list TODO: find a better way

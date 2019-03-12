@@ -115,7 +115,6 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 					if err != nil {
 						logging.Errorf("%v", err)
 					}
-					logging.Debugf("Connecting to ethlist node %v with index %v", ethListNode, temp.Index.Int64())
 
 					if temp != nil {
 						if nodeList[int(temp.Index.Int64())-1] == nil { // TODO: use mapping

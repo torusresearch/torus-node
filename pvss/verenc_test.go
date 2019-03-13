@@ -4,15 +4,15 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/torusresearch/torus-public/secp256k1"
 	"github.com/stretchr/testify/assert"
+	"github.com/torusresearch/torus-public/secp256k1"
 	xlabcommon "github.com/xlab-si/emmy/crypto/common"
 )
 
 func TestDLEQ(t *testing.T) {
 	x := RandomBigInt()
 	p, xG, xH := GenerateDLEQProof(secp256k1.G, secp256k1.H, *x)
-	assert.True(t, p.Verify(secp256k1.G, secp256k1.H, xG, xH))
+	assert.True(t, p.VerifyDLEQProof(secp256k1.G, secp256k1.H, xG, xH))
 }
 
 /*

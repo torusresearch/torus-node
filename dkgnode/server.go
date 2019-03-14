@@ -24,52 +24,6 @@ import (
 	"github.com/torusresearch/torus-public/pvss"
 )
 
-type (
-	PingHandler struct {
-		ethSuite *EthSuite
-	}
-	PingParams struct {
-		Message string `json:"message"`
-	}
-	PingResult struct {
-		Message string `json:"message"`
-	}
-	SigncryptedHandler struct {
-		suite *Suite
-	}
-	ShareLog struct {
-		Timestamp          time.Time
-		LogNumber          int
-		ShareIndex         int
-		UnsigncryptedShare []byte
-		BroadcastId        []byte
-	}
-	ShareRequestHandler struct {
-		suite *Suite
-	}
-	ShareRequestParams struct {
-		Index   int    `json:"index"`
-		IDToken string `json:"idtoken"`
-		Email   string `json:"email"`
-	}
-	ShareRequestResult struct {
-		Index    int    `json:"index"`
-		HexShare string `json:"hexshare"`
-	}
-	SecretAssignHandler struct {
-		suite *Suite
-	}
-	SecretAssignParams struct {
-		Email string `json:"email"`
-	}
-	SecretAssignResult struct {
-		ShareIndex int    `json:"id"`
-		PubShareX  string `json:pubshare`
-		PubShareY  string `json:pubshare`
-		Address    string `json:"address`
-	}
-)
-
 func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
 	var p PingParams
@@ -379,47 +333,38 @@ func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) 
 }
 
 func setUpServer(suite *Suite, port string) {
-	mr := jsonrpc.NewMethodRepository()
-	if err := mr.RegisterMethod("Ping", PingHandler{suite.EthSuite}, PingParams{}, PingResult{}); err != nil {
-		log.Fatalln(err)
+	mr, err := setUpJRPCHandler(suite)
+	if err != nil {
+		logging.Fatalf("%s", err)
 	}
-	if err := mr.RegisterMethod("ShareRequest", ShareRequestHandler{suite}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
-		log.Fatalln(err)
-	}
-	if err := mr.RegisterMethod("SecretAssign", SecretAssignHandler{suite}, SecretAssignParams{}, SecretAssignResult{}); err != nil {
-		log.Fatalln(err)
-	}
-
-	// go func() {
-	// 	// TODO: waiting for websocket connection to be ready
-	// 	for suite.BftSuite.BftRPCWSStatus != "up" {
-	// 		time.Sleep(1 * time.Second)
-	// 	}
-	// 	listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
-	// }()
 
 	mux := http.NewServeMux()
 	mux.Handle("/jrpc", mr)
 	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	mux.HandleFunc("/healthz", GETHealthz)
+
 	handler := cors.Default().Handler(mux)
-	if suite.Flags.Production {
-		if err := http.ListenAndServeTLS(":443",
-			"/root/https/fullchain.pem",
-			"/root/https/privkey.pem",
-			handler,
-		); err != nil {
-			log.Fatalln(err)
+
+	if suite.Config.ServeUsingTLS {
+		if suite.Config.UseAutoCert {
+			logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
 		}
+
+		if suite.Config.ServerCert != "" {
+			if err := http.ListenAndServeTLS(":443",
+				suite.Config.ServerCert,
+				suite.Config.ServerKey,
+				handler,
+			); err != nil {
+				log.Fatalln(err)
+			}
+		} else {
+			logging.Fatal("Certs not supplied, try running with UseAutoCert")
+		}
+
 	} else {
-		// listenandserve creates a thread in the main that loops indefinitely
-		// if err := http.ListenAndServe(":"+port, handler); err != nil {
-		// 	log.Fatalln(err)
-		// }
-		if err := http.ListenAndServeTLS(":"+port,
-			suite.Config.ServerCert,
-			suite.Config.ServerKey,
-			handler,
-		); err != nil {
+		addr := fmt.Sprintf(":%s", port)
+		if err := http.ListenAndServe(addr, handler); err != nil {
 			log.Fatalln(err)
 		}
 

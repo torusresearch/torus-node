@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"os"
 	"runtime/pprof"
-	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -27,12 +26,7 @@ type Suite struct {
 	BftSuite   *BftSuite
 	CacheSuite *CacheSuite
 	Config     *Config
-	Flags      *Flags
 	ABCIApp    *ABCIApp
-}
-
-type Flags struct {
-	Production bool
 }
 
 /* The entry point for our System */
@@ -50,7 +44,6 @@ func New() {
 	//Main suite of functions used in node
 	suite := Suite{}
 	suite.Config = cfg
-	suite.Flags = &Flags{cfg.IsProduction}
 
 	if cfg.CPUProfileToFile != "" {
 		f, err := os.Create(cfg.CPUProfileToFile)
@@ -66,7 +59,6 @@ func New() {
 
 	// QUESTION(TEAM) - SIGTERM and SIGKILL handling should be present
 	// TODO: we need a graceful shutdown
-
 	// Stop upon receiving SIGTERM or CTRL-C
 	// c := make(chan os.Signal, 1)
 	// signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -100,17 +92,11 @@ func New() {
 	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/config", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
+
 	// we generate nodekey first cause we need it in node list TODO: find a better way
 	nodekey, err := p2p.LoadOrGenNodeKey(cfg.BasePath + "/config/node_key.json")
 	if err != nil {
 		logging.Errorf("Node Key generation issue: %s", err)
-	}
-
-	//TODO: now somewhat redundent
-	if cfg.IsProduction {
-		logging.Debug("---PRODUCTION MODE---")
-	} else {
-		logging.Debug("---DEVELOPMENT MODE---")
 	}
 
 	logging.Infof("Node IP Address: %s", suite.Config.MainServerAddress)
@@ -131,13 +117,15 @@ func New() {
 
 	if cfg.ShouldRegister && whitelisted {
 		// register Node
-		var externalAddr string
-		if cfg.ProvidedIPAddress != "" {
-			//for external deploymets
-			externalAddr = "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
-		} else {
-			externalAddr = suite.Config.P2PListenAddress
-		}
+		externalAddr := suite.Config.P2PListenAddress
+
+		// var externalAddr string
+		// if cfg.ProvidedIPAddress != "" {
+		// 	//for external deploymets
+		// 	externalAddr = "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
+		// } else {
+		// 	externalAddr = suite.Config.P2PListenAddress
+		// }
 		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		//TODO: Make epoch variable when needeed
 		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
@@ -153,7 +141,7 @@ func New() {
 	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
 
 	// Set up standard server
-	go setUpServer(&suite, string(suite.Config.MyPort))
+	go setUpServer(&suite, string(suite.Config.HttpServerPort))
 
 	// So it runs forever
 	for {

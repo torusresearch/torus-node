@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmnode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -79,31 +77,14 @@ type SigncryptedMessage struct {
 	ShareIndex  uint   `json:"shareindex"`
 }
 
-type NoLogger struct {
-	tmlog.Logger
-}
-
-func (NoLogger) Debug(msg string, keyvals ...interface{}) {
-}
-
-func (NoLogger) Info(msg string, keyvals ...interface{}) {
-}
-
-func (NoLogger) Error(msg string, keyvals ...interface{}) {
-}
-
-func (NoLogger) With(keyvals ...interface{}) tmlog.Logger {
-	return NoLogger{}
-}
-
 func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReference, tmCoreMsgs chan string) (string, error) {
 
 	//Starts tendermint node here
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
-	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
-	// logger := NoLogger{}
+	logger := NewTMLogger(suite.Config.LogLevel)
+
 	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
 	//converts own pv to tendermint key TODO: Double check verification
@@ -160,24 +141,14 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
-	defaultTmConfig.LogLevel = "*:error"
 	logging.Debugf("NodeKey ID: %s", nodeKey.ID())
-	//save config
+
+	//QUESTION(TEAM): Why do we save the config file?
 	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
 
 	n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
 
 	suite.BftSuite.BftNode = n
-	// n, err := tmnode.NewNode(
-	// 	defaultTmConfig,
-	// 	pvFile,
-	// 	nodeKey,
-	// 	tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
-	// 	ProvideGenDoc(&genDoc),
-	// 	tmnode.DefaultDBProvider,
-	// 	tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
-	// 	logger,
-	// )
 
 	if err != nil {
 		logging.Fatalf("Failed to create tendermint node: %v", err)
@@ -189,7 +160,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	if err := n.Start(); err != nil {
 		logging.Fatalf("Failed to start tendermint node: %v", err)
 	}
-	logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
+	logging.Infof("Started tendermint nodeInfo: %s", n.Switch().NodeInfo())
 
 	//send back message saying ready
 	tmCoreMsgs <- "started_tmcore"
@@ -312,10 +283,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// TODO: make epoch variable
 		allKeygenComplete := suite.ABCIApp.state.LocalStatus.Current()
 		if allKeygenComplete == "running_keygen" {
-			fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
+			// fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
 			continue
 		}
-		fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
+		// fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
 
 		// Check if we have received all shares from nodes
 		var sharesNotIn = false
@@ -329,7 +300,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 						break
 					}
 				} else {
-					fmt.Println("KEYGEN: Could not find mapping for node ", i, nodeList[i].Address.Hex())
+					// fmt.Println("KEYGEN: Could not find mapping for node ", i, nodeList[i].Address.Hex())
 					sharesNotIn = true
 					break
 				}
@@ -521,11 +492,14 @@ func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Add
 	// if in production use https
 	var nodeIPAddress string
 	var rpcClient jsonrpcclient.RPCClient
+
+	// If in production, we should always assume that the node itself will handle TLS.
 	if suite.Config.IsProduction {
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
 		rpcClient = jsonrpcclient.NewClient(nodeIPAddress)
 	} else {
 		// When running in testing, skip verification of self signed certificates.
+		// If not responding to https, we should check the http?
 		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

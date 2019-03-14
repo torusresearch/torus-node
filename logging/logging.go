@@ -51,7 +51,9 @@ type Logger interface {
 	Warningf(string, ...interface{})
 	Errorf(string, ...interface{})
 	Fatalf(string, ...interface{})
+
 	WithLevel(LogLevel) Logger
+	WithLevelString(string) Logger
 }
 
 // Logger is a struct containing logger data
@@ -131,6 +133,10 @@ func (l *logger) Fatalf(format string, a ...interface{}) {
 	message := fmt.Sprintf(format, a...)
 	l.write(message, FATAL)
 	panic(message)
+}
+
+func (l *logger) With(keyvals ...interface{}) Logger {
+	return l
 }
 
 // NewDefault returns a default logger

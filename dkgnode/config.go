@@ -12,8 +12,9 @@ import (
 )
 
 type Config struct {
-	MyPort                     string `json:"myport" env:"MYPORT"`
-	MainServerAddress          string `json:"mainserveraddress" env:"MAIN_SERVER_ADDRESS"`
+	HttpServerPort string `json:"httpServerPort" env:"HTTP_SERVER_PORT"`
+	// NOTE: This is what is used for registering on the Ethereum network.
+	MainServerAddress          string `json:"mainServerAddress" env:"MAIN_SERVER_ADDRESS"`
 	EthConnection              string `json:"ethconnection" env:"ETH_CONNECTION"`
 	EthPrivateKey              string `json:"ethprivatekey" env:"ETH_PRIVATE_KEY"`
 	BftURI                     string `json:"bfturi" env:"BFT_URI"`
@@ -31,8 +32,11 @@ type Config struct {
 	IsProduction      bool   `json:"production" env:"PRODUCTION"`
 	ProvidedIPAddress string `json:"ipAddress" env:"IP_ADDRESS"`
 	LogLevel          string `json:"loglevel" env:"LOG_LEVEL"`
-	ServerCert        string `json:"serverCert" env:"SERVER_CERT"`
-	ServerKey         string `json:"serverKey" env:"SERVER_KEY"`
+
+	ServeUsingTLS bool   `json:"USE_TLS" env:"USE_TLS"`
+	UseAutoCert   bool   `json:"useAutoCert" env:"USE_AUTO_CERT"`
+	ServerCert    string `json:"serverCert" env:"SERVER_CERT"`
+	ServerKey     string `json:"serverKey" env:"SERVER_KEY"`
 }
 
 // mergeWithFlags explicitly merges flags for a given instance of Config
@@ -147,11 +151,12 @@ func loadConfig(configPath string) *Config {
 	conf := defaultConfigSettings()
 	flagConf := defaultConfigSettings()
 
-	nodeIP, err := findExternalIP()
-	if err != nil {
-		// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
-		logging.Errorf("%s", err)
-	}
+	// NOTE(TO_REMOVE): This was only used in MainServerAddress anyway..
+	// nodeIP, err := findExternalIP()
+	// if err != nil {
+	// 	// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
+	// 	logging.Errorf("%s", err)
+	// }
 
 	providedCF := flagConf.createConfigWithFlags()
 	if providedCF != "" {
@@ -159,7 +164,7 @@ func loadConfig(configPath string) *Config {
 		configPath = providedCF
 	}
 
-	err = readAndMarshallJSONConfig(configPath, &conf)
+	err := readAndMarshallJSONConfig(configPath, &conf)
 	if err != nil {
 		logging.Warningf("failed to read JSON config with err: %s", err)
 	}
@@ -173,16 +178,15 @@ func loadConfig(configPath string) *Config {
 
 	logging.SetLevelString(conf.LogLevel)
 
-	//if in production use configured nodeIP for server. else use https dev host address "localhost"
-	if conf.IsProduction {
-		conf.MainServerAddress = nodeIP + ":" + conf.MyPort
-	} else {
-		conf.MainServerAddress = "localhost" + ":" + conf.MyPort
-	}
+	// TEAM: If you wantr to use localhost just explicitly pass it as an env / flag...
+	// if !conf.IsProduction {
+	// 	conf.MainServerAddress = "localhost" + ":" + conf.HttpServerPort
+	// }
 	// retrieve map[string]interface{}
+
 	if conf.ProvidedIPAddress != "" {
 		logging.Infof("Running on Specified IP Address: %s", conf.ProvidedIPAddress)
-		conf.MainServerAddress = conf.ProvidedIPAddress + ":" + conf.MyPort
+		conf.MainServerAddress = conf.ProvidedIPAddress + ":" + conf.HttpServerPort
 	}
 
 	logging.Infof("Final Configuration: %s", conf)
@@ -192,7 +196,7 @@ func loadConfig(configPath string) *Config {
 
 func defaultConfigSettings() Config {
 	return Config{
-		MyPort:                     "443",
+		HttpServerPort:             "443",
 		MainServerAddress:          "127.0.0.1:443",
 		EthConnection:              "http://178.128.178.162:14103",
 		EthPrivateKey:              "29909a750dc6abc3e3c83de9c6da9d6faf9fde4eebb61fa21221415557de5a0b",

@@ -10,12 +10,15 @@ import (
 )
 
 // Generates NIZK Proof with the aims of increasing asynchronicity within AVSS
+// Returns proof in the form of c, u1, u2
 func GenerateNIZKPK(s big.Int, r big.Int) (big.Int, big.Int, big.Int) {
 	// create randomness
 	v1 := *RandomBigInt()
 	v2 := *RandomBigInt()
 	t1 := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(v1.Bytes()))
 	t2 := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, v2.Bytes()))
+
+	//create dlog and pederson commitments
 	gs := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(s.Bytes()))
 	hr := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, r.Bytes()))
 	gshr := common.BigIntToPoint(secp256k1.Curve.Add(&gs.X, &gs.Y, &hr.X, &hr.Y))
@@ -63,6 +66,7 @@ func VerifyNIZKPK(c, u1, u2 big.Int, gs, gshr common.Point) bool {
 	neggsY := new(big.Int)
 	neggsY.Set(&gs.Y)
 	neggsY.Neg(neggsY)
+	neggsY.Mod(neggsY, secp256k1.FieldOrder)
 	gshrsubgs := common.BigIntToPoint(secp256k1.Curve.Add(&gshr.X, &gshr.Y, &gs.X, neggsY))
 	gshrsubgsC := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&gshrsubgs.X, &gshrsubgs.Y, c.Bytes()))
 	t2prime = common.BigIntToPoint(secp256k1.Curve.Add(&t2prime.X, &t2prime.Y, &gshrsubgsC.X, &gshrsubgsC.Y)) // add them all up here

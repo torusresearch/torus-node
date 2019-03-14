@@ -17,7 +17,8 @@ func GenerateNIZKPK(s big.Int, r big.Int) (big.Int, big.Int, big.Int) {
 	t1 := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(v1.Bytes()))
 	t2 := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, v2.Bytes()))
 	gs := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(s.Bytes()))
-	gshr := secp256k1.Curve.Add(gs.X, gs.Y, secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, r.Bytes()))
+	hr := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, r.Bytes()))
+	gshr := common.BigIntToPoint(secp256k1.Curve.Add(&gs.X, &gs.Y, &hr.X, &hr.Y))
 
 	//prepare bytestring for hashing
 	bytesToBeHashed := append(secp256k1.G.X.Bytes(), secp256k1.H.X.Bytes()...)
@@ -49,7 +50,36 @@ func GenerateNIZKPK(s big.Int, r big.Int) (big.Int, big.Int, big.Int) {
 
 }
 
-// func VerifyNIZKPK(c, u1, u2 big.Int, commitmentMatrixs [][]common.Point, commitmentMatrixsr [][]common.Point) {
+func VerifyNIZKPK(c, u1, u2 big.Int, gs, gshr common.Point) bool {
 
-// 	t1prime := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(u1.Bytes()))
-// }
+	//compute t1prime
+	t1prime := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(u1.Bytes()))
+	gsc := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&gs.X, &gs.Y, c.Bytes()))
+	t1prime = common.BigIntToPoint(secp256k1.Curve.Add(&t1prime.X, &t1prime.Y, &gsc.X, &gsc.Y))
+
+	//compute t2
+	t2prime := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, u2.Bytes()))
+	//computing gshr/gs^C
+	neggsY := new(big.Int)
+	neggsY.Set(&gs.Y)
+	neggsY.Neg(neggsY)
+	gshrsubgs := common.BigIntToPoint(secp256k1.Curve.Add(&gshr.X, &gshr.Y, &gs.X, neggsY))
+	gshrsubgsC := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&gshrsubgs.X, &gshrsubgs.Y, c.Bytes()))
+	t2prime = common.BigIntToPoint(secp256k1.Curve.Add(&t2prime.X, &t2prime.Y, &gshrsubgsC.X, &gshrsubgsC.Y)) // add them all up here
+
+	bytesToBeHashed := append(secp256k1.G.X.Bytes(), secp256k1.H.X.Bytes()...)
+	bytesToBeHashed = append(bytesToBeHashed, gs.X.Bytes()...)
+	bytesToBeHashed = append(bytesToBeHashed, gshr.X.Bytes()...)
+	bytesToBeHashed = append(bytesToBeHashed, t1prime.X.Bytes()...)
+	bytesToBeHashed = append(bytesToBeHashed, t2prime.X.Bytes()...)
+
+	cprime := new(big.Int)
+	cprime.SetBytes(secp256k1.Keccak256(bytesToBeHashed))
+
+	//compare c to RHS
+	if cprime.Cmp(&c) == 0 {
+		return true
+	} else {
+		return false
+	}
+}

@@ -57,7 +57,7 @@ func GenerateDLEQProof(G common.Point, H common.Point, x big.Int) (p *DLEQProof,
 	return
 }
 
-func (p *DLEQProof) Verify(G common.Point, H common.Point, xG common.Point, xH common.Point) bool {
+func (p *DLEQProof) VerifyDLEQProof(G common.Point, H common.Point, xG common.Point, xH common.Point) bool {
 	rG := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&G.X, &G.Y, p.R.Bytes()))
 	rH := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&H.X, &H.Y, p.R.Bytes()))
 	cxG := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&xG.X, &xG.Y, p.C.Bytes()))

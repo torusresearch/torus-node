@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/secp256k1"
-	"github.com/stretchr/testify/assert"
 )
 
 type nodeList struct {
@@ -152,18 +152,6 @@ func TestSigncryption(test *testing.T) {
 	}
 	assert.True(test, bytes.Compare(*supposedShare, secretShare.Bytes()) == 0)
 }
-
-// func TestDLEQ(test *testing.T) {
-// 	nodeList := createRandomNodes(10)
-// 	secret := RandomBigInt()
-// 	privKey := RandomBigInt()
-// 	// fmt.Println("ENCRYPTING SHARES ----------------------------------")
-// 	output, _ := CreateAndPrepareShares(nodeList.Nodes, *secret, 3, *privKey)
-// 	for i := range output {
-// 		assert.True(test, verifyProof(output[i].Proof, output[i].NodePubKey))
-// 	}
-// 	assert.False(test, verifyProof(output[0].Proof, output[1].NodePubKey))
-// }
 
 func TestPVSS(test *testing.T) {
 	nodeList, privateKeys := createRandomNodes(20)

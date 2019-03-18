@@ -39,7 +39,7 @@ func publicKeyFromPrivateKey(privateKey string) string {
 	return "0x" + pubKHex[len(pubKHex)-40:]
 }
 
-func SetUpEth(suite *Suite) error {
+func SetupEth(suite *Suite) error {
 	/* Connect to Ethereum */
 	client, err := ethclient.Dial(suite.Config.EthConnection)
 	if err != nil {

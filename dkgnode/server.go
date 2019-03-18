@@ -378,7 +378,7 @@ func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) 
 	return &finalUserPubKey, nil
 }
 
-func setUpServer(suite *Suite, port string) {
+func setupServer(suite *Suite, port string) {
 	mr := jsonrpc.NewMethodRepository()
 	if err := mr.RegisterMethod("Ping", PingHandler{suite.EthSuite}, PingParams{}, PingResult{}); err != nil {
 		log.Fatalln(err)

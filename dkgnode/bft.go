@@ -24,7 +24,7 @@ type BftRPCWS struct {
 	*rpcclient.WSClient
 }
 
-func SetUpBft(suite *Suite) {
+func SetupBft(suite *Suite) {
 
 	bftClient := client.NewHTTP(suite.Config.BftURI, "/websocket")
 

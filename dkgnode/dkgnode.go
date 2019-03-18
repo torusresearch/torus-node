@@ -82,7 +82,7 @@ func New() {
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
-	err := SetUpEth(&suite)
+	err := SetupEth(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,9 +90,9 @@ func New() {
 	// run tendermint ABCI server
 	go RunABCIServer(&suite)
 	// setup connection to tendermint BFT
-	SetUpBft(&suite)
+	SetupBft(&suite)
 	// setup local caching
-	SetUpCache(&suite)
+	SetupCache(&suite)
 
 	//build folders for tendermint logs
 	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
@@ -153,7 +153,7 @@ func New() {
 	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
 
 	// Set up standard server
-	go setUpServer(&suite, string(suite.Config.MyPort))
+	go setupServer(&suite, string(suite.Config.MyPort))
 
 	// So it runs forever
 	for {

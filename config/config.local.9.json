@@ -8,6 +8,6 @@
   "threshold": 3,
   "hostname": "dkg6.tetrator.us",
   "abciserver": "tcp://0.0.0.0:8018",
-  "p2plistenaddress": "tcp://0.0.0.0:26673",
+  "tmp2plistenaddress": "tcp://0.0.0.0:26673",
   "keysperepoch": 10
 }

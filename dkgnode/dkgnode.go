@@ -45,7 +45,7 @@ func New() {
 	// that sets all the config variables and is available globally for read?
 	// it should be immutable after initializing, but if not we can always stick a mutex.
 	cfg := loadConfig(DefaultConfigPath)
-	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, p2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.P2PListenAddress)
+	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, tmp2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.TMP2PListenAddress)
 
 	//Main suite of functions used in node
 	suite := Suite{}
@@ -134,9 +134,9 @@ func New() {
 		var externalAddr string
 		if cfg.ProvidedIPAddress != "" {
 			//for external deploymets
-			externalAddr = "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
+			externalAddr = "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.TMP2PListenAddress, ":")[2]
 		} else {
-			externalAddr = suite.Config.P2PListenAddress
+			externalAddr = suite.Config.TMP2PListenAddress
 		}
 		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		//TODO: Make epoch variable when needeed

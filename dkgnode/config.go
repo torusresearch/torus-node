@@ -18,7 +18,7 @@ type Config struct {
 	EthPrivateKey              string `json:"ethprivatekey" env:"ETH_PRIVATE_KEY"`
 	BftURI                     string `json:"bfturi" env:"BFT_URI"`
 	ABCIServer                 string `json:"abciserver" env:"ABCI_SERVER"`
-	P2PListenAddress           string `json:"p2plistenaddress" env:"P2P_LISTEN_ADDRESS"`
+	TMP2PListenAddress         string `json:"tmp2plistenaddress" env:"TM_P2P_LISTEN_ADDRESS"`
 	NodeListAddress            string `json:"nodelistaddress" env:"NODE_LIST_ADDRESS"`
 	NumberOfNodes              int    `json:"numberofnodes" env:"NUMBER_OF_NODES"`
 	Threshold                  int    `json:"threshold" env:"THRESHOLD"`
@@ -198,7 +198,7 @@ func defaultConfigSettings() Config {
 		EthPrivateKey:              "29909a750dc6abc3e3c83de9c6da9d6faf9fde4eebb61fa21221415557de5a0b",
 		BftURI:                     "tcp://0.0.0.0:26657",
 		ABCIServer:                 "tcp://0.0.0.0:8010",
-		P2PListenAddress:           "tcp://0.0.0.0:26656",
+		TMP2PListenAddress:         "tcp://0.0.0.0:26656",
 		NodeListAddress:            "0x4e8fce1336c534e0452410c2cb8cd628949dcc85",
 		NumberOfNodes:              5,
 		Threshold:                  3,

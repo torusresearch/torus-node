@@ -154,7 +154,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.BaseConfig.DBBackend = "cleveldb"
 	defaultTmConfig.FastSync = false
 	defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
-	defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
+	defaultTmConfig.P2P.ListenAddress = suite.Config.TMP2PListenAddress
 	defaultTmConfig.P2P.MaxNumInboundPeers = 300
 	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 	//TODO: change to true in production?
@@ -195,7 +195,6 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 
 	// Run forever, blocks goroutine
 	select {}
-	return "Keygen complete.", nil
 }
 
 func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex int) error {

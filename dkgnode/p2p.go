@@ -3,7 +3,8 @@ package dkgnode
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"github.com/torusresearch/torus-public/logging"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	crypto "github.com/libp2p/go-libp2p-crypto"
@@ -21,7 +22,7 @@ type P2PSuite struct {
 func SetupP2PHost(suite *Suite) (host.Host, error) {
 
 	// Set keypair to node private key
-	priv, _, err := crypto.ECDSAKeyPairFromKey(suite.EthSuite.NodePrivateKey)
+	priv, err := crypto.UnmarshalSecp256k1PrivateKey(suite.EthSuite.NodePrivateKey.D.Bytes())
 	if err != nil {
 		panic(err)
 	}
@@ -45,10 +46,12 @@ func SetupP2PHost(suite *Suite) (host.Host, error) {
 	// by encapsulating both addresses:
 	addr := h.Addrs()[0]
 	fullAddr := addr.Encapsulate(hostAddr)
-	log.Printf("P2P Full Address: %s\n", fullAddr)
+	logging.Infof("P2P Full Address: %s\n", fullAddr)
 
-	suite.P2PSuite.Host = h
-	suite.P2PSuite.HostAddress = fullAddr
+	suite.P2PSuite = &P2PSuite{
+		Host:        h,
+		HostAddress: fullAddr,
+	}
 
 	return h, nil
 }

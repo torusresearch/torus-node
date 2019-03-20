@@ -81,15 +81,15 @@ func New() {
 	// 	}
 	// }()
 
-	//setup p2p host
-	_, err := SetupP2PHost(&suite)
+	//TODO: Dont die on failure but retry
+	// set up connection to ethereum blockchain
+	err := SetupEth(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//TODO: Dont die on failure but retry
-	// set up connection to ethereum blockchain
-	err = SetupEth(&suite)
+	//setup p2p host
+	_, err = SetupP2PHost(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func New() {
 		}
 		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
 		if err != nil {
 			logging.Fatal(err.Error())
 		}

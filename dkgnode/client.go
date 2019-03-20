@@ -33,11 +33,12 @@ import (
 
 //TODO: rename nodePort
 type NodeReference struct {
-	Address       *ethCommon.Address
-	JSONClient    jsonrpcclient.RPCClient
-	Index         *big.Int
-	PublicKey     *ecdsa.PublicKey
-	P2PConnection string
+	Address         *ethCommon.Address
+	JSONClient      jsonrpcclient.RPCClient
+	Index           *big.Int
+	PublicKey       *ecdsa.PublicKey
+	TMP2PConnection string
+	P2PConnection   string
 }
 
 type Message struct {
@@ -138,7 +139,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 			PubKey:  pubkeyBytes,
 			Power:   1,
 		})
-		persistantPeersList = append(persistantPeersList, nodeList[i].P2PConnection)
+		persistantPeersList = append(persistantPeersList, nodeList[i].TMP2PConnection)
 	}
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
@@ -541,10 +542,11 @@ func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Add
 		return nil, err
 	}
 	return &NodeReference{
-		Address:       &nodeAddress,
-		JSONClient:    rpcClient,
-		Index:         details.Position,
-		PublicKey:     &ecdsa.PublicKey{Curve: suite.EthSuite.secp, X: details.PubKx, Y: details.PubKy},
-		P2PConnection: details.NodePort,
+		Address:         &nodeAddress,
+		JSONClient:      rpcClient,
+		Index:           details.Position,
+		PublicKey:       &ecdsa.PublicKey{Curve: suite.EthSuite.secp, X: details.PubKx, Y: details.PubKy},
+		TMP2PConnection: details.TmP2PListenAddress,
+		P2PConnection:   details.P2pListenAddress,
 	}, nil
 }

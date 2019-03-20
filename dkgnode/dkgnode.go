@@ -29,6 +29,7 @@ type Suite struct {
 	Config     *Config
 	Flags      *Flags
 	ABCIApp    *ABCIApp
+	P2PSuite   *P2PSuite
 }
 
 type Flags struct {
@@ -80,9 +81,15 @@ func New() {
 	// 	}
 	// }()
 
+	//setup p2p host
+	_, err := SetupP2PHost(&suite)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
-	err := SetupEth(&suite)
+	err = SetupEth(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}

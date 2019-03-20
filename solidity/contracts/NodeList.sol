@@ -79,7 +79,8 @@ contract NodeList is Ownable {
     uint256 position;
     uint256 pubKx;
     uint256 pubKy;
-    string nodePort;
+    string tmP2PListenAddress;
+    string p2pListenAddress;
   }
 
   mapping (uint256 => mapping (address => bool)) whitelist;
@@ -108,10 +109,11 @@ contract NodeList is Ownable {
     return latestEpoch;
   }
 
-  function viewNodeDetails(uint256 epoch, address node) external view  returns (string declaredIp, uint256 position, string nodePort) {
+  function viewNodeDetails(uint256 epoch, address node) external view  returns (string declaredIp, uint256 position, string tmP2PListenAddress, string p2pListenAddress) {
     declaredIp = addressToNodeDetailsLog[node][epoch].declaredIp;
     position = addressToNodeDetailsLog[node][epoch].position;
-    nodePort = addressToNodeDetailsLog[node][epoch].nodePort;
+    tmP2PListenAddress = addressToNodeDetailsLog[node][epoch].tmP2PListenAddress;
+    p2pListenAddress = addressToNodeDetailsLog[node][epoch].p2pListenAddress;
   }
 
   function viewWhitelist(uint256 epoch, address nodeAddress) public view returns (bool) {
@@ -127,14 +129,15 @@ contract NodeList is Ownable {
     whitelist[epoch][nodeAddress] = allowed;
   }
 
-  function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string nodePort) external whitelisted(epoch) {
+  function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress) external whitelisted(epoch) {
     nodeList[epoch].push(msg.sender); 
     addressToNodeDetailsLog[msg.sender][epoch] = Details({
       declaredIp: declaredIp,
       position: nodeList[epoch].length, //so that Position (or node index) starts from 1
       pubKx: pubKx,
       pubKy: pubKy,
-      nodePort: nodePort
+      tmP2PListenAddress: tmP2PListenAddress,
+      p2pListenAddress: p2pListenAddress
       });
     //for now latest epoch is simply the highest epoch registered TODO: only we should be able to call this function
     if (latestEpoch < epoch) {

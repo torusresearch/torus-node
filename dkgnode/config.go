@@ -19,6 +19,7 @@ type Config struct {
 	BftURI                     string `json:"bfturi" env:"BFT_URI"`
 	ABCIServer                 string `json:"abciserver" env:"ABCI_SERVER"`
 	TMP2PListenAddress         string `json:"tmp2plistenaddress" env:"TM_P2P_LISTEN_ADDRESS"`
+	P2PListenAddress           string `json:"p2plistenaddress" env:"P2P_LISTEN_ADDRESS"`
 	NodeListAddress            string `json:"nodelistaddress" env:"NODE_LIST_ADDRESS"`
 	NumberOfNodes              int    `json:"numberofnodes" env:"NUMBER_OF_NODES"`
 	Threshold                  int    `json:"threshold" env:"THRESHOLD"`
@@ -199,6 +200,7 @@ func defaultConfigSettings() Config {
 		BftURI:                     "tcp://0.0.0.0:26657",
 		ABCIServer:                 "tcp://0.0.0.0:8010",
 		TMP2PListenAddress:         "tcp://0.0.0.0:26656",
+		P2PListenAddress:           "/ip4/0.0.0.0/tcp/1080",
 		NodeListAddress:            "0x4e8fce1336c534e0452410c2cb8cd628949dcc85",
 		NumberOfNodes:              5,
 		Threshold:                  3,

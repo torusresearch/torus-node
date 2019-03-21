@@ -3,20 +3,17 @@ package dkgnode
 /* All useful imports */
 import (
 	"crypto/ecdsa"
-	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -28,18 +25,7 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
 	"github.com/torusresearch/torus-public/secp256k1"
-	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
-
-//TODO: rename nodePort
-type NodeReference struct {
-	Address         *ethCommon.Address
-	JSONClient      jsonrpcclient.RPCClient
-	Index           *big.Int
-	PublicKey       *ecdsa.PublicKey
-	TMP2PConnection string
-	P2PConnection   string
-}
 
 type Message struct {
 	Message string `json:"message"`
@@ -509,44 +495,4 @@ func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutp
 
 func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *common.Point {
 	return &common.Point{X: *ecdsaPt.X, Y: *ecdsaPt.Y}
-}
-
-func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address) (*NodeReference, error) {
-	details, err := suite.EthSuite.NodeListContract.AddressToNodeDetailsLog(nil, nodeAddress, &epoch)
-	if err != nil {
-		return nil, err
-	}
-
-	// if in production use https
-	var nodeIPAddress string
-	var rpcClient jsonrpcclient.RPCClient
-	if suite.Config.IsProduction {
-		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
-		rpcClient = jsonrpcclient.NewClient(nodeIPAddress)
-	} else {
-		// When running in testing, skip verification of self signed certificates.
-		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		httpClient := &http.Client{
-			Transport: tr,
-		}
-		rpcClient = jsonrpcclient.NewClientWithOpts(nodeIPAddress, &jsonrpcclient.RPCClientOpts{
-			HTTPClient: httpClient,
-		})
-	}
-
-	_, err = rpcClient.Call("Ping", &Message{suite.EthSuite.NodeAddress.Hex()})
-	if err != nil {
-		return nil, err
-	}
-	return &NodeReference{
-		Address:         &nodeAddress,
-		JSONClient:      rpcClient,
-		Index:           details.Position,
-		PublicKey:       &ecdsa.PublicKey{Curve: suite.EthSuite.secp, X: details.PubKx, Y: details.PubKy},
-		TMP2PConnection: details.TmP2PListenAddress,
-		P2PConnection:   details.P2pListenAddress,
-	}, nil
 }

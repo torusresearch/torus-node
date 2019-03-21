@@ -111,7 +111,7 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 			if len(ethList) > 0 {
 				for _, ethListNode := range ethList {
 					// Check if node is online by pinging
-					temp, err := connectToJSONRPCNode(suite, *epoch, ethListNode)
+					temp, err := connectToP2PNode(suite, *epoch, ethListNode)
 					if err != nil {
 						logging.Errorf("%v", err)
 					}

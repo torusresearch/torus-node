@@ -171,7 +171,7 @@ func New() {
 				if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
 					cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
 					cmpopts.IgnoreUnexported(big.Int{}),
-					cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
+					cmpopts.IgnoreFields(NodeReference{}, "PeerID")) {
 					logging.Infof("Node Monitor updating node list: %v", nlMonitorMsg.Payload)
 					suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
 

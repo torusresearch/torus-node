@@ -8,6 +8,7 @@
   "threshold": 3,
   "abciserver": "tcp://0.0.0.0:8013",
   "tmp2plistenaddress": "tcp://0.0.0.0:26663",
+  "p2plistenaddress": "/ip4/192.167.10.5/tcp/1080",
   "keysperepoch": 10,
   "ipAddress": "192.167.10.5",
   "register": true

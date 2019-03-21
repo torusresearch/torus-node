@@ -150,7 +150,6 @@ func loadConfig(configPath string) *Config {
 
 	nodeIP, err := findExternalIP()
 	if err != nil {
-		// QUESTION(TEAM) - unhandled error, was only fmt.Printlnd
 		logging.Errorf("%s", err)
 	}
 

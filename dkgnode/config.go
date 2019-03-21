@@ -37,6 +37,9 @@ type Config struct {
 	UseAutoCert   bool   `json:"useAutoCert" env:"USE_AUTO_CERT"`
 	ServerCert    string `json:"serverCert" env:"SERVER_CERT"`
 	ServerKey     string `json:"serverKey" env:"SERVER_KEY"`
+
+	// GoogleClientID is used for oauth verification.
+	GoogleClientID string `json:"googleClientID" env:"GOOGLE_CLIENT_ID"`
 }
 
 // mergeWithFlags explicitly merges flags for a given instance of Config

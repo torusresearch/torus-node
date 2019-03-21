@@ -24,9 +24,6 @@ import (
 	p2p "github.com/torusresearch/torus-public/dkgnode/pb"
 )
 
-// node client version
-const clientVersion = "go-p2p-node/0.0.1"
-
 type NodeReference struct {
 	Address         *ethCommon.Address
 	Index           *big.Int
@@ -176,7 +173,7 @@ func (localHost *P2PSuite) NewMessageData(messageId string, gossip bool) *p2p.Me
 		panic("Failed to get public key for sender from local peer store.")
 	}
 
-	return &p2p.MessageData{ClientVersion: clientVersion,
+	return &p2p.MessageData{
 		NodeId:     peer.IDB58Encode(localHost.ID()),
 		NodePubKey: nodePubKey,
 		Timestamp:  time.Now().Unix(),

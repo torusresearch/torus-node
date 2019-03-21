@@ -2,18 +2,14 @@ package dkgnode
 
 /* All useful imports */
 import (
-	"context"
 	b64 "encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
@@ -24,16 +20,26 @@ import (
 	"github.com/torusresearch/torus-public/pvss"
 )
 
-func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-
-	var p PingParams
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
-		return nil, err
+func setUpServer(suite *Suite, port string) *http.Server {
+	mr, err := setUpJRPCHandler(suite)
+	if err != nil {
+		logging.Fatalf("%s", err)
 	}
 
-	return PingResult{
-		Message: h.ethSuite.NodeAddress.Hex(),
-	}, nil
+	mux := http.NewServeMux()
+	mux.Handle("/jrpc", mr)
+	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	mux.HandleFunc("/healthz", GETHealthz)
+
+	addr := fmt.Sprintf(":%s", port)
+	handler := cors.Default().Handler(mux)
+
+	server := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+
+	return server
 }
 
 func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
@@ -120,186 +126,6 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 	return nil
 }
 
-//checks id for assignment and then the auth token for verification
-// returns the node's share of the user's key
-func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	var p ShareRequestParams
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
-		return nil, err
-	}
-	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
-	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
-	}
-	siMapping := tmpSi.(map[int]SiStore)
-	if _, ok := siMapping[p.Index]; !ok {
-		logging.Debugf("LOOKUP: siMapping %v", siMapping)
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "Could not lookup p.Index in siMapping"}
-	}
-	tmpInt := siMapping[p.Index].Value
-	if p.IDToken == "blublu" { // TODO: remove
-		logging.Debug("Share requested")
-		logging.Debugf("SHARE: %s", tmpInt.Text(16))
-
-		return ShareRequestResult{
-			Index:    siMapping[p.Index].Index,
-			HexShare: tmpInt.Text(16),
-		}, nil
-	}
-
-	//checking oAuth token
-	if oAuthCorrect, err := testOauth(h.suite, p.IDToken, p.Email); !oAuthCorrect {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "oauth is invalid, err: " + err.Error()}
-	}
-
-	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}
-	}
-
-	userIndex, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Cannot parse uint for user index here: " + err.Error()}
-	}
-
-	tmpInt = siMapping[int(userIndex)].Value
-
-	return ShareRequestResult{
-		Index:    siMapping[int(userIndex)].Index,
-		HexShare: tmpInt.Text(16),
-	}, nil
-}
-
-// assigns a user a secret, returns the same index if the user has been previously assigned
-func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	randomInt := rand.Int()
-	var p SecretAssignParams
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
-		return nil, err
-	}
-	logging.Debug("CHECKING IF EMAIL IS PROVIDED")
-	// no email provided TODO: email validation/ ddos protection
-	if p.Email == "" {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email is empty"}
-	}
-	logging.Debug("CHECKING IF CAN GET EMAIL ADDRESS")
-
-	// try to get get email index
-	logging.Debug("CHECKING IF ALREADY ASSIGNED")
-	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
-	// already assigned
-	if ok {
-		//create users publicKey
-		logging.Debugf("previouslyAssignedIndex: %d", previouslyAssignedIndex)
-		finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
-		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret from previously assigned index, please try again err, " + err.Error()}
-		}
-
-		//form address eth
-		addr, err := common.PointToEthAddress(*finalUserPubKey)
-		if err != nil {
-			logging.Error("derived user pub key has issues with address")
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
-		}
-
-		return SecretAssignResult{
-			ShareIndex: int(previouslyAssignedIndex),
-			PubShareX:  finalUserPubKey.X.Text(16),
-			PubShareY:  finalUserPubKey.Y.Text(16),
-			Address:    addr.String(),
-		}, nil
-
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email exists"}
-	}
-
-	//if all indexes have been assigned, bounce request. threshold at 20% TODO: Make  percentage variable
-	if h.suite.ABCIApp.state.LastCreatedIndex < h.suite.ABCIApp.state.LastUnassignedIndex+20 {
-		return nil, &jsonrpc.Error{Code: 32604, Message: "System is under heavy load for assignments, please try again later"}
-	}
-
-	logging.Debug("CHECKING IF REACHED NEW ASSIGNMENT")
-	// new assignment
-
-	// broadcast assignment transaction
-	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{Email: p.Email, Epoch: h.suite.ABCIApp.state.Epoch}})
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast: " + err.Error()}
-	}
-
-	logging.Debugf("CHECKING IF SUBSCRIBE TO UPDATES %d", randomInt)
-	// subscribe to updates
-	query := tmquery.MustParse("tx.hash='" + hash.String() + "'")
-	logging.Debugf("BFTWS:, hashstring %s %d", hash.String(), randomInt)
-	logging.Debugf("BFTWS: querystring %s %d", query.String(), randomInt)
-
-	logging.Debugf("CHECKING IF GOT RESPONSES %d", randomInt)
-	// wait for block to be committed
-	var assignedIndex uint
-	responseCh, err := h.suite.BftSuite.RegisterQuery(query.String(), 1)
-	if err != nil {
-		logging.Debugf("BFTWS: could not register query, %s", query.String())
-	}
-
-	for e := range responseCh {
-		logging.Debugf("BFTWS: gjson: %s %d", gjson.GetBytes(e, "query").String(), randomInt)
-		logging.Debugf("BFTWS: queryString %s %d", query.String(), randomInt)
-		if gjson.GetBytes(e, "query").String() != query.String() {
-			continue
-		}
-		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
-		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment: " + err.Error()}
-		}
-		if string(res.Response.Value) == "" {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned"}
-		}
-		assignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
-		assignedIndex = uint(assignedIndex64)
-		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for returned assignment index: " + fmt.Sprint(res) + " Error: " + err.Error()}
-		}
-		logging.Debugf("EXITING RESPONSES LISTENER %d", randomInt)
-		break
-	}
-
-	// TODO: after ws response has returned as the secret mapping could have changed, should be initializable anywhere
-	tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
-	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get sec mapping here after ws reply"}
-	}
-	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
-		return nil, err
-	}
-
-	if secretMapping[int(assignedIndex)].Secret == nil {
-		logging.Debugf("LOOKUP: secretmapping %v", secretMapping)
-		logging.Debug("LOOKUP: SHOULD BE ERROR")
-		// return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve secret from secret mapping, please try again"}
-	}
-
-	//create users publicKey
-	finalUserPubKey, err := retrieveUserPubKey(h.suite, int(assignedIndex))
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve user public key through query, please try again, err " + err.Error()}
-	}
-
-	//form address eth
-	addr, err := common.PointToEthAddress(*finalUserPubKey)
-	if err != nil {
-		logging.Debug("derived user pub key has issues with address")
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
-	}
-
-	return SecretAssignResult{
-		ShareIndex: int(assignedIndex),
-		PubShareX:  finalUserPubKey.X.Text(16),
-		PubShareY:  finalUserPubKey.Y.Text(16),
-		Address:    addr.String(),
-	}, nil
-}
-
 //gets assigned index and returns users public key
 func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) {
 
@@ -331,47 +157,6 @@ func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) 
 
 	return &finalUserPubKey, nil
 }
-
-func setUpServer(suite *Suite, port string) {
-	mr, err := setUpJRPCHandler(suite)
-	if err != nil {
-		logging.Fatalf("%s", err)
-	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/jrpc", mr)
-	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
-	mux.HandleFunc("/healthz", GETHealthz)
-
-	handler := cors.Default().Handler(mux)
-
-	if suite.Config.ServeUsingTLS {
-		if suite.Config.UseAutoCert {
-			logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
-		}
-
-		if suite.Config.ServerCert != "" {
-			if err := http.ListenAndServeTLS(":443",
-				suite.Config.ServerCert,
-				suite.Config.ServerKey,
-				handler,
-			); err != nil {
-				log.Fatalln(err)
-			}
-		} else {
-			logging.Fatal("Certs not supplied, try running with UseAutoCert")
-		}
-
-	} else {
-		addr := fmt.Sprintf(":%s", port)
-		if err := http.ListenAndServe(addr, handler); err != nil {
-			log.Fatalln(err)
-		}
-
-	}
-	logging.Debug("SERVER STOPPED")
-}
-
 func listenForShares(suite *Suite, count int) {
 	logging.Debugf("KEYGEN: listening for shares %d", count)
 	query := tmquery.MustParse("keygeneration.sharecollection='1'")

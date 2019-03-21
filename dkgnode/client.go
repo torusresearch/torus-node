@@ -77,7 +77,7 @@ type SigncryptedMessage struct {
 	ShareIndex  uint   `json:"shareindex"`
 }
 
-func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReference, tmCoreMsgs chan string) (string, error) {
+func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReference, tmCoreMsgs chan string, idleConnsClosed chan struct{}) (string, error) {
 
 	//Starts tendermint node here
 	//builds default config
@@ -165,8 +165,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//send back message saying ready
 	tmCoreMsgs <- "started_tmcore"
 
-	// Run forever, blocks goroutine
-	select {}
+	<-idleConnsClosed
 	return "Keygen complete.", nil
 }
 

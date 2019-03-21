@@ -2,11 +2,14 @@ package dkgnode
 
 //TODO: export all "tm" imports to common folder
 import (
+	"context"
 	"crypto/ecdsa"
 	"log"
 	"math/big"
 	"os"
+	"os/signal"
 	"runtime/pprof"
+	"syscall"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -22,11 +25,12 @@ import (
 const DefaultConfigPath = "/.torus/config.json"
 
 type Suite struct {
-	EthSuite   *EthSuite
-	BftSuite   *BftSuite
-	CacheSuite *CacheSuite
-	Config     *Config
-	ABCIApp    *ABCIApp
+	EthSuite        *EthSuite
+	BftSuite        *BftSuite
+	CacheSuite      *CacheSuite
+	Config          *Config
+	ABCIApp         *ABCIApp
+	DefaultVerifier IdentityVerifier
 }
 
 /* The entry point for our System */
@@ -44,6 +48,11 @@ func New() {
 	//Main suite of functions used in node
 	suite := Suite{}
 	suite.Config = cfg
+	// We can use a flag here to change the default verifier
+	// In the guture we should allow a range of vberifies
+	suite.DefaultVerifier = NewDefaultGoogleVerifier(cfg.GoogleClientID)
+
+	nodeListMonitorTicker := time.NewTicker(30 * time.Second)
 
 	if cfg.CPUProfileToFile != "" {
 		f, err := os.Create(cfg.CPUProfileToFile)
@@ -57,21 +66,6 @@ func New() {
 		}()
 	}
 
-	// QUESTION(TEAM) - SIGTERM and SIGKILL handling should be present
-	// TODO: we need a graceful shutdown
-	// Stop upon receiving SIGTERM or CTRL-C
-	// c := make(chan os.Signal, 1)
-	// signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	// go func() {
-	// 	for sig := range c {
-	// 		fmt.Println("Ending Process", sig)
-	// 		//TODO: Exit process not working when abci dies first
-	// 		// pprof.StopCPUProfile()
-	// 		time.Sleep(5 * time.Second)
-	// 		os.Exit(1)
-	// 	}
-	// }()
-
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
 	err := SetUpEth(&suite)
@@ -80,7 +74,9 @@ func New() {
 	}
 
 	// run tendermint ABCI server
+	// It seems tendermint handles sigterm on its own..
 	go RunABCIServer(&suite)
+
 	// setup connection to tendermint BFT
 	SetUpBft(&suite)
 	// setup local caching
@@ -138,52 +134,105 @@ func New() {
 	tmCoreMsgs := make(chan string)
 	nodeListMonitorMsgs := make(chan NodeListUpdates)
 	keyGenMonitorMsgs := make(chan KeyGenUpdates)
-	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
+
+	finishedSetupChan := make(chan struct{})
+
+	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
 
 	// Set up standard server
-	go setUpServer(&suite, string(suite.Config.HttpServerPort))
+	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
+	// Stop upon receiving SIGTERM or CTRL-C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+	idleConnsClosed := make(chan struct{})
+	go func() {
+		<-c
+		logging.Info("Shutting down the node, received signal.")
+
+		// Shutdown the jRPC server
+		err := server.Shutdown(context.Background())
+		if err != nil {
+			logging.Errorf("Failed during shutdown: %s", err.Error())
+		}
+
+		// Stop NodeList monitor ticker
+		nodeListMonitorTicker.Stop()
+
+		// Exit the blocking chan
+		close(idleConnsClosed)
+	}()
+
+	// TODO(TEAM): This needs to be less verbose, and wrapped in some functions..
+	// It really doesnt need to run forever right?...
 	// So it runs forever
-	for {
-		select {
-		case nlMonitorMsg := <-nodeListMonitorMsgs:
-			if nlMonitorMsg.Type == "update" {
-				// Compare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
-				if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
-					cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
-					cmpopts.IgnoreUnexported(big.Int{}),
-					cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
-					logging.Infof("Node Monitor updating node list: %v", nlMonitorMsg.Payload)
-					suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
+	select {
+	case nlMonitorMsg := <-nodeListMonitorMsgs:
+		if nlMonitorMsg.Type == "update" {
+			// Compare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
+			if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
+				cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
+				cmpopts.IgnoreUnexported(big.Int{}),
+				cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
+				logging.Infof("Node Monitor updating node list: %v", nlMonitorMsg.Payload)
+				suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
 
-					if len(suite.EthSuite.NodeList) == suite.Config.NumberOfNodes {
-						logging.Infof("Starting tendermint core... NodeList: %v", suite.EthSuite.NodeList)
-						//initialize app val set for the first time and update validators to false
-						go startTendermintCore(&suite, cfg.BasePath+"/tendermint", suite.EthSuite.NodeList, tmCoreMsgs)
-					} else {
-						logging.Warning("ethlist not equal in length to nodelist")
-					}
+				if len(suite.EthSuite.NodeList) == suite.Config.NumberOfNodes {
+					logging.Infof("Starting tendermint core... NodeList: %v", suite.EthSuite.NodeList)
+					//initialize app val set for the first time and update validators to false
+					go startTendermintCore(&suite, cfg.BasePath+"/tendermint", suite.EthSuite.NodeList, tmCoreMsgs, idleConnsClosed)
+				} else {
+					logging.Warning("ethlist not equal in length to nodelist")
 				}
 			}
-
-		case coreMsg := <-tmCoreMsgs:
-			logging.Debugf("received: %s", coreMsg)
-			if coreMsg == "started_tmcore" {
-				time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
-				//Start key generation monitor when bft is done setting up
-				logging.Debugf("Start Key generation monitor: %v, %v", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
-				go startKeyGenerationMonitor(&suite, keyGenMonitorMsgs)
-			}
-
-		case keyGenMonitorMsg := <-keyGenMonitorMsgs:
-			logging.Debug("KEYGEN: keygenmonitor received message")
-			if keyGenMonitorMsg.Type == "start_keygen" {
-				//starts keygeneration with starting and ending index
-				logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-				go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-			}
 		}
+
+	case coreMsg := <-tmCoreMsgs:
+		logging.Debugf("received: %s", coreMsg)
+		if coreMsg == "started_tmcore" {
+			time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
+			//Start key generation monitor when bft is done setting up
+			logging.Debugf("Start Key generation monitor: %v, %v", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
+			go startKeyGenerationMonitor(&suite, keyGenMonitorMsgs)
+		}
+
+	case keyGenMonitorMsg := <-keyGenMonitorMsgs:
+		logging.Debug("KEYGEN: keygenmonitor received message")
+		if keyGenMonitorMsg.Type == "start_keygen" {
+			//starts keygeneration with starting and ending index
+			logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+			go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+			finishedSetupChan <- struct{}{}
+		}
+	case <-finishedSetupChan:
+		break
 	}
+
+	if suite.Config.ServeUsingTLS {
+		if suite.Config.UseAutoCert {
+			logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
+		}
+
+		if suite.Config.ServerCert != "" {
+			err := server.ListenAndServeTLS(suite.Config.ServerCert,
+				suite.Config.ServerKey)
+			if err != nil {
+				log.Fatalln(err)
+			}
+		} else {
+			logging.Fatal("Certs not supplied, try running with UseAutoCert")
+		}
+
+	} else {
+		err := server.ListenAndServe()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+	}
+	<-idleConnsClosed
+
 }
 
 func ProvideGenDoc(doc *tmtypes.GenesisDoc) tmnode.GenesisDocProvider {

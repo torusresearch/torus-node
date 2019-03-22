@@ -62,7 +62,7 @@
 // 	NodeListAddress string `json:"nodelistaddress"`
 // }
 
-// // func setUpClient(nodeListStrings []string) {
+// // func setupClient(nodeListStrings []string) {
 // // 	// nodeListStruct make(NodeReference[], 0)
 // // 	// for index, element := range nodeListStrings {
 // // 	time.Sleep(1000 * time.Millisecond)

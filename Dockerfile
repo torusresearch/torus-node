@@ -30,6 +30,6 @@ RUN mkdir -p /torus
 
 COPY --from=node-build /go/src/github.com/torusresearch/torus-public/cmd/dkgnode/dkgnode /torus/dkgnode
 
-EXPOSE 443 80 26656 26657
+EXPOSE 443 80 1080 26656 26657
 VOLUME ["/torus", "/root/https"]
 CMD ["/torus/dkgnode"]

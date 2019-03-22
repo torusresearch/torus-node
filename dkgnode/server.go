@@ -157,6 +157,7 @@ func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) 
 
 	return &finalUserPubKey, nil
 }
+
 func listenForShares(suite *Suite, count int) {
 	logging.Debugf("KEYGEN: listening for shares %d", count)
 	query := tmquery.MustParse("keygeneration.sharecollection='1'")

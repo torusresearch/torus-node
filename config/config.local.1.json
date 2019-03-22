@@ -7,7 +7,8 @@
   "numberofnodes": 5,
   "threshold": 3,
   "abciserver": "tcp://0.0.0.0:8010",
-  "p2plistenaddress": "tcp://0.0.0.0:26657",
+  "tmp2plistenaddress": "tcp://0.0.0.0:26657",
+  "p2plistenaddress": "/ip4/192.167.10.2/tcp/1080",
   "keysperepoch": 10,
   "ipAddress": "192.167.10.2",
   "register": true

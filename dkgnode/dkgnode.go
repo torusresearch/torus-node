@@ -31,6 +31,7 @@ type Suite struct {
 	Config          *Config
 	ABCIApp         *ABCIApp
 	DefaultVerifier IdentityVerifier
+	P2PSuite        *P2PSuite
 }
 
 /* The entry point for our System */
@@ -43,7 +44,7 @@ func New() {
 	// that sets all the config variables and is available globally for read?
 	// it should be immutable after initializing, but if not we can always stick a mutex.
 	cfg := loadConfig(DefaultConfigPath)
-	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, p2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.P2PListenAddress)
+	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, tmp2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.TMP2PListenAddress)
 
 	//Main suite of functions used in node
 	suite := Suite{}
@@ -52,7 +53,7 @@ func New() {
 	// In the guture we should allow a range of vberifies
 	suite.DefaultVerifier = NewDefaultGoogleVerifier(cfg.GoogleClientID)
 
-	nodeListMonitorTicker := time.NewTicker(30 * time.Second)
+	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
 
 	if cfg.CPUProfileToFile != "" {
 		f, err := os.Create(cfg.CPUProfileToFile)
@@ -68,7 +69,13 @@ func New() {
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
-	err := SetUpEth(&suite)
+	err := SetupEth(&suite)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//setup p2p host
+	_, err = SetupP2PHost(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,9 +85,9 @@ func New() {
 	go RunABCIServer(&suite)
 
 	// setup connection to tendermint BFT
-	SetUpBft(&suite)
+	SetupBft(&suite)
 	// setup local caching
-	SetUpCache(&suite)
+	SetupCache(&suite)
 
 	//build folders for tendermint logs
 	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
@@ -122,9 +129,10 @@ func New() {
 		// } else {
 		// 	externalAddr = suite.Config.P2PListenAddress
 		// }
+
 		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
 		if err != nil {
 			logging.Fatal(err.Error())
 		}
@@ -138,6 +146,7 @@ func New() {
 	finishedSetupChan := make(chan struct{})
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
+	go startKeyGenerationWorker(&suite, idleConnsClosed, keyGenMonitorMsgs)
 
 	// Set up standard server
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
@@ -167,6 +176,8 @@ func New() {
 	// TODO(TEAM): This needs to be less verbose, and wrapped in some functions..
 	// It really doesnt need to run forever right?...
 	// So it runs forever
+
+	// Setup Phase
 	select {
 	case nlMonitorMsg := <-nodeListMonitorMsgs:
 		if nlMonitorMsg.Type == "update" {
@@ -174,7 +185,7 @@ func New() {
 			if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
 				cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
 				cmpopts.IgnoreUnexported(big.Int{}),
-				cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
+				cmpopts.IgnoreFields(NodeReference{}, "PeerID")) {
 				logging.Infof("Node Monitor updating node list: %v", nlMonitorMsg.Payload)
 				suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
 
@@ -209,6 +220,9 @@ func New() {
 		break
 	}
 
+	// TODO: Refactor this a bit.
+	go keyGenWorker(keyGenMonitorMsgs)
+
 	if suite.Config.ServeUsingTLS {
 		if suite.Config.UseAutoCert {
 			logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
@@ -218,7 +232,7 @@ func New() {
 			err := server.ListenAndServeTLS(suite.Config.ServerCert,
 				suite.Config.ServerKey)
 			if err != nil {
-				log.Fatalln(err)
+				logging.Fatal(err.Error())
 			}
 		} else {
 			logging.Fatal("Certs not supplied, try running with UseAutoCert")
@@ -227,11 +241,28 @@ func New() {
 	} else {
 		err := server.ListenAndServe()
 		if err != nil {
-			log.Fatalln(err)
+			logging.Fatal(err.Error())
 		}
 
 	}
+
 	<-idleConnsClosed
+}
+
+func keyGenWorker(keyGenMonitorMsgs chan KeyGenUpdates) {
+	for {
+		select {
+
+		case keyGenMonitorMsg := <-keyGenMonitorMsgs:
+			logging.Debug("KEYGEN: keygenmonitor received message")
+			if keyGenMonitorMsg.Type == "start_keygen" {
+				//starts keygeneration with starting and ending index
+				logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+				go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+
+			}
+		}
+	}
 
 }
 

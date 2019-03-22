@@ -3,20 +3,17 @@ package dkgnode
 /* All useful imports */
 import (
 	"crypto/ecdsa"
-	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
@@ -27,17 +24,7 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
 	"github.com/torusresearch/torus-public/secp256k1"
-	jsonrpcclient "github.com/ybbus/jsonrpc"
 )
-
-//TODO: rename nodePort
-type NodeReference struct {
-	Address       *ethCommon.Address
-	JSONClient    jsonrpcclient.RPCClient
-	Index         *big.Int
-	PublicKey     *ecdsa.PublicKey
-	P2PConnection string
-}
 
 type Message struct {
 	Message string `json:"message"`
@@ -120,7 +107,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 			PubKey:  pubkeyBytes,
 			Power:   1,
 		})
-		persistantPeersList = append(persistantPeersList, nodeList[i].P2PConnection)
+		persistantPeersList = append(persistantPeersList, nodeList[i].TMP2PConnection)
 	}
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
@@ -136,7 +123,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.BaseConfig.DBBackend = "cleveldb"
 	defaultTmConfig.FastSync = false
 	defaultTmConfig.RPC.ListenAddress = suite.Config.BftURI
-	defaultTmConfig.P2P.ListenAddress = suite.Config.P2PListenAddress
+	defaultTmConfig.P2P.ListenAddress = suite.Config.TMP2PListenAddress
 	defaultTmConfig.P2P.MaxNumInboundPeers = 300
 	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 	//TODO: change to true in production?
@@ -480,46 +467,4 @@ func sendSharesToNodes(suite *Suite, signcryptedOutput []*common.SigncryptedOutp
 
 func ecdsaPttoPt(ecdsaPt *ecdsa.PublicKey) *common.Point {
 	return &common.Point{X: *ecdsaPt.X, Y: *ecdsaPt.Y}
-}
-
-func connectToJSONRPCNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address) (*NodeReference, error) {
-	details, err := suite.EthSuite.NodeListContract.AddressToNodeDetailsLog(nil, nodeAddress, &epoch)
-	if err != nil {
-		return nil, err
-	}
-
-	// if in production use https
-	var nodeIPAddress string
-	var rpcClient jsonrpcclient.RPCClient
-
-	// If in production, we should always assume that the node itself will handle TLS.
-	if suite.Config.IsProduction {
-		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
-		rpcClient = jsonrpcclient.NewClient(nodeIPAddress)
-	} else {
-		// When running in testing, skip verification of self signed certificates.
-		// If not responding to https, we should check the http?
-		nodeIPAddress = "https://" + details.DeclaredIp + "/jrpc"
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		httpClient := &http.Client{
-			Transport: tr,
-		}
-		rpcClient = jsonrpcclient.NewClientWithOpts(nodeIPAddress, &jsonrpcclient.RPCClientOpts{
-			HTTPClient: httpClient,
-		})
-	}
-
-	_, err = rpcClient.Call("Ping", &Message{suite.EthSuite.NodeAddress.Hex()})
-	if err != nil {
-		return nil, err
-	}
-	return &NodeReference{
-		Address:       &nodeAddress,
-		JSONClient:    rpcClient,
-		Index:         details.Position,
-		PublicKey:     &ecdsa.PublicKey{Curve: suite.EthSuite.secp, X: details.PubKx, Y: details.PubKy},
-		P2PConnection: details.NodePort,
-	}, nil
 }

@@ -7,7 +7,7 @@
   "numberofnodes": 5,
   "threshold": 3,
   "abciserver": "tcp://0.0.0.0:8013",
-  "p2plistenaddress": "tcp://0.0.0.0:26663",
+  "tmp2plistenaddress": "tcp://0.0.0.0:26663",
   "keysperepoch": 10,
   "register": true,
   "serverCert": "../../tests/openssl/server.crt",

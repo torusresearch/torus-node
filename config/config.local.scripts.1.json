@@ -8,7 +8,7 @@
   "threshold": 3,
   "hostname": "node_one",
   "abciserver": "tcp://0.0.0.0:8010",
-  "p2plistenaddress": "tcp://0.0.0.0:26656",
+  "tmp2plistenaddress": "tcp://0.0.0.0:26656",
   "keysperepoch": 10,
   "register": true,
   "serverCert": "../../tests/openssl/server.crt",

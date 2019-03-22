@@ -29,6 +29,7 @@ type Suite struct {
 	Config     *Config
 	Flags      *Flags
 	ABCIApp    *ABCIApp
+	P2PSuite   *P2PSuite
 }
 
 type Flags struct {
@@ -45,7 +46,7 @@ func New() {
 	// that sets all the config variables and is available globally for read?
 	// it should be immutable after initializing, but if not we can always stick a mutex.
 	cfg := loadConfig(DefaultConfigPath)
-	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, p2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.P2PListenAddress)
+	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, tmp2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.TMP2PListenAddress)
 
 	//Main suite of functions used in node
 	suite := Suite{}
@@ -82,7 +83,13 @@ func New() {
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
-	err := SetUpEth(&suite)
+	err := SetupEth(&suite)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//setup p2p host
+	_, err = SetupP2PHost(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,9 +97,9 @@ func New() {
 	// run tendermint ABCI server
 	go RunABCIServer(&suite)
 	// setup connection to tendermint BFT
-	SetUpBft(&suite)
+	SetupBft(&suite)
 	// setup local caching
-	SetUpCache(&suite)
+	SetupCache(&suite)
 
 	//build folders for tendermint logs
 	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
@@ -134,13 +141,13 @@ func New() {
 		var externalAddr string
 		if cfg.ProvidedIPAddress != "" {
 			//for external deploymets
-			externalAddr = "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
+			externalAddr = "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.TMP2PListenAddress, ":")[2]
 		} else {
-			externalAddr = suite.Config.P2PListenAddress
+			externalAddr = suite.Config.TMP2PListenAddress
 		}
 		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
 		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
 		if err != nil {
 			logging.Fatal(err.Error())
 		}
@@ -153,7 +160,7 @@ func New() {
 	go startNodeListMonitor(&suite, nodeListMonitorMsgs)
 
 	// Set up standard server
-	go setUpServer(&suite, string(suite.Config.MyPort))
+	go setupServer(&suite, string(suite.Config.MyPort))
 
 	// So it runs forever
 	for {
@@ -164,7 +171,7 @@ func New() {
 				if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
 					cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
 					cmpopts.IgnoreUnexported(big.Int{}),
-					cmpopts.IgnoreFields(NodeReference{}, "JSONClient")) {
+					cmpopts.IgnoreFields(NodeReference{}, "PeerID")) {
 					logging.Infof("Node Monitor updating node list: %v", nlMonitorMsg.Payload)
 					suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
 

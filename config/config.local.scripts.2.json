@@ -8,7 +8,7 @@
   "threshold": 3,
   "hostname": "dkg2.tetrator.us",
   "abciserver": "tcp://0.0.0.0:8011",
-  "p2plistenaddress": "tcp://0.0.0.0:26659",
+  "tmp2plistenaddress": "tcp://0.0.0.0:26659",
   "keysperepoch": 10,
   "register": true,
   "serverCert": "../../tests/openssl/server.crt",

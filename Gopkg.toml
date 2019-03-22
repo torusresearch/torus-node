@@ -31,19 +31,11 @@ ignored = ["github.com/tendermint/tendermint"]
 
 [[constraint]]
   branch = "master"
-  name = "github.com/anthdm/hbbft"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/btcsuite/btcd"
 
 [[constraint]]
   name = "github.com/ethereum/go-ethereum"
   version = "1.8.20"
-
-[[constraint]]
-  name = "github.com/fatih/structs"
-  version = "1.1.0"
 
 [[constraint]]
   name = "github.com/google/go-cmp"
@@ -56,14 +48,6 @@ ignored = ["github.com/tendermint/tendermint"]
 [[constraint]]
   branch = "master"
   name = "github.com/jinzhu/copier"
-
-[[constraint]]
-  name = "github.com/mattn/go-sqlite3"
-  version = "1.10.0"
-
-[[constraint]]
-  name = "github.com/micro/go-config"
-  version = "0.14.0"
 
 [[constraint]]
   name = "github.com/osamingo/jsonrpc"

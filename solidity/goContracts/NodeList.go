@@ -28,7 +28,7 @@ var (
 )
 
 // NodelistABI is the input ABI used to generate the binding from.
-const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"},{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"addressToNodeDetailsLog\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"nodeAddress\",\"type\":\"address\"}],\"name\":\"viewWhitelist\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"nodeAddress\",\"type\":\"address\"},{\"name\":\"allowed\",\"type\":\"bool\"}],\"name\":\"updateWhitelist\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"nodePort\",\"type\":\"string\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewLatestEpoch\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"epoch\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"}]"
+const NodelistABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"nodeList\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodeListCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"}],\"name\":\"viewNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"},{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"addressToNodeDetailsLog\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"tmP2PListenAddress\",\"type\":\"string\"},{\"name\":\"p2pListenAddress\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"nodeAddress\",\"type\":\"address\"}],\"name\":\"viewWhitelist\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"nodeAddress\",\"type\":\"address\"},{\"name\":\"allowed\",\"type\":\"bool\"}],\"name\":\"updateWhitelist\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"node\",\"type\":\"address\"}],\"name\":\"viewNodeDetails\",\"outputs\":[{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"position\",\"type\":\"uint256\"},{\"name\":\"tmP2PListenAddress\",\"type\":\"string\"},{\"name\":\"p2pListenAddress\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"epoch\",\"type\":\"uint256\"},{\"name\":\"declaredIp\",\"type\":\"string\"},{\"name\":\"pubKx\",\"type\":\"uint256\"},{\"name\":\"pubKy\",\"type\":\"uint256\"},{\"name\":\"tmP2PListenAddress\",\"type\":\"string\"},{\"name\":\"p2pListenAddress\",\"type\":\"string\"}],\"name\":\"listNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"viewLatestEpoch\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"publicKey\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"epoch\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"position\",\"type\":\"uint256\"}],\"name\":\"NodeListed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"}]"
 
 // Nodelist is an auto generated Go binding around an Ethereum contract.
 type Nodelist struct {
@@ -174,20 +174,22 @@ func (_Nodelist *NodelistTransactorRaw) Transact(opts *bind.TransactOpts, method
 
 // AddressToNodeDetailsLog is a free data retrieval call binding the contract method 0x1bcd979d.
 //
-// Solidity: function addressToNodeDetailsLog( address,  uint256) constant returns(declaredIp string, position uint256, pubKx uint256, pubKy uint256, nodePort string)
+// Solidity: function addressToNodeDetailsLog(address , uint256 ) constant returns(string declaredIp, uint256 position, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress)
 func (_Nodelist *NodelistCaller) AddressToNodeDetailsLog(opts *bind.CallOpts, arg0 common.Address, arg1 *big.Int) (struct {
-	DeclaredIp string
-	Position   *big.Int
-	PubKx      *big.Int
-	PubKy      *big.Int
-	NodePort   string
+	DeclaredIp         string
+	Position           *big.Int
+	PubKx              *big.Int
+	PubKy              *big.Int
+	TmP2PListenAddress string
+	P2pListenAddress   string
 }, error) {
 	ret := new(struct {
-		DeclaredIp string
-		Position   *big.Int
-		PubKx      *big.Int
-		PubKy      *big.Int
-		NodePort   string
+		DeclaredIp         string
+		Position           *big.Int
+		PubKx              *big.Int
+		PubKy              *big.Int
+		TmP2PListenAddress string
+		P2pListenAddress   string
 	})
 	out := ret
 	err := _Nodelist.contract.Call(opts, out, "addressToNodeDetailsLog", arg0, arg1)
@@ -196,26 +198,28 @@ func (_Nodelist *NodelistCaller) AddressToNodeDetailsLog(opts *bind.CallOpts, ar
 
 // AddressToNodeDetailsLog is a free data retrieval call binding the contract method 0x1bcd979d.
 //
-// Solidity: function addressToNodeDetailsLog( address,  uint256) constant returns(declaredIp string, position uint256, pubKx uint256, pubKy uint256, nodePort string)
+// Solidity: function addressToNodeDetailsLog(address , uint256 ) constant returns(string declaredIp, uint256 position, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress)
 func (_Nodelist *NodelistSession) AddressToNodeDetailsLog(arg0 common.Address, arg1 *big.Int) (struct {
-	DeclaredIp string
-	Position   *big.Int
-	PubKx      *big.Int
-	PubKy      *big.Int
-	NodePort   string
+	DeclaredIp         string
+	Position           *big.Int
+	PubKx              *big.Int
+	PubKy              *big.Int
+	TmP2PListenAddress string
+	P2pListenAddress   string
 }, error) {
 	return _Nodelist.Contract.AddressToNodeDetailsLog(&_Nodelist.CallOpts, arg0, arg1)
 }
 
 // AddressToNodeDetailsLog is a free data retrieval call binding the contract method 0x1bcd979d.
 //
-// Solidity: function addressToNodeDetailsLog( address,  uint256) constant returns(declaredIp string, position uint256, pubKx uint256, pubKy uint256, nodePort string)
+// Solidity: function addressToNodeDetailsLog(address , uint256 ) constant returns(string declaredIp, uint256 position, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress)
 func (_Nodelist *NodelistCallerSession) AddressToNodeDetailsLog(arg0 common.Address, arg1 *big.Int) (struct {
-	DeclaredIp string
-	Position   *big.Int
-	PubKx      *big.Int
-	PubKy      *big.Int
-	NodePort   string
+	DeclaredIp         string
+	Position           *big.Int
+	PubKx              *big.Int
+	PubKy              *big.Int
+	TmP2PListenAddress string
+	P2pListenAddress   string
 }, error) {
 	return _Nodelist.Contract.AddressToNodeDetailsLog(&_Nodelist.CallOpts, arg0, arg1)
 }
@@ -248,7 +252,7 @@ func (_Nodelist *NodelistCallerSession) IsOwner() (bool, error) {
 
 // NodeList is a free data retrieval call binding the contract method 0x02098741.
 //
-// Solidity: function nodeList( uint256,  uint256) constant returns(address)
+// Solidity: function nodeList(uint256 , uint256 ) constant returns(address)
 func (_Nodelist *NodelistCaller) NodeList(opts *bind.CallOpts, arg0 *big.Int, arg1 *big.Int) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
@@ -260,14 +264,14 @@ func (_Nodelist *NodelistCaller) NodeList(opts *bind.CallOpts, arg0 *big.Int, ar
 
 // NodeList is a free data retrieval call binding the contract method 0x02098741.
 //
-// Solidity: function nodeList( uint256,  uint256) constant returns(address)
+// Solidity: function nodeList(uint256 , uint256 ) constant returns(address)
 func (_Nodelist *NodelistSession) NodeList(arg0 *big.Int, arg1 *big.Int) (common.Address, error) {
 	return _Nodelist.Contract.NodeList(&_Nodelist.CallOpts, arg0, arg1)
 }
 
 // NodeList is a free data retrieval call binding the contract method 0x02098741.
 //
-// Solidity: function nodeList( uint256,  uint256) constant returns(address)
+// Solidity: function nodeList(uint256 , uint256 ) constant returns(address)
 func (_Nodelist *NodelistCallerSession) NodeList(arg0 *big.Int, arg1 *big.Int) (common.Address, error) {
 	return _Nodelist.Contract.NodeList(&_Nodelist.CallOpts, arg0, arg1)
 }
@@ -326,16 +330,18 @@ func (_Nodelist *NodelistCallerSession) ViewLatestEpoch() (*big.Int, error) {
 
 // ViewNodeDetails is a free data retrieval call binding the contract method 0xa93a0fb0.
 //
-// Solidity: function viewNodeDetails(epoch uint256, node address) constant returns(declaredIp string, position uint256, nodePort string)
+// Solidity: function viewNodeDetails(uint256 epoch, address node) constant returns(string declaredIp, uint256 position, string tmP2PListenAddress, string p2pListenAddress)
 func (_Nodelist *NodelistCaller) ViewNodeDetails(opts *bind.CallOpts, epoch *big.Int, node common.Address) (struct {
-	DeclaredIp string
-	Position   *big.Int
-	NodePort   string
+	DeclaredIp         string
+	Position           *big.Int
+	TmP2PListenAddress string
+	P2pListenAddress   string
 }, error) {
 	ret := new(struct {
-		DeclaredIp string
-		Position   *big.Int
-		NodePort   string
+		DeclaredIp         string
+		Position           *big.Int
+		TmP2PListenAddress string
+		P2pListenAddress   string
 	})
 	out := ret
 	err := _Nodelist.contract.Call(opts, out, "viewNodeDetails", epoch, node)
@@ -344,29 +350,31 @@ func (_Nodelist *NodelistCaller) ViewNodeDetails(opts *bind.CallOpts, epoch *big
 
 // ViewNodeDetails is a free data retrieval call binding the contract method 0xa93a0fb0.
 //
-// Solidity: function viewNodeDetails(epoch uint256, node address) constant returns(declaredIp string, position uint256, nodePort string)
+// Solidity: function viewNodeDetails(uint256 epoch, address node) constant returns(string declaredIp, uint256 position, string tmP2PListenAddress, string p2pListenAddress)
 func (_Nodelist *NodelistSession) ViewNodeDetails(epoch *big.Int, node common.Address) (struct {
-	DeclaredIp string
-	Position   *big.Int
-	NodePort   string
+	DeclaredIp         string
+	Position           *big.Int
+	TmP2PListenAddress string
+	P2pListenAddress   string
 }, error) {
 	return _Nodelist.Contract.ViewNodeDetails(&_Nodelist.CallOpts, epoch, node)
 }
 
 // ViewNodeDetails is a free data retrieval call binding the contract method 0xa93a0fb0.
 //
-// Solidity: function viewNodeDetails(epoch uint256, node address) constant returns(declaredIp string, position uint256, nodePort string)
+// Solidity: function viewNodeDetails(uint256 epoch, address node) constant returns(string declaredIp, uint256 position, string tmP2PListenAddress, string p2pListenAddress)
 func (_Nodelist *NodelistCallerSession) ViewNodeDetails(epoch *big.Int, node common.Address) (struct {
-	DeclaredIp string
-	Position   *big.Int
-	NodePort   string
+	DeclaredIp         string
+	Position           *big.Int
+	TmP2PListenAddress string
+	P2pListenAddress   string
 }, error) {
 	return _Nodelist.Contract.ViewNodeDetails(&_Nodelist.CallOpts, epoch, node)
 }
 
 // ViewNodeListCount is a free data retrieval call binding the contract method 0x0bf1a62e.
 //
-// Solidity: function viewNodeListCount(epoch uint256) constant returns(uint256)
+// Solidity: function viewNodeListCount(uint256 epoch) constant returns(uint256)
 func (_Nodelist *NodelistCaller) ViewNodeListCount(opts *bind.CallOpts, epoch *big.Int) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
@@ -378,21 +386,21 @@ func (_Nodelist *NodelistCaller) ViewNodeListCount(opts *bind.CallOpts, epoch *b
 
 // ViewNodeListCount is a free data retrieval call binding the contract method 0x0bf1a62e.
 //
-// Solidity: function viewNodeListCount(epoch uint256) constant returns(uint256)
+// Solidity: function viewNodeListCount(uint256 epoch) constant returns(uint256)
 func (_Nodelist *NodelistSession) ViewNodeListCount(epoch *big.Int) (*big.Int, error) {
 	return _Nodelist.Contract.ViewNodeListCount(&_Nodelist.CallOpts, epoch)
 }
 
 // ViewNodeListCount is a free data retrieval call binding the contract method 0x0bf1a62e.
 //
-// Solidity: function viewNodeListCount(epoch uint256) constant returns(uint256)
+// Solidity: function viewNodeListCount(uint256 epoch) constant returns(uint256)
 func (_Nodelist *NodelistCallerSession) ViewNodeListCount(epoch *big.Int) (*big.Int, error) {
 	return _Nodelist.Contract.ViewNodeListCount(&_Nodelist.CallOpts, epoch)
 }
 
 // ViewNodes is a free data retrieval call binding the contract method 0x13a7cd36.
 //
-// Solidity: function viewNodes(epoch uint256) constant returns(address[], uint256[])
+// Solidity: function viewNodes(uint256 epoch) constant returns(address[], uint256[])
 func (_Nodelist *NodelistCaller) ViewNodes(opts *bind.CallOpts, epoch *big.Int) ([]common.Address, []*big.Int, error) {
 	var (
 		ret0 = new([]common.Address)
@@ -408,21 +416,21 @@ func (_Nodelist *NodelistCaller) ViewNodes(opts *bind.CallOpts, epoch *big.Int) 
 
 // ViewNodes is a free data retrieval call binding the contract method 0x13a7cd36.
 //
-// Solidity: function viewNodes(epoch uint256) constant returns(address[], uint256[])
+// Solidity: function viewNodes(uint256 epoch) constant returns(address[], uint256[])
 func (_Nodelist *NodelistSession) ViewNodes(epoch *big.Int) ([]common.Address, []*big.Int, error) {
 	return _Nodelist.Contract.ViewNodes(&_Nodelist.CallOpts, epoch)
 }
 
 // ViewNodes is a free data retrieval call binding the contract method 0x13a7cd36.
 //
-// Solidity: function viewNodes(epoch uint256) constant returns(address[], uint256[])
+// Solidity: function viewNodes(uint256 epoch) constant returns(address[], uint256[])
 func (_Nodelist *NodelistCallerSession) ViewNodes(epoch *big.Int) ([]common.Address, []*big.Int, error) {
 	return _Nodelist.Contract.ViewNodes(&_Nodelist.CallOpts, epoch)
 }
 
 // ViewWhitelist is a free data retrieval call binding the contract method 0x22d1b9db.
 //
-// Solidity: function viewWhitelist(epoch uint256, nodeAddress address) constant returns(bool)
+// Solidity: function viewWhitelist(uint256 epoch, address nodeAddress) constant returns(bool)
 func (_Nodelist *NodelistCaller) ViewWhitelist(opts *bind.CallOpts, epoch *big.Int, nodeAddress common.Address) (bool, error) {
 	var (
 		ret0 = new(bool)
@@ -434,37 +442,37 @@ func (_Nodelist *NodelistCaller) ViewWhitelist(opts *bind.CallOpts, epoch *big.I
 
 // ViewWhitelist is a free data retrieval call binding the contract method 0x22d1b9db.
 //
-// Solidity: function viewWhitelist(epoch uint256, nodeAddress address) constant returns(bool)
+// Solidity: function viewWhitelist(uint256 epoch, address nodeAddress) constant returns(bool)
 func (_Nodelist *NodelistSession) ViewWhitelist(epoch *big.Int, nodeAddress common.Address) (bool, error) {
 	return _Nodelist.Contract.ViewWhitelist(&_Nodelist.CallOpts, epoch, nodeAddress)
 }
 
 // ViewWhitelist is a free data retrieval call binding the contract method 0x22d1b9db.
 //
-// Solidity: function viewWhitelist(epoch uint256, nodeAddress address) constant returns(bool)
+// Solidity: function viewWhitelist(uint256 epoch, address nodeAddress) constant returns(bool)
 func (_Nodelist *NodelistCallerSession) ViewWhitelist(epoch *big.Int, nodeAddress common.Address) (bool, error) {
 	return _Nodelist.Contract.ViewWhitelist(&_Nodelist.CallOpts, epoch, nodeAddress)
 }
 
-// ListNode is a paid mutator transaction binding the contract method 0xcde54917.
+// ListNode is a paid mutator transaction binding the contract method 0xbf2d6f81.
 //
-// Solidity: function listNode(epoch uint256, declaredIp string, pubKx uint256, pubKy uint256, nodePort string) returns()
-func (_Nodelist *NodelistTransactor) ListNode(opts *bind.TransactOpts, epoch *big.Int, declaredIp string, pubKx *big.Int, pubKy *big.Int, nodePort string) (*types.Transaction, error) {
-	return _Nodelist.contract.Transact(opts, "listNode", epoch, declaredIp, pubKx, pubKy, nodePort)
+// Solidity: function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress) returns()
+func (_Nodelist *NodelistTransactor) ListNode(opts *bind.TransactOpts, epoch *big.Int, declaredIp string, pubKx *big.Int, pubKy *big.Int, tmP2PListenAddress string, p2pListenAddress string) (*types.Transaction, error) {
+	return _Nodelist.contract.Transact(opts, "listNode", epoch, declaredIp, pubKx, pubKy, tmP2PListenAddress, p2pListenAddress)
 }
 
-// ListNode is a paid mutator transaction binding the contract method 0xcde54917.
+// ListNode is a paid mutator transaction binding the contract method 0xbf2d6f81.
 //
-// Solidity: function listNode(epoch uint256, declaredIp string, pubKx uint256, pubKy uint256, nodePort string) returns()
-func (_Nodelist *NodelistSession) ListNode(epoch *big.Int, declaredIp string, pubKx *big.Int, pubKy *big.Int, nodePort string) (*types.Transaction, error) {
-	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, epoch, declaredIp, pubKx, pubKy, nodePort)
+// Solidity: function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress) returns()
+func (_Nodelist *NodelistSession) ListNode(epoch *big.Int, declaredIp string, pubKx *big.Int, pubKy *big.Int, tmP2PListenAddress string, p2pListenAddress string) (*types.Transaction, error) {
+	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, epoch, declaredIp, pubKx, pubKy, tmP2PListenAddress, p2pListenAddress)
 }
 
-// ListNode is a paid mutator transaction binding the contract method 0xcde54917.
+// ListNode is a paid mutator transaction binding the contract method 0xbf2d6f81.
 //
-// Solidity: function listNode(epoch uint256, declaredIp string, pubKx uint256, pubKy uint256, nodePort string) returns()
-func (_Nodelist *NodelistTransactorSession) ListNode(epoch *big.Int, declaredIp string, pubKx *big.Int, pubKy *big.Int, nodePort string) (*types.Transaction, error) {
-	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, epoch, declaredIp, pubKx, pubKy, nodePort)
+// Solidity: function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress) returns()
+func (_Nodelist *NodelistTransactorSession) ListNode(epoch *big.Int, declaredIp string, pubKx *big.Int, pubKy *big.Int, tmP2PListenAddress string, p2pListenAddress string) (*types.Transaction, error) {
+	return _Nodelist.Contract.ListNode(&_Nodelist.TransactOpts, epoch, declaredIp, pubKx, pubKy, tmP2PListenAddress, p2pListenAddress)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
@@ -490,42 +498,42 @@ func (_Nodelist *NodelistTransactorSession) RenounceOwnership() (*types.Transact
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
+// Solidity: function transferOwnership(address newOwner) returns()
 func (_Nodelist *NodelistTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
 	return _Nodelist.contract.Transact(opts, "transferOwnership", newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
+// Solidity: function transferOwnership(address newOwner) returns()
 func (_Nodelist *NodelistSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
 	return _Nodelist.Contract.TransferOwnership(&_Nodelist.TransactOpts, newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
+// Solidity: function transferOwnership(address newOwner) returns()
 func (_Nodelist *NodelistTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
 	return _Nodelist.Contract.TransferOwnership(&_Nodelist.TransactOpts, newOwner)
 }
 
 // UpdateWhitelist is a paid mutator transaction binding the contract method 0x3d4602a9.
 //
-// Solidity: function updateWhitelist(epoch uint256, nodeAddress address, allowed bool) returns()
+// Solidity: function updateWhitelist(uint256 epoch, address nodeAddress, bool allowed) returns()
 func (_Nodelist *NodelistTransactor) UpdateWhitelist(opts *bind.TransactOpts, epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
 	return _Nodelist.contract.Transact(opts, "updateWhitelist", epoch, nodeAddress, allowed)
 }
 
 // UpdateWhitelist is a paid mutator transaction binding the contract method 0x3d4602a9.
 //
-// Solidity: function updateWhitelist(epoch uint256, nodeAddress address, allowed bool) returns()
+// Solidity: function updateWhitelist(uint256 epoch, address nodeAddress, bool allowed) returns()
 func (_Nodelist *NodelistSession) UpdateWhitelist(epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
 	return _Nodelist.Contract.UpdateWhitelist(&_Nodelist.TransactOpts, epoch, nodeAddress, allowed)
 }
 
 // UpdateWhitelist is a paid mutator transaction binding the contract method 0x3d4602a9.
 //
-// Solidity: function updateWhitelist(epoch uint256, nodeAddress address, allowed bool) returns()
+// Solidity: function updateWhitelist(uint256 epoch, address nodeAddress, bool allowed) returns()
 func (_Nodelist *NodelistTransactorSession) UpdateWhitelist(epoch *big.Int, nodeAddress common.Address, allowed bool) (*types.Transaction, error) {
 	return _Nodelist.Contract.UpdateWhitelist(&_Nodelist.TransactOpts, epoch, nodeAddress, allowed)
 }
@@ -607,7 +615,7 @@ type NodelistNodeListed struct {
 
 // FilterNodeListed is a free log retrieval operation binding the contract event 0xe2f8adb0f494dc82ccf446c031763ef3762d6396d51664611ed89aac0117339e.
 //
-// Solidity: e NodeListed(publicKey address, epoch uint256, position uint256)
+// Solidity: event NodeListed(address publicKey, uint256 epoch, uint256 position)
 func (_Nodelist *NodelistFilterer) FilterNodeListed(opts *bind.FilterOpts) (*NodelistNodeListedIterator, error) {
 
 	logs, sub, err := _Nodelist.contract.FilterLogs(opts, "NodeListed")
@@ -619,7 +627,7 @@ func (_Nodelist *NodelistFilterer) FilterNodeListed(opts *bind.FilterOpts) (*Nod
 
 // WatchNodeListed is a free log subscription operation binding the contract event 0xe2f8adb0f494dc82ccf446c031763ef3762d6396d51664611ed89aac0117339e.
 //
-// Solidity: e NodeListed(publicKey address, epoch uint256, position uint256)
+// Solidity: event NodeListed(address publicKey, uint256 epoch, uint256 position)
 func (_Nodelist *NodelistFilterer) WatchNodeListed(opts *bind.WatchOpts, sink chan<- *NodelistNodeListed) (event.Subscription, error) {
 
 	logs, sub, err := _Nodelist.contract.WatchLogs(opts, "NodeListed")
@@ -730,7 +738,7 @@ type NodelistOwnershipTransferred struct {
 
 // FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
 func (_Nodelist *NodelistFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*NodelistOwnershipTransferredIterator, error) {
 
 	var previousOwnerRule []interface{}
@@ -751,7 +759,7 @@ func (_Nodelist *NodelistFilterer) FilterOwnershipTransferred(opts *bind.FilterO
 
 // WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
 func (_Nodelist *NodelistFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *NodelistOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
 
 	var previousOwnerRule []interface{}

@@ -3,6 +3,8 @@ package dkgnode
 import (
 	"math/big"
 
+	"github.com/torusresearch/torus-public/logging"
+
 	"github.com/looplab/fsm"
 
 	"github.com/torusresearch/torus-public/common"
@@ -58,7 +60,6 @@ type AVSSKeygen interface {
 	// Trigger Start for Keygen and Initialize
 	InitiateKeygen(startingIndex big.Int, endingIndex big.Int, nodeIndexes []big.Int, threshold int) error
 
-
 	//Implementing the Code below will allow KEYGEN to run
 	// "Client" Actions
 	broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error
@@ -78,10 +79,107 @@ type AVSSKeygen interface {
 	// Storage for Secrets/Shares/etc... go here
 }
 
+// fsm.NewFSM(
+// 	"standby",
+// 	fsm.Events{
+// 		{Name: "all_initiate_keygen", Src: []string{"standby"}, Dst: "ready_for_keygen"},
+// 		{Name: "start_keygen", Src: []string{"ready_for_keygen"}, Dst: "running_keygen"},
+// 		{Name: "all_keygen_complete", Src: []string{"running_keygen"}, Dst: "verifying_shares"},
+// 		{Name: "shares_verified", Src: []string{"verifying_shares"}, Dst: "standby"},
+// 	},
+// 	fsm.Callbacks{
+// 		"enter_state": func(e *fsm.Event) { fmt.Printf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+// 		"after_all_keygen_complete": func(e *fsm.Event) {
+// 			// update total number of available keys and epoch
+// 			suite.ABCIApp.state.LastCreatedIndex = suite.ABCIApp.state.LastCreatedIndex + uint(suite.ABCIApp.Suite.Config.KeysPerEpoch)
+// 			fmt.Println("STATUSTX: lastcreatedindex", suite.ABCIApp.state.LastCreatedIndex)
+// 			suite.ABCIApp.state.Epoch = suite.ABCIApp.state.Epoch + uint(1)
+// 			fmt.Println("STATUSTX: state is", suite.ABCIApp.state)
+// 			fmt.Println("STATUSTX: epoch is", suite.ABCIApp.state.Epoch)
+// 		},
+// 	},
+// )
+
 type KeygenInstance struct {
-	State *fsm.FSM
+	State   *fsm.FSM
+	NodeLog map[string]*fsm.FSM
+	KeyLog  map[string](map[string]KEYGENLog)
 }
 
-(avssKeygen *AVSSKeygen) func InitiateKeygen(startingIndex big.Int, endingIndex big.Int, nodeIndexes []big.Int, threshold int) error {
-	fsm.NewFSM
+// KEYGEN STATES (SK)
+const (
+	// Internal States
+	SKWaitingInitiateKeygen = "waiting_initiate_keygen"
+	SKReadyForKeygen        = "ready_for_keygen"
+
+	// For node log
+	SKStandby   = "standby"
+	SKKeygening = "keygening"
+)
+
+// KEYGEN Events (EK)
+const (
+	// Internal Events
+	EKAllInitiateKeygen = "all_initiate_keygen"
+
+	// For node log events
+	EKInitiateKeygen = "initiate_keygen"
+)
+
+//TODO: Potentially Stuff specific KEYGEN Debugger
+func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, endingIndex big.Int, nodeIndexes []big.Int, threshold int) error {
+	// We start initiate keygen state at waiting_initiate_keygen
+	ki.State = fsm.NewFSM(
+		SKWaitingInitiateKeygen,
+		fsm.Events{
+			{Name: EKAllInitiateKeygen, Src: []string{SKWaitingInitiateKeygen}, Dst: SKReadyForKeygen},
+			{Name: "", Src: []string{SKWaitingInitiateKeygen}, Dst: SKReadyForKeygen},
+		},
+		fsm.Callbacks{
+			"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+		},
+	)
+
+	ki.NodeLog = make(map[string]*fsm.FSM)
+	for _, nodeIndex := range nodeIndexes {
+		ki.NodeLog[nodeIndex.Text(16)] = fsm.NewFSM(
+			SKStandby,
+			fsm.Events{
+				{Name: EKInitiateKeygen, Src: []string{SKStandby}, Dst: SKKeygening},
+				{Name: "", Src: []string{"waiting_initiate_keygen"}, Dst: "keygening"},
+			},
+			fsm.Callbacks{
+				"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+				"after_" + EKInitiateKeygen: func(e *fsm.Event) {
+
+					// See if all Initiate Keygens are in
+					counter := 0
+					for _, v := range ki.NodeLog {
+						if v.Current() == SKKeygening {
+							counter++
+						}
+					}
+
+					if counter == len(ki.NodeLog) {
+						go func() {
+							err := ki.State.Event(EKAllInitiateKeygen)
+							if err != nil {
+								logging.Errorf("Could not %s. Err: %s", EKAllInitiateKeygen, err)
+							}
+						}()
+					}
+				},
+			},
+		)
+	}
+
+	ki.KeyLog = make(map[string](map[string]KEYGENLog))
+
+	//TODO: We neet to set a timing (t1) here
+	return nil
+}
+
+func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
+
+	return nil
 }

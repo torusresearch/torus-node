@@ -79,27 +79,6 @@ type AVSSKeygen interface {
 	// Storage for Secrets/Shares/etc... go here
 }
 
-// fsm.NewFSM(
-// 	"standby",
-// 	fsm.Events{
-// 		{Name: "all_initiate_keygen", Src: []string{"standby"}, Dst: "ready_for_keygen"},
-// 		{Name: "start_keygen", Src: []string{"ready_for_keygen"}, Dst: "running_keygen"},
-// 		{Name: "all_keygen_complete", Src: []string{"running_keygen"}, Dst: "verifying_shares"},
-// 		{Name: "shares_verified", Src: []string{"verifying_shares"}, Dst: "standby"},
-// 	},
-// 	fsm.Callbacks{
-// 		"enter_state": func(e *fsm.Event) { fmt.Printf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
-// 		"after_all_keygen_complete": func(e *fsm.Event) {
-// 			// update total number of available keys and epoch
-// 			suite.ABCIApp.state.LastCreatedIndex = suite.ABCIApp.state.LastCreatedIndex + uint(suite.ABCIApp.Suite.Config.KeysPerEpoch)
-// 			fmt.Println("STATUSTX: lastcreatedindex", suite.ABCIApp.state.LastCreatedIndex)
-// 			suite.ABCIApp.state.Epoch = suite.ABCIApp.state.Epoch + uint(1)
-// 			fmt.Println("STATUSTX: state is", suite.ABCIApp.state)
-// 			fmt.Println("STATUSTX: epoch is", suite.ABCIApp.state.Epoch)
-// 		},
-// 	},
-// )
-
 type KeygenInstance struct {
 	State   *fsm.FSM
 	NodeLog map[string]*fsm.FSM

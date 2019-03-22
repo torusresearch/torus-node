@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
 
@@ -92,7 +91,7 @@ func (localHost *P2PSuite) authenticateMessage(message proto.Message, data *p2p.
 	// marshall data without the signature to protobufs3 binary format
 	bin, err := proto.Marshal(message)
 	if err != nil {
-		log.Println(err, "failed to marshal pb message")
+		logging.Errorf("failed to marshal pb message", err)
 		return false
 	}
 
@@ -102,7 +101,7 @@ func (localHost *P2PSuite) authenticateMessage(message proto.Message, data *p2p.
 	// restore peer id binary format from base58 encoded node id data
 	peerId, err := peer.IDB58Decode(data.NodeId)
 	if err != nil {
-		log.Println(err, "Failed to decode node id from base58")
+		logging.Errorf("Failed to decode node id from base58", err)
 		return false
 	}
 
@@ -135,7 +134,7 @@ func (localHost *P2PSuite) signData(data []byte) ([]byte, error) {
 func (localHost *P2PSuite) verifyData(data []byte, signature []byte, peerId peer.ID, pubKeyData []byte) bool {
 	key, err := crypto.UnmarshalPublicKey(pubKeyData)
 	if err != nil {
-		log.Println(err, "Failed to extract key from message key data")
+		logging.Errorf("Failed to extract key from message key data", err)
 		return false
 	}
 
@@ -143,19 +142,19 @@ func (localHost *P2PSuite) verifyData(data []byte, signature []byte, peerId peer
 	idFromKey, err := peer.IDFromPublicKey(key)
 
 	if err != nil {
-		log.Println(err, "Failed to extract peer id from public key")
+		logging.Errorf("Failed to extract peer id from public key", err)
 		return false
 	}
 
 	// verify that message author node id matches the provided node public key
 	if idFromKey != peerId {
-		log.Println(err, "P2PSuite id and provided public key mismatch")
+		logging.Errorf("P2PSuite id and provided public key mismatch", err)
 		return false
 	}
 
 	res, err := key.Verify(data, signature)
 	if err != nil {
-		log.Println(err, "Error authenticating data")
+		logging.Errorf("Error authenticating data", err)
 		return false
 	}
 
@@ -212,17 +211,17 @@ func connectToP2PNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address
 
 	ipfsaddr, err := ma.NewMultiaddr(details.P2pListenAddress)
 	if err != nil {
-		log.Fatalln(err)
+		logging.Error(err.Error())
 	}
 
 	pid, err := ipfsaddr.ValueForProtocol(ma.P_IPFS)
 	if err != nil {
-		log.Fatalln(err)
+		logging.Error(err.Error())
 	}
 
 	peerid, err := peer.IDB58Decode(pid)
 	if err != nil {
-		log.Fatalln(err)
+		logging.Error(err.Error())
 	}
 
 	peerAdded := false

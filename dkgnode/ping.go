@@ -39,7 +39,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	buf, err := ioutil.ReadAll(s)
 	if err != nil {
 		s.Reset()
-		log.Println(err)
+		logging.Error(err.Error())
 		return
 	}
 	s.Close()
@@ -47,16 +47,14 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	// unmarshal it
 	proto.Unmarshal(buf, data)
 	if err != nil {
-		log.Println(err)
+		logging.Error(err.Error())
 		return
 	}
-
-	log.Printf("%s: Received ping request from %s. Message: %s", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.Message)
 
 	valid := p.localHost.authenticateMessage(data, data.MessageData)
 
 	if !valid {
-		log.Println("Failed to authenticate message")
+		logging.Error("Failed to authenticate message")
 		return
 	}
 
@@ -69,7 +67,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	// sign the data
 	signature, err := p.localHost.signProtoMessage(resp)
 	if err != nil {
-		log.Println("failed to sign response")
+		logging.Error("failed to sign response")
 		return
 	}
 
@@ -90,7 +88,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 	buf, err := ioutil.ReadAll(s)
 	if err != nil {
 		s.Reset()
-		log.Println(err)
+		logging.Error(err.Error())
 		return
 	}
 	s.Close()
@@ -98,14 +96,14 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 	// unmarshal it
 	proto.Unmarshal(buf, data)
 	if err != nil {
-		log.Println(err)
+		logging.Error(err.Error())
 		return
 	}
 
 	valid := p.localHost.authenticateMessage(data, data.MessageData)
 
 	if !valid {
-		log.Println("Failed to authenticate message")
+		logging.Error("Failed to authenticate message")
 		return
 	}
 
@@ -115,11 +113,11 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 		// remove request from map as we have processed it here
 		delete(p.requests, data.MessageData.Id)
 	} else {
-		log.Println("Failed to locate request data boject for response")
+		logging.Error("Failed to locate request data boject for response")
 		return
 	}
 
-	log.Printf("%s: Received ping response from %s. Message id:%s. Message: %s.", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.MessageData.Id, data.Message)
+	logging.Debugf("%s: Received ping response from %s. Message id:%s. Message: %s.", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.MessageData.Id, data.Message)
 }
 
 // Pings a peer

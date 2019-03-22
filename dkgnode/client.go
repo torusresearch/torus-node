@@ -134,12 +134,11 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
 
 	n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
-
-	suite.BftSuite.BftNode = n
-
 	if err != nil {
 		logging.Fatalf("Failed to create tendermint node: %v", err)
 	}
+
+	suite.BftSuite.BftNode = n
 
 	//Start Tendermint Node
 	logging.Debugf("Tendermint P2P Connection on: %s", defaultTmConfig.P2P.ListenAddress)

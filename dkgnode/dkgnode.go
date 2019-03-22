@@ -146,7 +146,6 @@ func New() {
 	finishedSetupChan := make(chan struct{})
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
-	go startKeyGenerationWorker(&suite, idleConnsClosed, keyGenMonitorMsgs)
 
 	// Set up standard server
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
@@ -221,7 +220,7 @@ func New() {
 	}
 
 	// TODO: Refactor this a bit.
-	go keyGenWorker(keyGenMonitorMsgs)
+	go keyGenWorker(&suite, keyGenMonitorMsgs)
 
 	if suite.Config.ServeUsingTLS {
 		if suite.Config.UseAutoCert {
@@ -249,7 +248,7 @@ func New() {
 	<-idleConnsClosed
 }
 
-func keyGenWorker(keyGenMonitorMsgs chan KeyGenUpdates) {
+func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
 	for {
 		select {
 
@@ -258,7 +257,7 @@ func keyGenWorker(keyGenMonitorMsgs chan KeyGenUpdates) {
 			if keyGenMonitorMsg.Type == "start_keygen" {
 				//starts keygeneration with starting and ending index
 				logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-				go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+				go startKeyGeneration(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 
 			}
 		}

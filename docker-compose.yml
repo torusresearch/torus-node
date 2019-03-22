@@ -15,6 +15,7 @@ services:
       context: .
     ports:
       - "26656-26657:26656-26657"
+      - "1080"
     volumes:
       - ./config/config.local.1.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl
@@ -28,6 +29,7 @@ services:
       dockerfile: Dockerfile
       context: .
     ports:
+      - "1080"
       - "26659-26660:26656-26657"
     volumes:
       - ./config/config.local.2.json:/.torus/config.json
@@ -43,6 +45,7 @@ services:
       dockerfile: Dockerfile
       context: .
     ports:
+      - "1080"
       - "26661-26662:26656-26657"
     volumes:
       - ./tests/openssl:/.torus/openssl
@@ -57,6 +60,7 @@ services:
       dockerfile: Dockerfile
       context: .
     ports:
+      - "1080"
       - "26663-26664:26656-26657"
     volumes:
       - ./config/config.local.4.json:/.torus/config.json
@@ -71,6 +75,7 @@ services:
       dockerfile: Dockerfile
       context: .
     ports:
+      - "1080"
       - "26665-26666:26656-26657"
     volumes:
       - ./config/config.local.5.json:/.torus/config.json

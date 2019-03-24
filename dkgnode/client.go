@@ -24,6 +24,7 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
 	"github.com/torusresearch/torus-public/secp256k1"
+	"github.com/torusresearch/torus-public/telemetry"
 )
 
 type Message struct {
@@ -70,7 +71,9 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
-	logger := NewTMLogger(suite.Config.LogLevel)
+
+	// logger := NewTMLogger(suite.Config.LogLevel)
+	logger := NoLogger{}
 
 	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
@@ -111,10 +114,10 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	}
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
-	logging.Debugf("PERSISTANT PEERS: %s", defaultTmConfig.P2P.PersistentPeers)
+	logging.Infof("PERSISTANT PEERS: %s", defaultTmConfig.P2P.PersistentPeers)
 	genDoc.Validators = temp
 
-	logging.Debugf("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
+	logging.Infof("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
 		logging.Errorf("%s", err)
 	}
@@ -128,7 +131,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
-	logging.Debugf("NodeKey ID: %s", nodeKey.ID())
+	logging.Infof("NodeKey ID: %s", nodeKey.ID())
 
 	//QUESTION(TEAM): Why do we save the config file?
 	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
@@ -141,8 +144,8 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	suite.BftSuite.BftNode = n
 
 	//Start Tendermint Node
-	logging.Debugf("Tendermint P2P Connection on: %s", defaultTmConfig.P2P.ListenAddress)
-	logging.Debugf("Tendermint Node RPC listening on: %s", defaultTmConfig.RPC.ListenAddress)
+	logging.Infof("Tendermint P2P Connection on: %s", defaultTmConfig.P2P.ListenAddress)
+	logging.Infof("Tendermint Node RPC listening on: %s", defaultTmConfig.RPC.ListenAddress)
 	if err := n.Start(); err != nil {
 		logging.Fatalf("Failed to start tendermint node: %v", err)
 	}
@@ -156,6 +159,10 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 }
 
 func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex int) error {
+	shareCounter := telemetry.NewCounter("num_shares_verified", "how many times shares were verified")
+	invalidShareCounter := telemetry.NewCounter("num_shares_invalid", "how many times shares could not be verified")
+	telemetry.Register(shareCounter)
+	telemetry.Register(invalidShareCounter)
 	nodeList := suite.EthSuite.NodeList
 	bftRPC := suite.BftSuite.BftRPC
 
@@ -368,8 +375,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			logging.Debugf("SHOULD EQL REC %s %d", tempX, tempY)
 			if sumX.Text(16) != tempX.Text(16) || sumY.Text(16) != tempY.Text(16) {
 				logging.Debug("Could not verify share from node")
+				invalidShareCounter.Inc()
 			} else {
-				logging.Debug("Share verified")
+				logging.Info("Share verified")
+				shareCounter.Inc()
 			}
 		}
 

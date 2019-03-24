@@ -20,6 +20,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/torusresearch/torus-public/logging"
+	"github.com/torusresearch/torus-public/telemetry"
 )
 
 const DefaultConfigPath = "/.torus/config.json"
@@ -143,10 +144,8 @@ func New() {
 	nodeListMonitorMsgs := make(chan NodeListUpdates)
 	keyGenMonitorMsgs := make(chan KeyGenUpdates)
 
-	finishedSetupChan := make(chan struct{})
-
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
-
+	go keyGenWorker(&suite, keyGenMonitorMsgs)
 	// Set up standard server
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
@@ -172,13 +171,39 @@ func New() {
 		close(idleConnsClosed)
 	}()
 
+	go func() {
+		if suite.Config.ServeUsingTLS {
+			if suite.Config.UseAutoCert {
+				logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
+			}
+
+			if suite.Config.ServerCert != "" {
+				err := server.ListenAndServeTLS(suite.Config.ServerCert,
+					suite.Config.ServerKey)
+				if err != nil {
+					logging.Fatal(err.Error())
+				}
+			} else {
+				logging.Fatal("Certs not supplied, try running with UseAutoCert")
+			}
+
+		} else {
+			err := server.ListenAndServe()
+			if err != nil {
+				logging.Fatal(err.Error())
+			}
+
+		}
+
+	}()
+
 	// TODO(TEAM): This needs to be less verbose, and wrapped in some functions..
 	// It really doesnt need to run forever right?...
 	// So it runs forever
 
 	// Setup Phase
-	select {
-	case nlMonitorMsg := <-nodeListMonitorMsgs:
+	for {
+		nlMonitorMsg := <-nodeListMonitorMsgs
 		if nlMonitorMsg.Type == "update" {
 			// Compare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
 			if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
@@ -192,58 +217,28 @@ func New() {
 					logging.Infof("Starting tendermint core... NodeList: %v", suite.EthSuite.NodeList)
 					//initialize app val set for the first time and update validators to false
 					go startTendermintCore(&suite, cfg.BasePath+"/tendermint", suite.EthSuite.NodeList, tmCoreMsgs, idleConnsClosed)
+
+					break
 				} else {
 					logging.Warning("ethlist not equal in length to nodelist")
 				}
 			}
 		}
-
-	case coreMsg := <-tmCoreMsgs:
+	}
+	for {
+		coreMsg := <-tmCoreMsgs
 		logging.Debugf("received: %s", coreMsg)
 		if coreMsg == "started_tmcore" {
-			time.Sleep(35 * time.Second) // time is more then the subscriber 30 seconds
 			//Start key generation monitor when bft is done setting up
-			logging.Debugf("Start Key generation monitor: %v, %v", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
+			time.Sleep(35)
+			logging.Infof("Start Key generation monitor: %v, %v", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
 			go startKeyGenerationMonitor(&suite, keyGenMonitorMsgs)
+			break
 		}
-
-	case keyGenMonitorMsg := <-keyGenMonitorMsgs:
-		logging.Debug("KEYGEN: keygenmonitor received message")
-		if keyGenMonitorMsg.Type == "start_keygen" {
-			//starts keygeneration with starting and ending index
-			logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-			go startKeyGeneration(&suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-			finishedSetupChan <- struct{}{}
-		}
-	case <-finishedSetupChan:
-		break
 	}
 
-	// TODO: Refactor this a bit.
-	go keyGenWorker(&suite, keyGenMonitorMsgs)
-
-	if suite.Config.ServeUsingTLS {
-		if suite.Config.UseAutoCert {
-			logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
-		}
-
-		if suite.Config.ServerCert != "" {
-			err := server.ListenAndServeTLS(suite.Config.ServerCert,
-				suite.Config.ServerKey)
-			if err != nil {
-				logging.Fatal(err.Error())
-			}
-		} else {
-			logging.Fatal("Certs not supplied, try running with UseAutoCert")
-		}
-
-	} else {
-		err := server.ListenAndServe()
-		if err != nil {
-			logging.Fatal(err.Error())
-		}
-
-	}
+	logging.Info("starting telemetry")
+	go telemetry.Serve()
 
 	<-idleConnsClosed
 }

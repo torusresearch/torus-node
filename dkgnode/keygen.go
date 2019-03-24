@@ -1,7 +1,10 @@
 package dkgnode
 
 import (
+	"errors"
 	"math/big"
+
+	"github.com/torusresearch/torus-public/pvss"
 
 	"github.com/torusresearch/torus-public/logging"
 
@@ -62,7 +65,7 @@ type AVSSKeygen interface {
 
 	//Implementing the Code below will allow KEYGEN to run
 	// "Client" Actions
-	broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error
+	broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error
 	sendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
 	sendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
 	sendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
@@ -80,9 +83,11 @@ type AVSSKeygen interface {
 }
 
 type KeygenInstance struct {
-	State   *fsm.FSM
-	NodeLog map[string]*fsm.FSM
-	KeyLog  map[string](map[string]KEYGENLog)
+	State      *fsm.FSM
+	NodeLog    map[string]*fsm.FSM               // nodeindex => fsm
+	KeyLog     map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
+	StartIndex big.Int
+	NumOfKeys  int
 }
 
 // KEYGEN STATES (SK)
@@ -106,7 +111,9 @@ const (
 )
 
 //TODO: Potentially Stuff specific KEYGEN Debugger
-func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, endingIndex big.Int, nodeIndexes []big.Int, threshold int) error {
+func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int) error {
+	ki.StartIndex = startingIndex
+	ki.NumOfKeys = numOfKeys
 	// We start initiate keygen state at waiting_initiate_keygen
 	ki.State = fsm.NewFSM(
 		SKWaitingInitiateKeygen,
@@ -119,6 +126,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, endingIndex big.
 		},
 	)
 
+	// Node Log tracks the state of other nodes involved in this Keygen phase
 	ki.NodeLog = make(map[string]*fsm.FSM)
 	for _, nodeIndex := range nodeIndexes {
 		ki.NodeLog[nodeIndex.Text(16)] = fsm.NewFSM(
@@ -154,11 +162,48 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, endingIndex big.
 
 	ki.KeyLog = make(map[string](map[string]KEYGENLog))
 
+	//TODO: Initiate our client functions here before anything else is called (or perhaps even before initiate is called)
+	//prepare commitmentMatrixes for broadcast
+	var commitmentMatrixes [][][]common.Point
+	for i := 0; i < numOfKeys; i++ {
+		secret := *pvss.RandomBigInt()
+		f := pvss.GenerateRandomBivariatePolynomial(secret, threshold)
+		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), threshold)
+		commitmentMatrixes[i] = pvss.GetCommitmentMatrix(f, fprime)
+	}
+	err := ki.broadcastInitiateKeygen(commitmentMatrixes)
+	if err != nil {
+		return err
+	}
 	//TODO: We neet to set a timing (t1) here
 	return nil
 }
 
-func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
+func (ki *KeygenInstance) broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+	return nil
+}
 
+func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
+	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
+	if ki.NodeLog[nodeIndex.Text(16)].Current() == SKStandby {
+		// check length of commitment matrix is right
+		if len(commitmentMatrixes) != ki.NumOfKeys {
+			return errors.New("length of  commitment matrix is not correct")
+		}
+		// store commitment matrix
+		for i, commitmentMatrix := range commitmentMatrixes {
+			index := big.NewInt(int64(i))
+			index.Add(index, &ki.StartIndex)
+			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)] = KEYGENLog{
+				KeyIndex:               *index,
+				NodeIndex:              nodeIndex,
+				C:                      commitmentMatrix,
+				ReceivedEchoes:         make(map[string]KEYGENEcho),          // From(M) big.Int (in hex) to Echo
+				ReceivedReadys:         make(map[string]KEYGENReady),         // From(M) big.Int (in hex) to Ready
+				ReceivedShareCompletes: make(map[string]KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
+			}
+		}
+
+	}
 	return nil
 }

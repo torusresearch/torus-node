@@ -24,6 +24,7 @@ type KEYGENSend struct {
 
 type KEYGENEcho struct {
 	KeyIndex big.Int
+	Dealer   big.Int
 	Aij      big.Int
 	Aprimeij big.Int
 	Bij      big.Int
@@ -90,6 +91,7 @@ type AVSSKeygen interface {
 
 type KeygenInstance struct {
 	NodeIndex  big.Int
+	Threshold  int
 	State      *fsm.FSM
 	NodeLog    map[string]*fsm.FSM               // nodeindex => fsm
 	KeyLog     map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
@@ -121,6 +123,7 @@ const (
 //TODO: Potentially Stuff specific KEYGEN Debugger
 func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int) error {
 	ki.NodeIndex = nodeIndex
+	ki.Threshold = threshold
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
 	// We start initiate keygen state at waiting_initiate_keygen
@@ -260,7 +263,7 @@ func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 			msg.BIX,
 			msg.BIprimeX,
 		) {
-			return errors.New(fmt.Sprintf("poly not valid to declared commitments. From: %s To: %s KEYGENSend: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
+			return errors.New(fmt.Sprintf("KEYGENSend not valid to declared commitments. From: %s To: %s KEYGENSend: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
 		}
 
 		//since valid we log
@@ -274,6 +277,7 @@ func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 			nodeToSendIndex.SetString(k, 16)
 			keygenEcho := KEYGENEcho{
 				KeyIndex: msg.KeyIndex,
+				Dealer:   fromNodeIndex,
 				Aij:      *pvss.PolyEval(msg.AIY, nodeToSendIndex),
 				Aprimeij: *pvss.PolyEval(msg.AIprimeY, nodeToSendIndex),
 				Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
@@ -285,6 +289,30 @@ func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	return nil
 }
 func (ki *KeygenInstance) onKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
+	if ki.State.Current() == SKRunningKeygen {
+		//verify echo, if correct log echo. If there are more then threshold Echos we send ready
+		if !pvss.AVSSVerifyPoint(
+			ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].C,
+			fromNodeIndex,
+			ki.NodeIndex,
+			msg.Aij,
+			msg.Aprimeij,
+			msg.Bij,
+			msg.Bprimeij,
+		) {
+			//TODO: potentially invalidate nodes here
+			return errors.New(fmt.Sprintf("KEYGENEcho not valid to declared commitments. From: %s To: %s KEYGENEcho: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
+		}
+
+		//log echo
+		ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedEchoes[fromNodeIndex.Text(16)] = msg
+
+		// check for echos
+		if ki.Threshold <= len(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedEchoes) {
+			//since threshould and above we send ready
+
+		}
+	}
 	return nil
 }
 func (ki *KeygenInstance) onKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {

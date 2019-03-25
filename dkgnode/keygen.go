@@ -2,6 +2,7 @@ package dkgnode
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/torusresearch/torus-public/pvss"
@@ -88,6 +89,7 @@ type AVSSKeygen interface {
 }
 
 type KeygenInstance struct {
+	NodeIndex  big.Int
 	State      *fsm.FSM
 	NodeLog    map[string]*fsm.FSM               // nodeindex => fsm
 	KeyLog     map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
@@ -100,7 +102,7 @@ type KeygenInstance struct {
 const (
 	// Internal States
 	SKWaitingInitiateKeygen = "waiting_initiate_keygen"
-	SKReadyForKeygen        = "ready_for_keygen"
+	SKRunningKeygen         = "running_keygen"
 
 	// For node log
 	SKStandby   = "standby"
@@ -117,19 +119,21 @@ const (
 )
 
 //TODO: Potentially Stuff specific KEYGEN Debugger
-func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int) error {
+func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int) error {
+	ki.NodeIndex = nodeIndex
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
 	// We start initiate keygen state at waiting_initiate_keygen
 	ki.State = fsm.NewFSM(
 		SKWaitingInitiateKeygen,
 		fsm.Events{
-			{Name: EKAllInitiateKeygen, Src: []string{SKWaitingInitiateKeygen}, Dst: SKReadyForKeygen},
-			{Name: "", Src: []string{SKWaitingInitiateKeygen}, Dst: SKReadyForKeygen},
+			{Name: EKAllInitiateKeygen, Src: []string{SKWaitingInitiateKeygen}, Dst: SKRunningKeygen},
+			{Name: "", Src: []string{SKRunningKeygen}, Dst: SKRunningKeygen},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
 			"after_" + EKAllInitiateKeygen: func(e *fsm.Event) {
+				//TODO: Take care of case where this is called by end in t1
 				// send all KEGENSends to  respective nodes
 				for i := int(startingIndex.Int64()); i < numOfKeys+int(startingIndex.Int64()); i++ {
 					keyIndex := big.NewInt(int64(i))
@@ -216,6 +220,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 		return err
 	}
 	//TODO: We neet to set a timing (t1) here
+	//TODO: Trigger setting up of listeners here
 	return nil
 }
 
@@ -245,6 +250,38 @@ func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point
 }
 
 func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
+	if ki.State.Current() == SKRunningKeygen {
+		// we verify keygen, if valid we log it here. Then we send an echo
+		if !pvss.AVSSVerifyPoly(
+			ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].C,
+			ki.NodeIndex,
+			msg.AIY,
+			msg.AIprimeY,
+			msg.BIX,
+			msg.BIprimeX,
+		) {
+			return errors.New(fmt.Sprintf("poly not valid to declared commitments. From: %s To: %s KEYGENSend: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
+		}
+
+		//since valid we log
+		// workaround https://github.com/golang/go/issues/3117
+		var tmp = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
+		tmp.ReceivedSend = msg
+		ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)] = tmp
+		// and send echo
+		for k := range ki.NodeLog {
+			nodeToSendIndex := big.Int{}
+			nodeToSendIndex.SetString(k, 16)
+			keygenEcho := KEYGENEcho{
+				KeyIndex: msg.KeyIndex,
+				Aij:      *pvss.PolyEval(msg.AIY, nodeToSendIndex),
+				Aprimeij: *pvss.PolyEval(msg.AIprimeY, nodeToSendIndex),
+				Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
+				Bprimeij: *pvss.PolyEval(msg.BIprimeX, nodeToSendIndex),
+			}
+			ki.sendKEYGENEcho(keygenEcho, nodeToSendIndex)
+		}
+	}
 	return nil
 }
 func (ki *KeygenInstance) onKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {

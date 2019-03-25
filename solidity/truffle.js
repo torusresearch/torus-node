@@ -24,7 +24,7 @@ const HDWalletProvider = require('truffle-hdwallet-provider');
 // const private = require('../private.json');
 // const mnemonic = private.funds;
 // const infuraKey = private.infura;
-
+const mnemonic = 'oil foam cement clerk open rough entry swarm poverty length tail portion';
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
@@ -41,7 +41,12 @@ module.exports = {
       network_id: '*', // Match any network id
       gas: 4700000,
     },
-    
+    staging: {
+      network_id: '*', // Match any network id
+      provider: function() {
+        return new HDWalletProvider(mnemonic, 'https://ganache.staging.dev.tor.us');
+      },
+    },
     // digital: {
     //   provider: new HDWalletProvider(private.ganache, 'http://178.128.178.162:14103'),
     //   network_id: '*',

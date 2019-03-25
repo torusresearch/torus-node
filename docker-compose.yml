@@ -10,12 +10,11 @@ services:
       localnet:
 
   node_one:
-    build: 
-      dockerfile: Dockerfile
-      context: .
+    image: torus:latest
     ports:
       - "26656-26657:26656-26657"
       - "1080"
+      - "7001:8080"
     volumes:
       - ./config/config.local.1.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl
@@ -25,11 +24,11 @@ services:
       localnet:
         ipv4_address: 192.167.10.2
   node_two:
-    build: 
-      dockerfile: Dockerfile
-      context: .
+    image: torus:latest
     ports:
+      - "1080"
       - "26659-26660:26656-26657"
+      - "7002:8080"
       - "1080"
     volumes:
       - ./config/config.local.2.json:/.torus/config.json
@@ -41,12 +40,11 @@ services:
         ipv4_address: 192.167.10.3
 
   node_three:
-    build: 
-      dockerfile: Dockerfile
-      context: .
+    image: torus:latest
     ports:
       - "1080"
       - "26661-26662:26656-26657"
+      - "7003:8080"
     volumes:
       - ./tests/openssl:/.torus/openssl
       - ./config/config.local.3.json:/.torus/config.json
@@ -56,12 +54,11 @@ services:
       localnet:
         ipv4_address: 192.167.10.4
   node_four:
-    build: 
-      dockerfile: Dockerfile
-      context: .
+    image: torus:latest
     ports:
       - "1080"
       - "26663-26664:26656-26657"
+      - "7004:8080"
     volumes:
       - ./config/config.local.4.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl
@@ -71,12 +68,11 @@ services:
       localnet:
         ipv4_address: 192.167.10.5
   node_five:
-    build: 
-      dockerfile: Dockerfile
-      context: .
+    image: torus:latest
     ports:
       - "1080"
       - "26665-26666:26656-26657"
+      - "7005:8080"
     volumes:
       - ./config/config.local.5.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl

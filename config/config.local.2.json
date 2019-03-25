@@ -1,5 +1,5 @@
 {
-  "myport": "8001",
+  "httpServerPort": "8001",
   "ethconnection": "http://ganache:8545",
   "ethprivatekey": "318437152af791c195d32218ea759e10b8ac5ac78e1cb2e131997a2d682c6613",
   "bfturi": "tcp://0.0.0.0:26660",

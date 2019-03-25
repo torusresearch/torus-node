@@ -16,7 +16,6 @@ import (
 	"github.com/Rican7/retry/strategy"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmnode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -25,6 +24,7 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
 	"github.com/torusresearch/torus-public/secp256k1"
+	"github.com/torusresearch/torus-public/telemetry"
 )
 
 type Message struct {
@@ -65,31 +65,16 @@ type SigncryptedMessage struct {
 	ShareIndex  uint   `json:"shareindex"`
 }
 
-type NoLogger struct {
-	tmlog.Logger
-}
-
-func (NoLogger) Debug(msg string, keyvals ...interface{}) {
-}
-
-func (NoLogger) Info(msg string, keyvals ...interface{}) {
-}
-
-func (NoLogger) Error(msg string, keyvals ...interface{}) {
-}
-
-func (NoLogger) With(keyvals ...interface{}) tmlog.Logger {
-	return NoLogger{}
-}
-
-func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReference, tmCoreMsgs chan string) (string, error) {
+func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReference, tmCoreMsgs chan string, idleConnsClosed chan struct{}) (string, error) {
 
 	//Starts tendermint node here
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
 	// logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	// logger := NewTMLogger(suite.Config.LogLevel)
 	logger := NoLogger{}
+
 	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
 	//converts own pv to tendermint key TODO: Double check verification
@@ -129,10 +114,10 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	}
 	defaultTmConfig.P2P.PersistentPeers = strings.Join(persistantPeersList, ",")
 
-	logging.Debugf("PERSISTANT PEERS: %s", defaultTmConfig.P2P.PersistentPeers)
+	logging.Infof("PERSISTANT PEERS: %s", defaultTmConfig.P2P.PersistentPeers)
 	genDoc.Validators = temp
 
-	logging.Debugf("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
+	logging.Infof("SAVED GENESIS FILE IN: %s", defaultTmConfig.GenesisFile())
 	if err := genDoc.SaveAs(defaultTmConfig.GenesisFile()); err != nil {
 		logging.Errorf("%s", err)
 	}
@@ -146,45 +131,38 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	defaultTmConfig.P2P.MaxNumOutboundPeers = 300
 	//TODO: change to true in production?
 	defaultTmConfig.P2P.AddrBookStrict = false
-	defaultTmConfig.LogLevel = "*:error"
-	logging.Debugf("NodeKey ID: %s", nodeKey.ID())
-	//save config
+	logging.Infof("NodeKey ID: %s", nodeKey.ID())
+
+	//QUESTION(TEAM): Why do we save the config file?
 	tmconfig.WriteConfigFile(defaultTmConfig.RootDir+"/config/config.toml", defaultTmConfig)
 
 	n, err := tmnode.DefaultNewNode(defaultTmConfig, logger)
-
-	suite.BftSuite.BftNode = n
-	// n, err := tmnode.NewNode(
-	// 	defaultTmConfig,
-	// 	pvFile,
-	// 	nodeKey,
-	// 	tmproxy.DefaultClientCreator(defaultTmConfig.ProxyApp, defaultTmConfig.ABCI, defaultTmConfig.DBDir()),
-	// 	ProvideGenDoc(&genDoc),
-	// 	tmnode.DefaultDBProvider,
-	// 	tmnode.DefaultMetricsProvider(defaultTmConfig.Instrumentation),
-	// 	logger,
-	// )
-
 	if err != nil {
 		logging.Fatalf("Failed to create tendermint node: %v", err)
 	}
 
+	suite.BftSuite.BftNode = n
+
 	//Start Tendermint Node
-	logging.Debugf("Tendermint P2P Connection on: %s", defaultTmConfig.P2P.ListenAddress)
-	logging.Debugf("Tendermint Node RPC listening on: %s", defaultTmConfig.RPC.ListenAddress)
+	logging.Infof("Tendermint P2P Connection on: %s", defaultTmConfig.P2P.ListenAddress)
+	logging.Infof("Tendermint Node RPC listening on: %s", defaultTmConfig.RPC.ListenAddress)
 	if err := n.Start(); err != nil {
 		logging.Fatalf("Failed to start tendermint node: %v", err)
 	}
-	logger.Info("Started tendermint node", "nodeInfo", n.Switch().NodeInfo())
+	logging.Infof("Started tendermint nodeInfo: %s", n.Switch().NodeInfo())
 
 	//send back message saying ready
 	tmCoreMsgs <- "started_tmcore"
 
-	// Run forever, blocks goroutine
-	select {}
+	<-idleConnsClosed
+	return "Keygen complete.", nil
 }
 
 func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex int) error {
+	shareCounter := telemetry.NewCounter("num_shares_verified", "how many times shares were verified")
+	invalidShareCounter := telemetry.NewCounter("num_shares_invalid", "how many times shares could not be verified")
+	telemetry.Register(shareCounter)
+	telemetry.Register(invalidShareCounter)
 	nodeList := suite.EthSuite.NodeList
 	bftRPC := suite.BftSuite.BftRPC
 
@@ -297,10 +275,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 		// TODO: make epoch variable
 		allKeygenComplete := suite.ABCIApp.state.LocalStatus.Current()
 		if allKeygenComplete == "running_keygen" {
-			fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
+			// fmt.Println("KEYGEN: nodes have not finished sending shares for epoch, appstate", suite.ABCIApp.state)
 			continue
 		}
-		fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
+		// fmt.Println("KEYGEN: all nodes have finished sending shares for epoch, appstate", suite.ABCIApp.state)
 
 		// Check if we have received all shares from nodes
 		var sharesNotIn = false
@@ -314,7 +292,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 						break
 					}
 				} else {
-					fmt.Println("KEYGEN: Could not find mapping for node ", i, nodeList[i].Address.Hex())
+					// fmt.Println("KEYGEN: Could not find mapping for node ", i, nodeList[i].Address.Hex())
 					sharesNotIn = true
 					break
 				}
@@ -397,8 +375,10 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 			logging.Debugf("SHOULD EQL REC %s %d", tempX, tempY)
 			if sumX.Text(16) != tempX.Text(16) || sumY.Text(16) != tempY.Text(16) {
 				logging.Debug("Could not verify share from node")
+				invalidShareCounter.Inc()
 			} else {
 				logging.Debug("Share verified")
+				shareCounter.Inc()
 			}
 		}
 

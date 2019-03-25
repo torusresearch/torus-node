@@ -92,9 +92,9 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 	}
 }
 
-func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
+func startNodeListMonitor(suite *Suite, tickerChan <-chan time.Time, nodeListUpdates chan NodeListUpdates) {
 	logging.Info("Started Node List Monitor")
-	for {
+	for _ = range tickerChan {
 		logging.Debug("Checking Node List...")
 		// Fetch Node List from contract address
 		//TODO: make epoch vairable
@@ -129,6 +129,6 @@ func startNodeListMonitor(suite *Suite, nodeListUpdates chan NodeListUpdates) {
 				nodeListUpdates <- NodeListUpdates{"update", nodeList}
 			}
 		}
-		time.Sleep(1 * time.Second) //check node list every second for updates
 	}
+
 }

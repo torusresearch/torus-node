@@ -40,11 +40,8 @@ type KEYGENReady struct {
 type KEYGENLog struct {
 	KeyIndex               big.Int
 	NodeIndex              big.Int
-	C                      [][]common.Point // big.Int (in hex) to Commitment matrix
-	AIY                    common.PrimaryPolynomial
-	AIprimeY               common.PrimaryPolynomial
-	BIX                    common.PrimaryPolynomial
-	BIprimeX               common.PrimaryPolynomial
+	C                      [][]common.Point               // big.Int (in hex) to Commitment matrix
+	ReceivedSend           KEYGENSend                     // Polynomials for respective commitment matrix.
 	ReceivedEchoes         map[string]KEYGENEcho          // From(M) big.Int (in hex) to Echo
 	ReceivedReadys         map[string]KEYGENReady         // From(M) big.Int (in hex) to Ready
 	ReceivedShareCompletes map[string]KEYGENShareComplete // From(M) big.Int (in hex) to ShareComplete
@@ -57,6 +54,14 @@ type KEYGENShareComplete struct {
 	u2       big.Int
 	gsi      common.Point
 	gsihr    common.Point
+}
+
+// KeyIndex => KEYGENSecrets
+// Used to keep secrets and polynomials for secrets (As well as KEYGENSends sent by the node)
+type KEYGENSecrets struct {
+	secret big.Int
+	f      [][]big.Int
+	fprime [][]big.Int
 }
 
 type AVSSKeygen interface {
@@ -88,6 +93,7 @@ type KeygenInstance struct {
 	KeyLog     map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
 	StartIndex big.Int
 	NumOfKeys  int
+	Secrets    map[string]KEYGENSecrets // keyindex => KEYGENSecrets
 }
 
 // KEYGEN STATES (SK)
@@ -123,6 +129,31 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+			"after_" + EKAllInitiateKeygen: func(e *fsm.Event) {
+				// send all KEGENSends to  respective nodes
+				for i := int(startingIndex.Int64()); i < numOfKeys+int(startingIndex.Int64()); i++ {
+					keyIndex := big.NewInt(int64(i))
+					committedSecrets := ki.Secrets[keyIndex.Text(16)]
+					for k := range ki.NodeLog {
+						nodeIndex := big.Int{}
+						nodeIndex.SetString(k, 16)
+
+						keygenSend := KEYGENSend{
+							KeyIndex: *keyIndex,
+							AIY:      pvss.EvaluateBivarPolyAtX(committedSecrets.f, nodeIndex),
+							AIprimeY: pvss.EvaluateBivarPolyAtX(committedSecrets.fprime, nodeIndex),
+							BIX:      pvss.EvaluateBivarPolyAtY(committedSecrets.f, nodeIndex),
+							BIprimeX: pvss.EvaluateBivarPolyAtY(committedSecrets.fprime, nodeIndex),
+						}
+						//send to node
+						err := ki.sendKEYGENSend(keygenSend, nodeIndex)
+						if err != nil {
+							//TODO: Resend
+							logging.Errorf("Could not send KEYGENSend : %s", err)
+						}
+					}
+				}
+			},
 		},
 	)
 
@@ -161,25 +192,30 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	}
 
 	ki.KeyLog = make(map[string](map[string]KEYGENLog))
+	ki.Secrets = make(map[string]KEYGENSecrets)
 
-	//TODO: Initiate our client functions here before anything else is called (or perhaps even before initiate is called)
-	//prepare commitmentMatrixes for broadcast
+	// prepare commitmentMatrixes for broadcast
 	var commitmentMatrixes [][][]common.Point
 	for i := 0; i < numOfKeys; i++ {
 		secret := *pvss.RandomBigInt()
 		f := pvss.GenerateRandomBivariatePolynomial(secret, threshold)
 		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), threshold)
 		commitmentMatrixes[i] = pvss.GetCommitmentMatrix(f, fprime)
+
+		// store secrets
+		keyIndex := big.NewInt(int64(i))
+		keyIndex.Add(keyIndex, &startingIndex)
+		ki.Secrets[keyIndex.Text(16)] = KEYGENSecrets{
+			secret: secret,
+			f:      f,
+			fprime: fprime,
+		}
 	}
 	err := ki.broadcastInitiateKeygen(commitmentMatrixes)
 	if err != nil {
 		return err
 	}
 	//TODO: We neet to set a timing (t1) here
-	return nil
-}
-
-func (ki *KeygenInstance) broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
 	return nil
 }
 
@@ -205,5 +241,35 @@ func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point
 		}
 
 	}
+	return nil
+}
+
+func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
+	return nil
+}
+func (ki *KeygenInstance) onKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
+	return nil
+}
+func (ki *KeygenInstance) onKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
+	return nil
+}
+func (ki *KeygenInstance) onKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error {
+	return nil
+}
+
+//TODO: Initiate our client functions here before anything else is called (or perhaps even before initiate is called)
+func (ki *KeygenInstance) broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+	return nil
+}
+func (ki *KeygenInstance) sendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error {
+	return nil
+}
+func (ki *KeygenInstance) sendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error {
+	return nil
+}
+func (ki *KeygenInstance) sendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error {
+	return nil
+}
+func (ki *KeygenInstance) broadcastKEYGENShareComplete(msg KEYGENShareComplete, nodeIndex big.Int) error {
 	return nil
 }

@@ -215,7 +215,7 @@ func defaultConfigSettings() Config {
 		KeyBufferTriggerPercentage: 80,
 		BasePath:                   "/.torus",
 		IsProduction:               false,
-		LogLevel:                   "debug",
+		LogLevel:                   "info",
 		ServerCert:                 "/.torus/openssl/server.crt",
 		ServerKey:                  "/.torus/openssl/server.key",
 	}

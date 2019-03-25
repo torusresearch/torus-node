@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/pprof"
+	"strings"
 	"syscall"
 	"time"
 
@@ -121,7 +122,7 @@ func New() {
 
 	if cfg.ShouldRegister && whitelisted {
 		// register Node
-		externalAddr := suite.Config.P2PListenAddress
+		externalAddr := "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.TMP2PListenAddress, ":")[2]
 
 		// var externalAddr string
 		// if cfg.ProvidedIPAddress != "" {
@@ -145,7 +146,6 @@ func New() {
 	keyGenMonitorMsgs := make(chan KeyGenUpdates)
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
-	go keyGenWorker(&suite, keyGenMonitorMsgs)
 	// Set up standard server
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
@@ -225,18 +225,22 @@ func New() {
 			}
 		}
 	}
+
+	logging.Info("Sleeeping...")
+	time.Sleep(35 * time.Second)
+	logging.Info("Waking up...")
 	for {
 		coreMsg := <-tmCoreMsgs
 		logging.Debugf("received: %s", coreMsg)
 		if coreMsg == "started_tmcore" {
 			//Start key generation monitor when bft is done setting up
-			time.Sleep(35)
 			logging.Infof("Start Key generation monitor: %v, %v", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
 			go startKeyGenerationMonitor(&suite, keyGenMonitorMsgs)
 			break
 		}
 	}
 
+	go keyGenWorker(&suite, keyGenMonitorMsgs)
 	logging.Info("starting telemetry")
 	go telemetry.Serve()
 

@@ -6,10 +6,9 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/looplab/fsm"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/looplab/fsm"
 	"github.com/pkg/errors"
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/types"
@@ -125,35 +124,40 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 							fsm, ok := app.state.NodeStatus[uint(nodeI.Index.Int64())]
 							if ok && fsm.Current() == "initiated_keygen" {
 								//statusTx.Data
-								fmt.Println("STATUSTX: DATA")
 								stopIndex := string(e.Args[0].([]byte))
-								fmt.Println(e.Args)
-								fmt.Println(stopIndex)
-								fmt.Println("STATUSTX: Initiate Key Gen Registered till ", stopIndex)
+								// TODO: Remove or convert to logging
+								// fmt.Println("STATUSTX: DATA")
+								// fmt.Println(e.Args)
+								// fmt.Println(stopIndex)
+								// fmt.Println("STATUSTX: Initiate Key Gen Registered till ", stopIndex)
 								if stopIndex != strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)) {
-									fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
+
+									// TODO: Remove or convert to logging
+									// fmt.Println("here2", strconv.Itoa(app.Suite.Config.KeysPerEpoch+int(app.state.LastCreatedIndex)))
 									continue
 								}
 								percentLeft := 100 * (app.state.LastCreatedIndex - app.state.LastUnassignedIndex) / uint(app.Suite.Config.KeysPerEpoch)
 								if percentLeft > uint(app.Suite.Config.KeyBufferTriggerPercentage) {
-									fmt.Println("KEYGEN: Haven't hit buffer amount, percentLeft, lastcreatedindex, lastunassignedindex", percentLeft, app.state.LastCreatedIndex, app.state.LastUnassignedIndex)
+
+									// TODO: Remove or convert to logging
+									// fmt.Println("KEYGEN: Haven't hit buffer amount, percentLeft, lastcreatedindex, lastunassignedindex", percentLeft, app.state.LastCreatedIndex, app.state.LastUnassignedIndex)
 									continue
 								}
 								counter++
 							}
 						}
-						fmt.Println("STATUSTX: another counter is at", counter)
+						// fmt.Println("STATUSTX: another counter is at", counter)
 						// if so we change local status to be ready for keygen
 						if counter == len(app.Suite.EthSuite.NodeList) {
-							fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
+							// fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
 							app.state.LocalStatus.Event("all_initiate_keygen") // TODO: make epoch variable
-							fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
+							// fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
 						} else {
-							fmt.Println("Number of keygen initiation messages does not match number of nodes")
+							// fmt.Println("Number of keygen initiation messages does not match number of nodes")
 						}
 					},
 					"after_keygen_complete": func(e *fsm.Event) {
-						fmt.Println("KEYGEN: after_keygen_complete called")
+						// fmt.Println("KEYGEN: after_keygen_complete called")
 						// Update LocalStatus based on rules
 						// check if all nodes have broadcasted keygen_complete == "Y"
 						counter := 0
@@ -163,9 +167,9 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 								counter++
 							}
 						}
-						fmt.Println("STATUSTX: counter is at ", counter)
+						// fmt.Println("STATUSTX: counter is at ", counter)
 						if counter == len(app.Suite.EthSuite.NodeList) {
-							fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
+							// fmt.Println("STATUSTX: entered counter", counter, app.Suite.EthSuite.NodeList)
 							// set all_keygen_complete to Y
 
 							// reset all other nodes' keygen completion status
@@ -174,25 +178,25 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 								if ok {
 									go func() {
 										err = fsm.Event("end_keygen")
-										fmt.Println("KEYGEN: node status changed state to ", fsm.Current())
+										// fmt.Println("KEYGEN: node status changed state to ", fsm.Current())
 										if err != nil {
-											fmt.Println("ERROR: Error changing state ", err)
+											// fmt.Println("ERROR: Error changing state ", err)
 										}
 									}()
 								} else {
-									fmt.Println("KEYGEN: Could not find NodeStatus FSM for index ", uint(nodeI.Index.Int64()))
+									// fmt.Println("KEYGEN: Could not find NodeStatus FSM for index ", uint(nodeI.Index.Int64()))
 								}
 							}
-							fmt.Println("KEYGEN: changed state to standby", app.state.NodeStatus)
+							// fmt.Println("KEYGEN: changed state to standby", app.state.NodeStatus)
 
 							err := app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
 							if err != nil {
-								fmt.Println("KEYGEN: Error changing state ", err)
+								// fmt.Println("KEYGEN: Error changing state ", err)
 								return
 							}
-							fmt.Println("KEYGEN: changed state to verifying", app.state.LocalStatus.Current())
+							// fmt.Println("KEYGEN: changed state to verifying", app.state.LocalStatus.Current())
 						} else {
-							fmt.Println("Number of keygen initiation messages does not match number of nodes")
+							// fmt.Println("Number of keygen initiation messages does not match number of nodes")
 						}
 					},
 				},
@@ -201,7 +205,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 
 		// set status
 		app.state.NodeStatus[uint(nodeIndex)].Event(statusTx.StatusType, statusTx.Data)
-		fmt.Println("STATUSTX: status set for node", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
+		// fmt.Println("STATUSTX: status set for node", uint(nodeIndex), statusTx.StatusType, statusTx.StatusValue)
 
 		tags = []common.KVPair{
 			{Key: []byte("status"), Value: []byte("1")},

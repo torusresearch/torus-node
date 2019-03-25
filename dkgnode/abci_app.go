@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/looplab/fsm"
-
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
@@ -97,10 +96,12 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 			"after_all_keygen_complete": func(e *fsm.Event) {
 				// update total number of available keys and epoch
 				suite.ABCIApp.state.LastCreatedIndex = suite.ABCIApp.state.LastCreatedIndex + uint(suite.ABCIApp.Suite.Config.KeysPerEpoch)
-				fmt.Println("STATUSTX: lastcreatedindex", suite.ABCIApp.state.LastCreatedIndex)
 				suite.ABCIApp.state.Epoch = suite.ABCIApp.state.Epoch + uint(1)
-				fmt.Println("STATUSTX: state is", suite.ABCIApp.state)
-				fmt.Println("STATUSTX: epoch is", suite.ABCIApp.state.Epoch)
+
+				// TODO: Move to logging, or uncomment if running locally
+				// fmt.Println("STATUSTX: lastcreatedindex", suite.ABCIApp.state.LastCreatedIndex)
+				// fmt.Println("STATUSTX: state is", suite.ABCIApp.state)
+				// fmt.Println("STATUSTX: epoch is", suite.ABCIApp.state.Epoch)
 			},
 		},
 	)

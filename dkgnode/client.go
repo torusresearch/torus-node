@@ -71,7 +71,7 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
-
+	// logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
 	// logger := NewTMLogger(suite.Config.LogLevel)
 	logger := NoLogger{}
 
@@ -377,7 +377,7 @@ func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex i
 				logging.Debug("Could not verify share from node")
 				invalidShareCounter.Inc()
 			} else {
-				logging.Info("Share verified")
+				logging.Debug("Share verified")
 				shareCounter.Inc()
 			}
 		}

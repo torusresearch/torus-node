@@ -1,5 +1,6 @@
 /solidity/build/
 /solidity/node_modules/
+/scripts/js/node_modules/
 /private.json
 /.vscode
 package-lock.json

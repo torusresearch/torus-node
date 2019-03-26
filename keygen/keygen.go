@@ -120,8 +120,9 @@ const (
 // KEYGEN Events (EK)
 const (
 	// Internal Events
-	EKAllInitiateKeygen = "all_initiate_keygen"
-	EKAllSubsharesDone  = "all_subshares_done"
+	EKAllInitiateKeygen  = "all_initiate_keygen"
+	EKAllSubsharesDone   = "all_subshares_done"
+	EKAllKeygenCompleted = "all_keygen_completed"
 
 	// For node log events
 	EKInitiateKeygen = "initiate_keygen"
@@ -141,9 +142,10 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 		fsm.Events{
 			{Name: EKAllInitiateKeygen, Src: []string{SKWaitingInitiateKeygen}, Dst: SKRunningKeygen},
 			{Name: EKAllSubsharesDone, Src: []string{SKRunningKeygen}, Dst: SKWaitingKEYGENShareComplete},
+			{Name: EKAllKeygenCompleted, Src: []string{SKWaitingKEYGENShareComplete}, Dst: SKKeygenCompleted},
 		},
 		fsm.Callbacks{
-			"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+			"enter_state": func(e *fsm.Event) { logging.Debugf("KEYGEN: state transition from %s to %s", e.Src, e.Dst) },
 			"after_" + EKAllInitiateKeygen: func(e *fsm.Event) {
 				//TODO: Take care of case where this is called by end in t1
 				// send all KEGENSends to  respective nodes
@@ -213,7 +215,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 			SKStandby,
 			fsm.Events{
 				{Name: EKInitiateKeygen, Src: []string{SKStandby}, Dst: SKKeygening},
-				{Name: "", Src: []string{"waiting_initiate_keygen"}, Dst: "keygening"},
+				{Name: "valid_shares", Src: []string{SKKeygening}, Dst: "qualified_node"},
 			},
 			fsm.Callbacks{
 				"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
@@ -458,17 +460,43 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 }
 
 func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete, fromNodeIndex big.Int) error {
-	//verify shareCompletes by first verifying NIZKPK Proof
-	validProofs := true
-	for _, keygenShareCom := range keygenShareCompletes {
+	//verify shareCompletes
+	for i, keygenShareCom := range keygenShareCompletes {
+		// ensure valid keyindex
+		expectedKeyIndex := big.NewInt(int64(i))
+		expectedKeyIndex.Add(expectedKeyIndex, &ki.StartIndex)
+		if expectedKeyIndex.Cmp(&keygenShareCom.KeyIndex) != 0 {
+			return errors.New("Faulty key index on OnKEYGENShareComplete")
+		}
+		// by first verifying NIZKPK Proof
 		if !pvss.VerifyNIZKPK(keygenShareCom.c, keygenShareCom.u1, keygenShareCom.u2, keygenShareCom.gsi, keygenShareCom.gsihr) {
-			validProofs = false
+			return errors.New("Faulty NIZKPK Proof on OnKEYGENShareComplete")
+		}
+
+		// add up all commitments
+		var sumCommitments [][]common.Point
+		//TODO: Potentially quite intensive
+		for _, keylog := range ki.KeyLog[keygenShareCom.KeyIndex.Text(16)] {
+			if len(sumCommitments) == 0 {
+				sumCommitments = keylog.C
+			} else {
+				sumCommitments, _ = pvss.AVSSAddCommitment(sumCommitments, keylog.C)
+				// if err != nil {
+				// 	return err
+				// }
+			}
+		}
+
+		//test commmitment
+		if !pvss.AVSSVerifyShareCommitment(sumCommitments, fromNodeIndex, keygenShareCom.gsihr) {
+			return errors.New("Faulty Share Commitment OnKEYGENShareComplete")
 		}
 	}
 
-	// add up all commitments
+	// we get here if everything passes
+	ki.NodeLog[fromNodeIndex.Text(16)].Event("valid_shares")
+
 	// gshr should be a point on the sum commitment matix
-	compare to
 	return nil
 }
 

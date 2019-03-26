@@ -87,7 +87,7 @@ type AVSSKeygen interface {
 	OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error
 	OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error
 	OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error
-	OnKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error
+	OnKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete, fromNodeIndex big.Int) error
 
 	// Storage for Secrets/Shares/etc... go here
 }
@@ -188,8 +188,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
 						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
 					}
-					r := pvss.RandomBigInt()
-					c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *r)
+					c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
 
 					keygenShareCompletes[i] = KEYGENShareComplete{
 						KeyIndex: keyIndex,
@@ -281,6 +280,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 		for i, commitmentMatrix := range commitmentMatrixes {
 			index := big.NewInt(int64(i))
 			index.Add(index, &ki.StartIndex)
+			//TODO: create state to handle time out of t2
 			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)] = KEYGENLog{
 				KeyIndex:               *index,
 				NodeIndex:              nodeIndex,
@@ -457,7 +457,18 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	return nil
 }
 
-func (ki *KeygenInstance) OnKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete, fromNodeIndex big.Int) error {
+	//verify shareCompletes by first verifying NIZKPK Proof
+	validProofs := true
+	for _, keygenShareCom := range keygenShareCompletes {
+		if !pvss.VerifyNIZKPK(keygenShareCom.c, keygenShareCom.u1, keygenShareCom.u2, keygenShareCom.gsi, keygenShareCom.gsihr) {
+			validProofs = false
+		}
+	}
+
+	// add up all commitments
+	// gshr should be a point on the sum commitment matix
+	compare to
 	return nil
 }
 

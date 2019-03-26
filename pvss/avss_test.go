@@ -46,6 +46,19 @@ func TestBivarPolyEval(t *testing.T) {
 	assert.Equal(t, f53_0.Text(16), f53_1.Text(16))
 }
 
+func TestAVSSAddCommitment(t *testing.T) {
+	C1 := make([][]common.Point, 1)
+	C1[0] = make([]common.Point, 1)
+	C2 := make([][]common.Point, 1)
+	C2[0] = make([]common.Point, 1)
+	testBytes := []byte{1}
+	C1[0][0] = common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(testBytes))
+	C2[0][0] = common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(testBytes))
+	result, _ := AVSSAddCommitment(C1, C2)
+	expectedResult := common.BigIntToPoint(secp256k1.Curve.Add(&C1[0][0].X, &C1[0][0].Y, &C1[0][0].X, &C1[0][0].Y))
+	assert.Equal(t, result[0][0].X.Text(16), expectedResult.X.Text(16))
+}
+
 func TestAVSSVerifyPoly(t *testing.T) {
 	// dealer chooses two bivar polys, f and fprime
 	threshold := 7 // 7 out of 9 nodes

@@ -1,4 +1,4 @@
-package dkgnode
+package keygen
 
 import (
 	"errors"
@@ -75,19 +75,19 @@ type AVSSKeygen interface {
 
 	//Implementing the Code below will allow KEYGEN to run
 	// "Client" Actions
-	broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error
-	sendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
-	sendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
-	sendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
-	broadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error
+	BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error
+	SendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
+	SendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
+	SendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
+	BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error
 
 	// For this, these listeners must be triggered on incoming messages
 	// Listeners and Reactions
-	onInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error
-	onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error
-	onKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error
-	onKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error
-	onKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error
+	OnInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error
+	OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error
+	OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error
+	OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error
+	OnKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error
 
 	// Storage for Secrets/Shares/etc... go here
 }
@@ -162,7 +162,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 							BIprimeX: pvss.EvaluateBivarPolyAtY(committedSecrets.fprime, nodeIndex),
 						}
 						//send to node
-						err := ki.sendKEYGENSend(keygenSend, nodeIndex)
+						err := ki.SendKEYGENSend(keygenSend, nodeIndex)
 						if err != nil {
 							//TODO: Resend
 							logging.Errorf("Could not send KEYGENSend : %s", err)
@@ -200,9 +200,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 						gsihr:    gshr,
 					}
 				}
-				err := ki.broadcastKEYGENShareComplete(keygenShareCompletes)
+				err := ki.BroadcastKEYGENShareComplete(keygenShareCompletes)
 				if err != nil {
-					logging.Errorf("Could not broadcastKEYGENShareComplete: %s", err)
+					logging.Errorf("Could not BroadcastKEYGENShareComplete: %s", err)
 				}
 			},
 		},
@@ -261,7 +261,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 			fprime: fprime,
 		}
 	}
-	err := ki.broadcastInitiateKeygen(commitmentMatrixes)
+	err := ki.BroadcastInitiateKeygen(commitmentMatrixes)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	return nil
 }
 
-func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
+func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
 	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
 	if ki.NodeLog[nodeIndex.Text(16)].Current() == SKStandby {
 		// check length of commitment matrix is right
@@ -314,7 +314,7 @@ func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point
 									Bij:      *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.BIX, nodeToSendIndex),
 									Bprimeij: *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.BIprimeX, nodeToSendIndex),
 								}
-								err := ki.sendKEYGENReady(keygenReady, nodeToSendIndex)
+								err := ki.SendKEYGENReady(keygenReady, nodeToSendIndex)
 								if err != nil {
 									// TODO: Handle failure, resend?
 									logging.Errorf("Could not sent KEYGENReady %s", err)
@@ -342,7 +342,7 @@ func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point
 	return nil
 }
 
-func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
 	if ki.State.Current() == SKRunningKeygen {
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
@@ -373,7 +373,7 @@ func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 				Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
 				Bprimeij: *pvss.PolyEval(msg.BIprimeX, nodeToSendIndex),
 			}
-			err := ki.sendKEYGENEcho(keygenEcho, nodeToSendIndex)
+			err := ki.SendKEYGENEcho(keygenEcho, nodeToSendIndex)
 			if err != nil {
 				// TODO: Handle failure, resend?
 				return err
@@ -382,7 +382,7 @@ func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	}
 	return nil
 }
-func (ki *KeygenInstance) onKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
 	if ki.State.Current() == SKRunningKeygen {
 		//verify echo, if correct log echo. If there are more then threshold Echos we send ready
 		if !pvss.AVSSVerifyPoint(
@@ -415,7 +415,7 @@ func (ki *KeygenInstance) onKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 	return nil
 }
 
-func (ki *KeygenInstance) onKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
 	if ki.State.Current() == SKRunningKeygen {
 		// we verify ready, if right we log and check if we have enough readys to validate shares
 		if !pvss.AVSSVerifyPoint(
@@ -457,28 +457,28 @@ func (ki *KeygenInstance) onKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	return nil
 }
 
-func (ki *KeygenInstance) onKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error {
 	return nil
 }
 
 //TODO: Initiate our client functions here before anything else is called (or perhaps even before initiate is called)
-func (ki *KeygenInstance) broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+func (ki *KeygenInstance) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
 	log.Fatalln("Unimplemented method, replace method to make things work")
 	return errors.New("Unimplemnted Method")
 }
-func (ki *KeygenInstance) sendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error {
+func (ki *KeygenInstance) SendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error {
 	log.Fatalln("Unimplemented method, replace method to make things work")
 	return errors.New("Unimplemnted Method")
 }
-func (ki *KeygenInstance) sendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error {
+func (ki *KeygenInstance) SendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error {
 	log.Fatalln("Unimplemented method, replace method to make things work")
 	return errors.New("Unimplemnted Method")
 }
-func (ki *KeygenInstance) sendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error {
+func (ki *KeygenInstance) SendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error {
 	log.Fatalln("Unimplemented method, replace method to make things work")
 	return errors.New("Unimplemnted Method")
 }
-func (ki *KeygenInstance) broadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
+func (ki *KeygenInstance) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
 	log.Fatalln("Unimplemented method, replace method to make things work")
 	return errors.New("Unimplemnted Method")
 }

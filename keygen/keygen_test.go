@@ -73,6 +73,7 @@ func TestKeygen(t *testing.T) {
 
 	//start!
 	for _, nodeIndex := range nodeList {
+		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go nodeKegenInstances[nodeIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 100, nodeList, threshold, nodeIndex)
 	}
 
@@ -81,7 +82,6 @@ func TestKeygen(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]
 		t.Log(nodeIndex.Text(16), instance.State.Current())
-		// t.Log(instance.KeyLog)
 	}
 
 }

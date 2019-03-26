@@ -37,7 +37,7 @@ func (transport *Transport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
 }
 
 func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	for _, instance := range transport.nodeKegenInstances {
 		instance.OnInitiateKeygen(commitmentMatrixes, transport.nodeIndex)
 	}
@@ -45,7 +45,7 @@ func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]com
 }
 
 func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	for _, instance := range transport.nodeKegenInstances {
 		instance.OnKEYGENShareComplete(keygenShareCompletes, transport.nodeIndex)
 	}
@@ -59,7 +59,7 @@ func TestKeygen(t *testing.T) {
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	for i := range nodeList {
-		nodeList[i] = *big.NewInt(int64(i))
+		nodeList[i] = *big.NewInt(int64(i + 1))
 		nodeKegenInstances[nodeList[i].Text(16)] = &KeygenInstance{}
 	}
 
@@ -76,10 +76,12 @@ func TestKeygen(t *testing.T) {
 		go nodeKegenInstances[nodeIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 100, nodeList, threshold, nodeIndex)
 	}
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	for _, nodeIndex := range nodeList {
-		t.Log(nodeKegenInstances[nodeIndex.Text(16)].State.Current())
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		// t.Log(instance.KeyLog)
 	}
 
 }

@@ -376,6 +376,10 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 				),
 			}
 		}
+		err := ki.NodeLog[nodeIndex.Text(16)].Event(ENInitiateKeygen)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

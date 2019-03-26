@@ -278,8 +278,12 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.Secrets = make(map[string]KEYGENSecrets)
 
 	// prepare commitmentMatrixes for broadcast
-	var commitmentMatrixes [][][]common.Point
+	commitmentMatrixes := make([][][]common.Point, ki.NumOfKeys)
 	for i := 0; i < numOfKeys; i++ {
+		//help initialize all the keylogs
+		index := big.NewInt(int64(i))
+		index.Add(index, &ki.StartIndex)
+		ki.KeyLog[index.Text(16)] = make(map[string]KEYGENLog)
 		secret := *pvss.RandomBigInt()
 		f := pvss.GenerateRandomBivariatePolynomial(secret, threshold)
 		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), threshold)
@@ -387,7 +391,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 			msg.BIX,
 			msg.BIprimeX,
 		) {
-			return errors.New(fmt.Sprintf("KEYGENSend not valid to declared commitments. From: %s To: %s KEYGENSend: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
+			return errors.New(fmt.Sprintf("KEYGENSend not valid to declared commitments. From: %s To: %s KEYGENSend: %+v", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
 		}
 
 		//since valid we log
@@ -429,7 +433,7 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 			msg.Bprimeij,
 		) {
 			//TODO: potentially invalidate nodes here
-			return errors.New(fmt.Sprintf("KEYGENEcho not valid to declared commitments. From: %s To: %s KEYGENEcho: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
+			return errors.New(fmt.Sprintf("KEYGENEcho not valid to declared commitments. From: %s To: %s KEYGENEcho: %+v", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
 		}
 
 		//log echo
@@ -462,7 +466,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 			msg.Bprimeij,
 		) {
 			//TODO: potentially invalidate nodes here
-			return errors.New(fmt.Sprintf("KEYGENReady not valid to declared commitments. From: %s To: %s KEYGENEcho: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
+			return errors.New(fmt.Sprintf("KEYGENReady not valid to declared commitments. From: %s To: %s KEYGENEcho: %v+", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
 		}
 
 		//log ready

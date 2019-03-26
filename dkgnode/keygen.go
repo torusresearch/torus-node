@@ -79,7 +79,7 @@ type AVSSKeygen interface {
 	sendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
 	sendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
 	sendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
-	broadcastKEYGENShareComplete(msg KEYGENShareComplete, nodeIndex big.Int) error
+	broadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error
 
 	// For this, these listeners must be triggered on incoming messages
 	// Listeners and Reactions
@@ -93,25 +93,24 @@ type AVSSKeygen interface {
 }
 
 type KeygenInstance struct {
-	NodeIndex  big.Int
-	Threshold  int
-	State      *fsm.FSM
-	NodeLog    map[string]*fsm.FSM               // nodeindex => fsm
-	KeyLog     map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
-	StartIndex big.Int
-	NumOfKeys  int
-	Secrets    map[string]KEYGENSecrets // keyindex => KEYGENSecrets
-	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
+	NodeIndex         big.Int
+	Threshold         int
+	State             *fsm.FSM
+	NodeLog           map[string]*fsm.FSM               // nodeindex => fsm
+	KeyLog            map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
+	StartIndex        big.Int
+	NumOfKeys         int
+	Secrets           map[string]KEYGENSecrets // keyindex => KEYGENSecrets
+	SubsharesComplete int                      // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
 }
 
 // KEYGEN STATES (SK)
 const (
 	// Internal States
-	SKWaitingInitiateKeygen = "waiting_initiate_keygen"
-	SKRunningKeygen         = "running_keygen"
+	SKWaitingInitiateKeygen      = "waiting_initiate_keygen"
+	SKRunningKeygen              = "running_keygen"
 	SKWaitingKEYGENShareComplete = "waiting_keygen_share_complete"
-	SKKeygenCompleted       = "keygen_completed"
-
+	SKKeygenCompleted            = "keygen_completed"
 
 	// For node log
 	SKStandby   = "standby"
@@ -122,7 +121,7 @@ const (
 const (
 	// Internal Events
 	EKAllInitiateKeygen = "all_initiate_keygen"
-	EKAllSubsharesDone = "all_subshares_done"
+	EKAllSubsharesDone  = "all_subshares_done"
 
 	// For node log events
 	EKInitiateKeygen = "initiate_keygen"
@@ -171,10 +170,40 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					}
 				}
 			},
-			"after_"+EKAllSubsharesDone: func(e *fsm.Event) {
+			"after_" + EKAllSubsharesDone: func(e *fsm.Event) {
 				//Here we broadcast KEYGENShareComplete
-				keygenShareCompletes = [ki.NumOfKeys]KEYGENShareComplete
+				keygenShareCompletes := make([]KEYGENShareComplete, len(ki.NodeLog))
+				for i := 0; i < ki.NumOfKeys; i++ {
+					keyIndex := big.Int{}
+					keyIndex.SetInt64(int64(i)).Add(&keyIndex, &ki.StartIndex)
+					// form perfect Si
+					si := big.NewInt(int64(0))
+					siprime := big.NewInt(int64(0))
+					// just a check for the right number of subshares
+					if len(ki.KeyLog[keyIndex.Text(16)]) != len(ki.NodeLog) {
+						logging.Errorf("Not correct number of subshares found for: keyindex %s, Expected %s Actual %s", keyIndex.Text(16), len(ki.NodeLog), len(ki.KeyLog[keyIndex.Text(16)]))
+					}
+					for _, v := range ki.KeyLog[keyIndex.Text(16)] {
+						// add up subshares
+						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
+						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
+					}
+					r := pvss.RandomBigInt()
+					c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *r)
 
+					keygenShareCompletes[i] = KEYGENShareComplete{
+						KeyIndex: keyIndex,
+						c:        c,
+						u1:       u1,
+						u2:       u2,
+						gsi:      gs,
+						gsihr:    gshr,
+					}
+				}
+				err := ki.broadcastKEYGENShareComplete(keygenShareCompletes)
+				if err != nil {
+					logging.Errorf("Could not broadcastKEYGENShareComplete: %s", err)
+				}
 			},
 		},
 	)
@@ -293,16 +322,16 @@ func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point
 							}
 						},
 						"after_" + "all_reached_subshare": func(e *fsm.Event) {
-							ki.SubsharesComplete ++
+							ki.SubsharesComplete++
 							// Check if all subshares are complete
-							if ki.SubsharesComplete == ki.NumOfKeys * len(ki.NodeLog) {
+							if ki.SubsharesComplete == ki.NumOfKeys*len(ki.NodeLog) {
 								go func() {
 									// end keygen
 									err := ki.State.Event(EKAllSubsharesDone)
 									if err != nil {
 										logging.Errorf("Could not change state to subshare done: %s", err)
 									}
-								}() 
+								}()
 							}
 						},
 					},
@@ -449,7 +478,7 @@ func (ki *KeygenInstance) sendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) er
 	log.Fatalln("Unimplemented method, replace method to make things work")
 	return errors.New("Unimplemnted Method")
 }
-func (ki *KeygenInstance) broadcastKEYGENShareComplete(msg KEYGENShareComplete, nodeIndex big.Int) error {
+func (ki *KeygenInstance) broadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
 	log.Fatalln("Unimplemented method, replace method to make things work")
 	return errors.New("Unimplemnted Method")
 }

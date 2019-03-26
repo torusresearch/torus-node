@@ -53,6 +53,16 @@ func GenerateNIZKPK(s big.Int, r big.Int) (big.Int, big.Int, big.Int) {
 
 }
 
+// Generates NIZK Proof with commitments
+// Returns proof in the form of c, u1, u2 gs and gshr
+func GenerateNIZKPKWithCommitments(s big.Int, r big.Int) (c big.Int, u1 big.Int, u2 big.Int, gs common.Point, gshr common.Point) {
+	c, u1, u2 = GenerateNIZKPK(s, r)
+	gs = common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(s.Bytes()))
+	hr := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, r.Bytes()))
+	gshr = common.BigIntToPoint(secp256k1.Curve.Add(&gs.X, &gs.Y, &hr.X, &hr.Y))
+	return
+}
+
 func VerifyNIZKPK(c, u1, u2 big.Int, gs, gshr common.Point) bool {
 
 	//compute t1prime

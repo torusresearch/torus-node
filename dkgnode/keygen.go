@@ -3,6 +3,7 @@ package dkgnode
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/torusresearch/torus-public/pvss"
@@ -32,6 +33,7 @@ type KEYGENEcho struct {
 }
 type KEYGENReady struct {
 	KeyIndex big.Int
+	Dealer   big.Int
 	Aij      big.Int
 	Aprimeij big.Int
 	Bij      big.Int
@@ -47,6 +49,7 @@ type KEYGENLog struct {
 	ReceivedEchoes         map[string]KEYGENEcho          // From(M) big.Int (in hex) to Echo
 	ReceivedReadys         map[string]KEYGENReady         // From(M) big.Int (in hex) to Ready
 	ReceivedShareCompletes map[string]KEYGENShareComplete // From(M) big.Int (in hex) to ShareComplete
+	SubshareState          *fsm.FSM                       // For tracking the state of our share
 }
 
 type KEYGENShareComplete struct {
@@ -98,6 +101,7 @@ type KeygenInstance struct {
 	StartIndex big.Int
 	NumOfKeys  int
 	Secrets    map[string]KEYGENSecrets // keyindex => KEYGENSecrets
+	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
 }
 
 // KEYGEN STATES (SK)
@@ -105,6 +109,9 @@ const (
 	// Internal States
 	SKWaitingInitiateKeygen = "waiting_initiate_keygen"
 	SKRunningKeygen         = "running_keygen"
+	SKWaitingKEYGENShareComplete = "waiting_keygen_share_complete"
+	SKKeygenCompleted       = "keygen_completed"
+
 
 	// For node log
 	SKStandby   = "standby"
@@ -115,6 +122,7 @@ const (
 const (
 	// Internal Events
 	EKAllInitiateKeygen = "all_initiate_keygen"
+	EKAllSubsharesDone = "all_subshares_done"
 
 	// For node log events
 	EKInitiateKeygen = "initiate_keygen"
@@ -126,12 +134,14 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.Threshold = threshold
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
+	ki.SubsharesComplete = 0
+	ki.NodeLog = make(map[string]*fsm.FSM)
 	// We start initiate keygen state at waiting_initiate_keygen
 	ki.State = fsm.NewFSM(
 		SKWaitingInitiateKeygen,
 		fsm.Events{
 			{Name: EKAllInitiateKeygen, Src: []string{SKWaitingInitiateKeygen}, Dst: SKRunningKeygen},
-			{Name: "", Src: []string{SKRunningKeygen}, Dst: SKRunningKeygen},
+			{Name: EKAllSubsharesDone, Src: []string{SKRunningKeygen}, Dst: SKWaitingKEYGENShareComplete},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
@@ -161,11 +171,15 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					}
 				}
 			},
+			"after_"+EKAllSubsharesDone: func(e *fsm.Event) {
+				//Here we broadcast KEYGENShareComplete
+				keygenShareCompletes = [ki.NumOfKeys]KEYGENShareComplete
+
+			},
 		},
 	)
 
 	// Node Log tracks the state of other nodes involved in this Keygen phase
-	ki.NodeLog = make(map[string]*fsm.FSM)
 	for _, nodeIndex := range nodeIndexes {
 		ki.NodeLog[nodeIndex.Text(16)] = fsm.NewFSM(
 			SKStandby,
@@ -245,9 +259,56 @@ func (ki *KeygenInstance) onInitiateKeygen(commitmentMatrixes [][][]common.Point
 				ReceivedEchoes:         make(map[string]KEYGENEcho),          // From(M) big.Int (in hex) to Echo
 				ReceivedReadys:         make(map[string]KEYGENReady),         // From(M) big.Int (in hex) to Ready
 				ReceivedShareCompletes: make(map[string]KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
+				SubshareState: fsm.NewFSM(
+					"waiting_for_echos",
+					fsm.Events{
+						{Name: "send_ready", Src: []string{"waiting_for_echos"}, Dst: "waiting_for_readys"},
+						{Name: "t_reached_subshare", Src: []string{"waiting_for_readys"}, Dst: "valid_subshare"},
+						{Name: "all_reached_subshare", Src: []string{"valid_share"}, Dst: "perfect_subshare"},
+					},
+					fsm.Callbacks{
+						"enter_state": func(e *fsm.Event) { logging.Debugf("subshare set from %s to %s", e.Src, e.Dst) },
+						"after_" + "send_ready": func(e *fsm.Event) {
+							// we send readys here when we have collected enough echos
+							for k := range ki.NodeLog {
+								nodeToSendIndex := big.Int{}
+								nodeToSendIndex.SetString(k, 16)
+								keyIndex := big.Int{}
+								dealer := big.Int{}
+								keyIndex.SetString(e.Args[0].(string), 16)
+								dealer.SetString(e.Args[1].(string), 16)
+								keygenReady := KEYGENReady{
+									KeyIndex: keyIndex,
+									Dealer:   dealer,
+									Aij:      *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.AIY, nodeToSendIndex),
+									Aprimeij: *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.AIprimeY, nodeToSendIndex),
+									Bij:      *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.BIX, nodeToSendIndex),
+									Bprimeij: *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.BIprimeX, nodeToSendIndex),
+								}
+								err := ki.sendKEYGENReady(keygenReady, nodeToSendIndex)
+								if err != nil {
+									// TODO: Handle failure, resend?
+									logging.Errorf("Could not sent KEYGENReady %s", err)
+								}
+							}
+						},
+						"after_" + "all_reached_subshare": func(e *fsm.Event) {
+							ki.SubsharesComplete ++
+							// Check if all subshares are complete
+							if ki.SubsharesComplete == ki.NumOfKeys * len(ki.NodeLog) {
+								go func() {
+									// end keygen
+									err := ki.State.Event(EKAllSubsharesDone)
+									if err != nil {
+										logging.Errorf("Could not change state to subshare done: %s", err)
+									}
+								}() 
+							}
+						},
+					},
+				),
 			}
 		}
-
 	}
 	return nil
 }
@@ -283,7 +344,11 @@ func (ki *KeygenInstance) onKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 				Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
 				Bprimeij: *pvss.PolyEval(msg.BIprimeX, nodeToSendIndex),
 			}
-			ki.sendKEYGENEcho(keygenEcho, nodeToSendIndex)
+			err := ki.sendKEYGENEcho(keygenEcho, nodeToSendIndex)
+			if err != nil {
+				// TODO: Handle failure, resend?
+				return err
+			}
 		}
 	}
 	return nil
@@ -309,32 +374,82 @@ func (ki *KeygenInstance) onKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 
 		// check for echos
 		if ki.Threshold <= len(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedEchoes) {
-			//since threshould and above we send ready
-
+			//since threshoold and above we send ready
+			if ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Current() == "waiting_for_echos" {
+				err := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Event("send_ready", msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
 }
+
 func (ki *KeygenInstance) onKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
+	if ki.State.Current() == SKRunningKeygen {
+		// we verify ready, if right we log and check if we have enough readys to validate shares
+		if !pvss.AVSSVerifyPoint(
+			ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].C,
+			fromNodeIndex,
+			ki.NodeIndex,
+			msg.Aij,
+			msg.Aprimeij,
+			msg.Bij,
+			msg.Bprimeij,
+		) {
+			//TODO: potentially invalidate nodes here
+			return errors.New(fmt.Sprintf("KEYGENReady not valid to declared commitments. From: %s To: %s KEYGENEcho: %s", fromNodeIndex.Text(16), ki.NodeIndex.Text(16), msg))
+		}
+
+		//log ready
+		ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].ReceivedReadys[fromNodeIndex.Text(16)] = msg
+
+		// if we've reached the required number of readys
+		if ki.Threshold <= len(ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].ReceivedReadys) {
+			if ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Current() == "waiting_for_readys" {
+				err := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Event("t_reached_subshare", msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+				if err != nil {
+					return err
+				}
+			}
+
+			// if we've got all of the readys we classify share as perfect
+			if len(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedReadys) == len(ki.NodeLog) {
+				if ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Current() == "valid_subshare" {
+					err := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Event("all_reached_subshare", msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
+
 func (ki *KeygenInstance) onKEYGENShareComplete(msg KEYGENShareComplete, fromNodeIndex big.Int) error {
 	return nil
 }
 
 //TODO: Initiate our client functions here before anything else is called (or perhaps even before initiate is called)
 func (ki *KeygenInstance) broadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
-	return nil
+	log.Fatalln("Unimplemented method, replace method to make things work")
+	return errors.New("Unimplemnted Method")
 }
 func (ki *KeygenInstance) sendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error {
-	return nil
+	log.Fatalln("Unimplemented method, replace method to make things work")
+	return errors.New("Unimplemnted Method")
 }
 func (ki *KeygenInstance) sendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error {
-	return nil
+	log.Fatalln("Unimplemented method, replace method to make things work")
+	return errors.New("Unimplemnted Method")
 }
 func (ki *KeygenInstance) sendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error {
-	return nil
+	log.Fatalln("Unimplemented method, replace method to make things work")
+	return errors.New("Unimplemnted Method")
 }
 func (ki *KeygenInstance) broadcastKEYGENShareComplete(msg KEYGENShareComplete, nodeIndex big.Int) error {
-	return nil
+	log.Fatalln("Unimplemented method, replace method to make things work")
+	return errors.New("Unimplemnted Method")
 }

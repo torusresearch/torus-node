@@ -4,6 +4,7 @@ package dkgnode
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -191,6 +192,7 @@ func loadConfig(configPath string) *Config {
 	if conf.ProvidedIPAddress != "" {
 		logging.Infof("Running on Specified IP Address: %s", conf.ProvidedIPAddress)
 		conf.MainServerAddress = conf.ProvidedIPAddress + ":" + conf.HttpServerPort
+		conf.P2PListenAddress = fmt.Sprintf("/ip4/%s/tcp/1080", conf.ProvidedIPAddress)
 	}
 
 	logging.Infof("Final Configuration: %s", conf)

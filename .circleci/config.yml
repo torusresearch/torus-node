@@ -2,12 +2,13 @@ version: 2.1
 orbs:
   aws-ecr: circleci/aws-ecr@3.1.0
 workflows:
-  build-and-deploy:
+  build_and_push_image:
     jobs:
-      - aws-ecs/deploy-service-update:
-          requires:
-            - aws-ecr/build_and_push_image
+      - aws-ecr/build_and_push_image:
           account-url: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+          aws-access-key-id: "${AWS_ACCESS_KEY_ID}"
+          aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY}"
+          create-repo: true
           repo: "${AWS_RESOURCE_NAME_PREFIX}"
           region: ${AWS_DEFAULT_REGION}
           tag: "${CIRCLE_SHA1}"

@@ -5,13 +5,12 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/torusresearch/torus-public/logging"
-
 	"github.com/gogo/protobuf/proto"
 	uuid "github.com/google/uuid"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	p2p "github.com/torusresearch/torus-public/dkgnode/pb"
+	"github.com/torusresearch/torus-public/logging"
 )
 
 // pattern: /protocol-name/request-or-response-message/version
@@ -133,7 +132,7 @@ func (p *PingProtocol) Ping(peerid peer.ID) error {
 	// sign the data
 	signature, err := p.localHost.signProtoMessage(req)
 	if err != nil {
-		return fmt.Errorf("Failed to sign pb data: &s", err)
+		return fmt.Errorf("Failed to sign pb data: %s", err)
 	}
 
 	// add the signature to the message
@@ -141,7 +140,7 @@ func (p *PingProtocol) Ping(peerid peer.ID) error {
 
 	err = p.localHost.sendProtoMessage(peerid, pingRequest, req)
 	if err != nil {
-		return fmt.Errorf("Failed to send proto message: &s", err)
+		return fmt.Errorf("Failed to send proto message: %s", err)
 	}
 
 	// store ref request so response handler has access to it

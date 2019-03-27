@@ -4,6 +4,7 @@ package dkgnode
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"log"
 	"math/big"
 	"os"
@@ -13,6 +14,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/intel-go/fastjson"
+	"github.com/osamingo/jsonrpc"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	tmbtcec "github.com/tendermint/btcd/btcec"
@@ -20,6 +24,7 @@ import (
 	tmnode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/torusresearch/torus-public/auth"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/telemetry"
 )
@@ -32,8 +37,29 @@ type Suite struct {
 	CacheSuite      *CacheSuite
 	Config          *Config
 	ABCIApp         *ABCIApp
-	DefaultVerifier IdentityVerifier
+	DefaultVerifier auth.IdentityVerifier
 	P2PSuite        *P2PSuite
+}
+
+type googleIdentityVerifier struct {
+	*auth.GoogleVerifier
+	suite *Suite
+}
+
+func (gIV *googleIdentityVerifier) UniqueTokenCheck(rawPayload *fastjson.RawMessage) (bool, error) {
+	var p auth.GoogleVerifierParams
+	if err := jsonrpc.Unmarshal(rawPayload, &p); err != nil {
+		return false, err
+	}
+	_, ok := gIV.suite.CacheSuite.CacheInstance.Get(p.IDToken)
+	if ok {
+		return false, errors.New("oauth is already in cache " + p.IDToken)
+	}
+
+	// add token to cache (should clean periodically)
+	gIV.suite.CacheSuite.CacheInstance.Set(p.IDToken, true, 0)
+
+	return true, nil
 }
 
 /* The entry point for our System */
@@ -52,8 +78,11 @@ func New() {
 	suite := Suite{}
 	suite.Config = cfg
 	// We can use a flag here to change the default verifier
-	// In the guture we should allow a range of vberifies
-	suite.DefaultVerifier = NewDefaultGoogleVerifier(cfg.GoogleClientID)
+	// In the future we should allow a range of verifiers
+	suite.DefaultVerifier = &googleIdentityVerifier{
+		auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
+		&suite,
+	}
 
 	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
 

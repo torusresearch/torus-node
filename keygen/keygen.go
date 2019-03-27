@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/torusresearch/torus-public/pvss"
 
@@ -95,6 +96,7 @@ type AVSSKeygenTransport interface {
 
 // Main Keygen Struct
 type KeygenInstance struct {
+	sync.Mutex
 	NodeIndex         big.Int
 	Threshold         int
 	State             *fsm.FSM
@@ -146,6 +148,8 @@ const (
 
 //TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well
 func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int) error {
+	ki.Lock()
+	defer ki.Unlock()
 	ki.NodeIndex = nodeIndex
 	ki.Threshold = threshold
 	ki.StartIndex = startingIndex
@@ -234,7 +238,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 				{Name: ENValidShares, Src: []string{SNKeygening}, Dst: SNQualifiedNode},
 			},
 			fsm.Callbacks{
-				"enter_state": func(e *fsm.Event) { logging.Debugf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+				"enter_state": func(e *fsm.Event) { logging.Debugf("NodeLog State changed from %s to %s", e.Src, e.Dst) },
 				"after_" + ENInitiateKeygen: func(e *fsm.Event) {
 
 					// See if all Initiate Keygens are in
@@ -309,6 +313,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 }
 
 func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
+	ki.Lock()
+	defer ki.Unlock()
+	logging.Debug("On initiate keygen called")
 	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
 	if ki.NodeLog[nodeIndex.Text(16)].Current() == SNStandby {
 		// check length of commitment matrix is right
@@ -377,6 +384,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 				),
 			}
 		}
+		fmt.Printf("NodeLog State changed initiate keygen is called ")
 		err := ki.NodeLog[nodeIndex.Text(16)].Event(ENInitiateKeygen)
 		if err != nil {
 			return err
@@ -386,6 +394,8 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 }
 
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
+	ki.Lock()
+	defer ki.Unlock()
 	if ki.State.Current() == SIRunningKeygen {
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
@@ -426,6 +436,8 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	return nil
 }
 func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
+	ki.Lock()
+	defer ki.Unlock()
 	if ki.State.Current() == SIRunningKeygen {
 		//verify echo, if correct log echo. If there are more then threshold Echos we send ready
 		if !pvss.AVSSVerifyPoint(
@@ -459,6 +471,8 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 }
 
 func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
+	ki.Lock()
+	defer ki.Unlock()
 	if ki.State.Current() == SIRunningKeygen {
 		// we verify ready, if right we log and check if we have enough readys to validate shares
 		if !pvss.AVSSVerifyPoint(
@@ -501,6 +515,8 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 }
 
 func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete, fromNodeIndex big.Int) error {
+	ki.Lock()
+	defer ki.Unlock()
 	//verify shareCompletes
 	for i, keygenShareCom := range keygenShareCompletes {
 		// ensure valid keyindex

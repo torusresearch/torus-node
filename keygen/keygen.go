@@ -93,6 +93,7 @@ type AVSSKeygenTransport interface {
 	BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error
 }
 
+// Main Keygen Struct
 type KeygenInstance struct {
 	NodeIndex         big.Int
 	Threshold         int
@@ -143,7 +144,7 @@ const (
 	EKAllReachedSubshare = "all_reached_subshare"
 )
 
-//TODO: Potentially Stuff specific KEYGEN Debugger
+//TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well
 func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int) error {
 	ki.NodeIndex = nodeIndex
 	ki.Threshold = threshold
@@ -539,25 +540,3 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENSha
 	// gshr should be a point on the sum commitment matix
 	return nil
 }
-
-//TODO: Initiate our client functions here before anything else is called (or perhaps even before initiate is called)
-// func (ki *KeygenInstance) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
-// 	log.Fatalln("Unimplemented method, replace method to make things work")
-// 	return errors.New("Unimplemnted Method")
-// }
-// func (ki *KeygenInstance) SendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error {
-// 	log.Fatalln("Unimplemented method, replace method to make things work")
-// 	return errors.New("Unimplemnted Method")
-// }
-// func (ki *KeygenInstance) SendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error {
-// 	log.Fatalln("Unimplemented method, replace method to make things work")
-// 	return errors.New("Unimplemnted Method")
-// }
-// func (ki *KeygenInstance) SendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error {
-// 	log.Fatalln("Unimplemented method, replace method to make things work")
-// 	return errors.New("Unimplemnted Method")
-// }
-// func (ki *KeygenInstance) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
-// 	log.Fatalln("Unimplemented method, replace method to make things work")
-// 	return errors.New("Unimplemnted Method")
-// }

@@ -24,19 +24,19 @@ type Transport struct {
 
 func (transport *Transport) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
 	fmt.Println("SendKEYGENSend Called: ", to)
-	(*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENSend(msg, transport.nodeIndex)
+	go (*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENSend(msg, transport.nodeIndex)
 	return nil
 }
 
 func (transport *Transport) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
 	fmt.Println("SendKEYGENEcho Called: ", to)
-	(*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENEcho(msg, transport.nodeIndex)
+	go (*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENEcho(msg, transport.nodeIndex)
 	return nil
 }
 
 func (transport *Transport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
-	fmt.Println("SendKEYGENEcho SendKEYGENReady: ", to)
-	(*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENReady(msg, transport.nodeIndex)
+	fmt.Println("SendKEYGENReady: ", to)
+	go (*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENReady(msg, transport.nodeIndex)
 	return nil
 }
 

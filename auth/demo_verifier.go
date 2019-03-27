@@ -18,6 +18,12 @@ type DemoVerifierParams struct {
 	Email   string `json:"email"`
 }
 
+func NewDefaultDemoVerifier(expectedKey string) *DemoVerifier {
+	return &DemoVerifier{
+		expectedKey: expectedKey,
+	}
+}
+
 // VerifyRequestIdentity - verifies identity of user based on their token
 func (v *DemoVerifier) VerifyRequestIdentity(jsonToken *fastjson.RawMessage) (bool, error) {
 	var p DemoVerifierParams

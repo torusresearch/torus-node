@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/torusresearch/torus-public/auth"
 )
 
 const localTestVerifierKey = "notBluBlu"
@@ -14,7 +16,7 @@ func loadTestingSuite() *Suite {
 	//Main suite of functions used in node
 	suite := Suite{}
 	suite.Config = cfg
-	suite.DefaultVerifier = &DemoVerifier{expectedKey: localTestVerifierKey}
+	suite.DefaultVerifier = auth.NewDefaultDemoVerifier(localTestVerifierKey)
 	return &suite
 }
 

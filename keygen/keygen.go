@@ -315,7 +315,6 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	logging.Debug("On initiate keygen called")
 	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
 	if ki.NodeLog[nodeIndex.Text(16)].Current() == SNStandby {
 		// check length of commitment matrix is right

@@ -23,31 +23,34 @@ type Transport struct {
 }
 
 func (transport *Transport) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
-	fmt.Println("SendKEYGENSend Called: ", msg, to)
+	fmt.Println("SendKEYGENSend Called: ", to)
 	(*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENSend(msg, transport.nodeIndex)
 	return nil
 }
 
 func (transport *Transport) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
-	fmt.Println("SendKEYGENEcho Called: ", msg, to)
+	fmt.Println("SendKEYGENEcho Called: ", to)
 	(*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENEcho(msg, transport.nodeIndex)
 	return nil
 }
 
 func (transport *Transport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
-	fmt.Println("SendKEYGENEcho SendKEYGENReady: ", msg, to)
+	fmt.Println("SendKEYGENEcho SendKEYGENReady: ", to)
 	(*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENReady(msg, transport.nodeIndex)
 	return nil
 }
 
 func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
-	fmt.Println("Broadcast Initiate Keygen Called: ", transport.nodeIndex)
+	logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
 	time.Sleep(1 * time.Second)
 	for _, instance := range *transport.nodeKegenInstances {
-		err := instance.OnInitiateKeygen(commitmentMatrixes, transport.nodeIndex)
-		if err != nil {
-			fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
-		}
+		// logging.Debugf("index: %s", k)
+		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
+			err := ins.OnInitiateKeygen(commitmentMatrixes, tns)
+			if err != nil {
+				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
+			}
+		}(instance, commitmentMatrixes, transport.nodeIndex)
 	}
 	return nil
 }
@@ -56,7 +59,12 @@ func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []
 	fmt.Println("BroadcastKEYGENShareComplete Called: ", transport.nodeIndex)
 	time.Sleep(1 * time.Second)
 	for _, instance := range *transport.nodeKegenInstances {
-		instance.OnKEYGENShareComplete(keygenShareCompletes, transport.nodeIndex)
+		go func(ins *KeygenInstance, cm []KEYGENShareComplete, tns big.Int) {
+			err := instance.OnKEYGENShareComplete(keygenShareCompletes, transport.nodeIndex)
+			if err != nil {
+				fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
+			}
+		}(instance, keygenShareCompletes, transport.nodeIndex)
 	}
 	return nil
 }
@@ -84,7 +92,7 @@ func TestKeygen(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 100, nodeList, threshold, nIndex)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)

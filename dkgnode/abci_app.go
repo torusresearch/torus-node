@@ -92,7 +92,7 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 			{Name: "shares_verified", Src: []string{"verifying_shares"}, Dst: "standby"},
 		},
 		fsm.Callbacks{
-			"enter_state": func(e *fsm.Event) { fmt.Printf("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
+			"enter_state": func(e *fsm.Event) { logging.Infof("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
 			"after_all_keygen_complete": func(e *fsm.Event) {
 				// update total number of available keys and epoch
 				suite.ABCIApp.state.LastCreatedIndex = suite.ABCIApp.state.LastCreatedIndex + uint(suite.ABCIApp.Suite.Config.KeysPerEpoch)

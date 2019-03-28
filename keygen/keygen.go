@@ -439,7 +439,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	if ki.State.Current() == SIRunningKeygen {
+	if ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].SubshareState.Current() == SKWaitingForSends {
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
 			ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].C,

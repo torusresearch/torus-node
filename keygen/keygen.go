@@ -15,6 +15,7 @@ import (
 	"github.com/torusresearch/torus-public/common"
 )
 
+// Below are the stated Keygen Types necessary for Communication between nodes
 type KEYGENSend struct {
 	KeyIndex big.Int
 	AIY      common.PrimaryPolynomial
@@ -40,6 +41,15 @@ type KEYGENReady struct {
 	Bprimeij big.Int
 }
 
+type KEYGENShareComplete struct {
+	KeyIndex big.Int
+	c        big.Int
+	u1       big.Int
+	u2       big.Int
+	gsi      common.Point
+	gsihr    common.Point
+}
+
 // KeyIndex => NodeIndex => KEYGENLog
 type KEYGENLog struct {
 	KeyIndex               big.Int
@@ -50,15 +60,6 @@ type KEYGENLog struct {
 	ReceivedReadys         map[string]KEYGENReady         // From(M) big.Int (in hex) to Ready
 	ReceivedShareCompletes map[string]KEYGENShareComplete // From(M) big.Int (in hex) to ShareComplete
 	SubshareState          *fsm.FSM                       // For tracking the state of our share
-}
-
-type KEYGENShareComplete struct {
-	KeyIndex big.Int
-	c        big.Int
-	u1       big.Int
-	u2       big.Int
-	gsi      common.Point
-	gsihr    common.Point
 }
 
 // KeyIndex => KEYGENSecrets

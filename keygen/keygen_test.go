@@ -24,19 +24,34 @@ type Transport struct {
 
 func (transport *Transport) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
 	fmt.Println("SendKEYGENSend Called: ", to)
-	go (*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENSend(msg, transport.nodeIndex)
+	go func(ins map[string]*KeygenInstance) {
+		err := ins[to.Text(16)].OnKEYGENSend(msg, transport.nodeIndex)
+		if err != nil {
+			fmt.Println("ERRROR SendKEYGENSend: ", err)
+		}
+	}((*transport.nodeKegenInstances))
 	return nil
 }
 
 func (transport *Transport) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
 	fmt.Println("SendKEYGENEcho Called: ", to)
-	go (*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENEcho(msg, transport.nodeIndex)
+	go func(ins map[string]*KeygenInstance) {
+		err := ins[to.Text(16)].OnKEYGENEcho(msg, transport.nodeIndex)
+		if err != nil {
+			fmt.Println("ERRROR OnKEYGENEcho: ", err)
+		}
+	}((*transport.nodeKegenInstances))
 	return nil
 }
 
 func (transport *Transport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
 	fmt.Println("SendKEYGENReady: ", to)
-	go (*transport.nodeKegenInstances)[to.Text(16)].OnKEYGENReady(msg, transport.nodeIndex)
+	go func(ins map[string]*KeygenInstance) {
+		err := ins[to.Text(16)].OnKEYGENReady(msg, transport.nodeIndex)
+		if err != nil {
+			fmt.Println("ERRROR OnKEYGENReady: ", err)
+		}
+	}((*transport.nodeKegenInstances))
 	return nil
 }
 
@@ -60,7 +75,7 @@ func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []
 	time.Sleep(1 * time.Second)
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm []KEYGENShareComplete, tns big.Int) {
-			err := instance.OnKEYGENShareComplete(keygenShareCompletes, transport.nodeIndex)
+			err := ins.OnKEYGENShareComplete(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
 			}
@@ -101,11 +116,13 @@ func TestKeygen(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, nodeIndex := range nodeList {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
 		t.Log(nodeIndex.Text(16), instance.State.Current())
+		instance.Unlock()
 	}
 
 }

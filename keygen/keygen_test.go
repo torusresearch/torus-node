@@ -124,6 +124,11 @@ func TestKeygen(t *testing.T) {
 		t.Log(nodeIndex.Text(16), instance.State.Current())
 		for _, ni := range nodeList {
 			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+			if instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
+				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
+				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
+				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
+			}
 		}
 		instance.Unlock()
 	}

@@ -3,6 +3,8 @@ package keygen
 import (
 	"math/big"
 	"sync"
+
+	"github.com/torusresearch/torus-public/logging"
 )
 
 //TODO: Consider changing to pointers (for better memory usage)
@@ -85,27 +87,30 @@ func (buf *KEYGENMsgBuffer) StoreKEYGENReady(msg KEYGENReady, from big.Int) erro
 
 //TODO: Handle failed message
 // Retrieve from the message buffer and iterate over messages
-func (buf *KEYGENMsgBuffer) RetrieveKEYGENSends(keyIndex big.Int, ki *AVSSKeygen) {
+func (buf *KEYGENMsgBuffer) RetrieveKEYGENSends(keyIndex big.Int, ki AVSSKeygen) {
 	buf.Lock()
 	defer buf.Unlock()
+	logging.Debugf("RetrieveKEYGENSends called with %v msgs", len(buf.ReceivedSends[keyIndex.Text(16)]))
 	for _, wrappedSend := range buf.ReceivedSends[keyIndex.Text(16)] {
-		go (*ki).OnKEYGENSend(wrappedSend.Msg.(KEYGENSend), wrappedSend.From)
+		go (ki).OnKEYGENSend(wrappedSend.Msg.(KEYGENSend), wrappedSend.From)
 	}
 }
 
-func (buf *KEYGENMsgBuffer) RetrieveKEYGENEchoes(keyIndex big.Int, ki *AVSSKeygen) {
+func (buf *KEYGENMsgBuffer) RetrieveKEYGENEchoes(keyIndex big.Int, ki AVSSKeygen) {
 	buf.Lock()
 	defer buf.Unlock()
+	logging.Debugf("RetrieveKEYGENEchoes called with %v msgs", len(buf.ReceivedSends[keyIndex.Text(16)]))
 	for _, wrappedMsg := range buf.ReceivedEchoes[keyIndex.Text(16)] {
-		go (*ki).OnKEYGENEcho(wrappedMsg.Msg.(KEYGENEcho), wrappedMsg.From)
+		go (ki).OnKEYGENEcho(wrappedMsg.Msg.(KEYGENEcho), wrappedMsg.From)
 	}
 }
 
-func (buf *KEYGENMsgBuffer) RetrieveKEYGENReadys(keyIndex big.Int, ki *AVSSKeygen) {
+func (buf *KEYGENMsgBuffer) RetrieveKEYGENReadys(keyIndex big.Int, ki AVSSKeygen) {
 	buf.Lock()
 	defer buf.Unlock()
+	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.ReceivedSends[keyIndex.Text(16)]))
 	for _, wrappedSend := range buf.ReceivedReadys[keyIndex.Text(16)] {
-		go (*ki).OnKEYGENReady(wrappedSend.Msg.(KEYGENReady), wrappedSend.From)
+		go (ki).OnKEYGENReady(wrappedSend.Msg.(KEYGENReady), wrappedSend.From)
 	}
 }
 

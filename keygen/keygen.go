@@ -72,7 +72,7 @@ type KEYGENSecrets struct {
 
 type AVSSKeygen interface {
 	// Trigger Start for Keygen and Initialize
-	InitiateKeygen(startingIndex big.Int, endingIndex big.Int, nodeIndexes []big.Int, threshold int) error
+	InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int) error
 
 	// For this, these listeners must be triggered on incoming messages
 	// Listeners and Reactions
@@ -108,6 +108,7 @@ type KeygenInstance struct {
 	NumOfKeys         int
 	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
 	Transport         AVSSKeygenTransport
+	MsgBuffer         KEYGENMsgBuffer
 }
 
 // KEYGEN STATES (SK)
@@ -159,6 +160,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
 	ki.NodeLog = make(map[string]*fsm.FSM)
+	// Initialize buffer
+	ki.MsgBuffer = KEYGENMsgBuffer{}
+	ki.MsgBuffer.InitializeMsgBuffer(startingIndex, numOfKeys)
 	// We start initiate keygen state at waiting_initiate_keygen
 	ki.State = fsm.NewFSM(
 		SIWaitingInitiateKeygen,
@@ -261,7 +265,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 						go func() {
 							err := ki.State.Event(EIAllInitiateKeygen)
 							if err != nil {
-								logging.Errorf("Could not %s. Err: %s", EIAllInitiateKeygen, err)
+								logging.Errorf("Node %s Could not %s. Err: %s", ki.NodeIndex.Text(16), EIAllInitiateKeygen, err)
 							}
 						}()
 					}
@@ -281,7 +285,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 						go func() {
 							err := ki.State.Event(EIAllKeygenCompleted)
 							if err != nil {
-								logging.Errorf("Could not %s. Err: %s", EIAllInitiateKeygen, err)
+								logging.Errorf("Could not %s. Err: %s", EIAllKeygenCompleted, err)
 							}
 						}()
 					}
@@ -392,7 +396,6 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 								nodeToSendIndex.SetString(k, 16)
 								keyIndex.SetString(e.Args[0].(string), 16)
 								dealer.SetString(e.Args[1].(string), 16)
-								logging.Debugf(" HERE IS ACCESS: %+v", ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend)
 								keygenReady := KEYGENReady{
 									KeyIndex: keyIndex,
 									Dealer:   dealer,
@@ -423,6 +426,17 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 									}
 								}(ki.State)
 							}
+						},
+						// Below functions are for the state machines to catch up on previously sent messages using
+						// MsgBuffer
+						"enter_" + SKWaitingForSends: func(e *fsm.Event) {
+							ki.MsgBuffer.RetrieveKEYGENSends(*index, ki)
+						},
+						"enter_" + SKWaitingForEchos: func(e *fsm.Event) {
+							ki.MsgBuffer.RetrieveKEYGENEchoes(*index, ki)
+						},
+						"enter_" + SKWaitingForReadys: func(e *fsm.Event) {
+							ki.MsgBuffer.RetrieveKEYGENReadys(*index, ki)
 						},
 					},
 				),
@@ -462,6 +476,8 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		// and send echo
 		go ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].SubshareState.Event(EKSendEcho, msg.KeyIndex.Text(16), fromNodeIndex.Text(16))
 
+	} else {
+		ki.MsgBuffer.StoreKEYGENSend(msg, fromNodeIndex)
 	}
 	return nil
 }
@@ -495,10 +511,11 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 				// if err != nil {
 				// 	return err
 				// }
-				logging.Debugf(" HERE IS ARGS: %s AND %s", msg.KeyIndex.Text(16), msg.Dealer.Text(16))
 				go ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Event(EKSendReady, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
 			}
 		}
+	} else {
+		ki.MsgBuffer.StoreKEYGENEcho(msg, fromNodeIndex)
 	}
 	return nil
 }
@@ -545,6 +562,8 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 				}
 			}
 		}
+	} else {
+		ki.OnKEYGENReady(msg, fromNodeIndex)
 	}
 	return nil
 }

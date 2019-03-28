@@ -61,7 +61,7 @@ func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]com
 	for _, instance := range *transport.nodeKegenInstances {
 		// logging.Debugf("index: %s", k)
 		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
-			err := ins.OnInitiateKeygen(commitmentMatrixes, tns)
+			err := ins.OnInitiateKeygen(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
 			}
@@ -116,12 +116,15 @@ func TestKeygen(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(15 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	for _, nodeIndex := range nodeList {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]
 		instance.Lock()
 		t.Log(nodeIndex.Text(16), instance.State.Current())
+		for _, ni := range nodeList {
+			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+		}
 		instance.Unlock()
 	}
 

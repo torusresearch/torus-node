@@ -21,6 +21,23 @@ type MsgWrapper struct {
 	Msg  interface{}
 }
 
+//Initialize message buffer
+func (buf *KEYGENMsgBuffer) InitializeMsgBuffer(startIndex big.Int, numOfKeys int) {
+	buf.Lock()
+	defer buf.Unlock()
+	buf.ReceivedSends = make(map[string][]MsgWrapper)
+	buf.ReceivedEchoes = make(map[string][]MsgWrapper)
+	buf.ReceivedReadys = make(map[string][]MsgWrapper)
+
+	for i := 0; i < numOfKeys; i++ {
+		keyIndex := big.NewInt(int64(i))
+		keyIndex.Add(keyIndex, &startIndex)
+		buf.ReceivedSends[keyIndex.Text(16)] = make([]MsgWrapper, 0)
+		buf.ReceivedEchoes[keyIndex.Text(16)] = make([]MsgWrapper, 0)
+		buf.ReceivedReadys[keyIndex.Text(16)] = make([]MsgWrapper, 0)
+	}
+}
+
 // This could be done genericly, but its more efficient this way
 func (buf *KEYGENMsgBuffer) StoreKEYGENSend(msg KEYGENSend, from big.Int) error {
 	buf.Lock()

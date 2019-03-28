@@ -102,10 +102,10 @@ type KeygenInstance struct {
 	State             *fsm.FSM
 	NodeLog           map[string]*fsm.FSM               // nodeindex => fsm
 	KeyLog            map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
+	Secrets           map[string]KEYGENSecrets          // keyindex => KEYGENSecrets
 	StartIndex        big.Int
 	NumOfKeys         int
-	Secrets           map[string]KEYGENSecrets // keyindex => KEYGENSecrets
-	SubsharesComplete int                      // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
+	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
 	Transport         AVSSKeygenTransport
 }
 
@@ -123,6 +123,7 @@ const (
 	SNQualifiedNode = "qualified_node"
 
 	// State - KeyLog
+	SKWaitingForSends  = "waiting_for_sends"
 	SKWaitingForEchos  = "waiting_for_echos"
 	SKWaitingForReadys = "waiting_for_readys"
 	SKValidSubshare    = "valid_subshare"
@@ -141,6 +142,7 @@ const (
 	ENValidShares    = "valid_shares"
 
 	// Events - KeyLog
+	EKSendEcho           = "send_echo"
 	EKSendReady          = "send_ready"
 	EKTReachedSubshare   = "t_reached_subshare"
 	EKAllReachedSubshare = "all_reached_subshare"
@@ -342,14 +344,42 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 				ReceivedReadys:         make(map[string]KEYGENReady),         // From(M) big.Int (in hex) to Ready
 				ReceivedShareCompletes: make(map[string]KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
 				SubshareState: fsm.NewFSM(
-					SKWaitingForEchos,
+					SKWaitingForSends,
 					fsm.Events{
+						{Name: EKSendEcho, Src: []string{SKWaitingForSends}, Dst: SKWaitingForEchos},
 						{Name: EKSendReady, Src: []string{SKWaitingForEchos}, Dst: SKWaitingForReadys},
 						{Name: EKTReachedSubshare, Src: []string{SKWaitingForReadys}, Dst: SKValidSubshare},
 						{Name: EKAllReachedSubshare, Src: []string{SKValidSubshare}, Dst: SKPerfectSubshare},
 					},
 					fsm.Callbacks{
 						"enter_state": func(e *fsm.Event) { logging.Debugf("subshare set from %s to %s", e.Src, e.Dst) },
+						"after_" + EKSendEcho: func(e *fsm.Event) {
+							ki.Lock()
+							defer ki.Unlock()
+							for k := range ki.NodeLog {
+								nodeToSendIndex := big.Int{}
+								keyIndex := big.Int{}
+								dealer := big.Int{}
+								nodeToSendIndex.SetString(k, 16)
+								keyIndex.SetString(e.Args[0].(string), 16)
+								dealer.SetString(e.Args[1].(string), 16)
+								msg := ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend
+								keygenEcho := KEYGENEcho{
+									KeyIndex: keyIndex,
+									Dealer:   dealer,
+									Aij:      *pvss.PolyEval(msg.AIY, nodeToSendIndex),
+									Aprimeij: *pvss.PolyEval(msg.AIprimeY, nodeToSendIndex),
+									Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
+									Bprimeij: *pvss.PolyEval(msg.BIprimeX, nodeToSendIndex),
+								}
+								err := ki.Transport.SendKEYGENEcho(keygenEcho, nodeToSendIndex)
+								if err != nil {
+									// TODO: Handle failure, resend?
+									logging.Debugf("Error sending echo: %v", err)
+								}
+							}
+
+						},
 						"after_" + EKSendReady: func(e *fsm.Event) {
 							ki.Lock()
 							defer ki.Unlock()
@@ -427,24 +457,10 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		var tmp = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 		tmp.ReceivedSend = msg
 		ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)] = tmp
+
 		// and send echo
-		for k := range ki.NodeLog {
-			nodeToSendIndex := big.Int{}
-			nodeToSendIndex.SetString(k, 16)
-			keygenEcho := KEYGENEcho{
-				KeyIndex: msg.KeyIndex,
-				Dealer:   fromNodeIndex,
-				Aij:      *pvss.PolyEval(msg.AIY, nodeToSendIndex),
-				Aprimeij: *pvss.PolyEval(msg.AIprimeY, nodeToSendIndex),
-				Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
-				Bprimeij: *pvss.PolyEval(msg.BIprimeX, nodeToSendIndex),
-			}
-			err := ki.Transport.SendKEYGENEcho(keygenEcho, nodeToSendIndex)
-			if err != nil {
-				// TODO: Handle failure, resend?
-				return err
-			}
-		}
+		go ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].SubshareState.Event(EKSendEcho, msg.KeyIndex.Text(16), fromNodeIndex.Text(16))
+
 	}
 	return nil
 }

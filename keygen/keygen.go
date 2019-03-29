@@ -72,7 +72,7 @@ type KEYGENSecrets struct {
 
 type AVSSKeygen interface {
 	// Trigger Start for Keygen and Initialize
-	InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int) error
+	InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int, comChannel chan string) error
 
 	// For this, these listeners must be triggered on incoming messages
 	// Listeners and Reactions
@@ -109,6 +109,7 @@ type KeygenInstance struct {
 	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
 	Transport         AVSSKeygenTransport
 	MsgBuffer         KEYGENMsgBuffer
+	ComChannel        chan string
 }
 
 // KEYGEN STATES (SK)
@@ -151,7 +152,7 @@ const (
 )
 
 //TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well
-func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int) error {
+func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int, comChannel chan string) error {
 	ki.Lock()
 	defer ki.Unlock()
 	ki.NodeIndex = nodeIndex
@@ -160,6 +161,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
 	ki.NodeLog = make(map[string]*fsm.FSM)
+	ki.ComChannel = comChannel
 	// Initialize buffer
 	ki.MsgBuffer = KEYGENMsgBuffer{}
 	ki.MsgBuffer.InitializeMsgBuffer(startingIndex, numOfKeys)
@@ -238,6 +240,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 				if err != nil {
 					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENShareComplete: %s", err)
 				}
+			},
+			"enter_" + SIKeygenCompleted: func(e *fsm.Event) {
+				ki.ComChannel <- SIKeygenCompleted
 			},
 		},
 	)

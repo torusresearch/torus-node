@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
@@ -84,6 +83,7 @@ func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []
 
 func TestKeygen(t *testing.T) {
 	logging.SetLevelString("debug")
+	comsChannel := make(chan string)
 	numOfNodes := 5
 	threshold := 4
 	nodeList := make([]big.Int, numOfNodes)
@@ -105,7 +105,7 @@ func TestKeygen(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)
@@ -114,7 +114,13 @@ func TestKeygen(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(30 * time.Second)
+	// wait till all nodes are done
+	for i := 0; i < len(nodeList); i++ {
+		t.Log(i)
+		select {
+		case <-comsChannel:
+		}
+	}
 
 	for _, nodeIndex := range nodeList {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]

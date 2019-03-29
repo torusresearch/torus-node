@@ -538,9 +538,10 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	ki.Lock()
 	defer ki.Unlock()
 	if ki.State.Current() == SIRunningKeygen {
+		keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 		// we verify ready, if right we log and check if we have enough readys to validate shares
 		if !pvss.AVSSVerifyPoint(
-			ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].C,
+			keyLog.C,
 			fromNodeIndex,
 			ki.NodeIndex,
 			msg.Aij,
@@ -553,30 +554,30 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 		}
 
 		//log ready
-		ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedReadys[fromNodeIndex.Text(16)] = msg
+		keyLog.ReceivedReadys[fromNodeIndex.Text(16)] = msg
 
 		// if we've reached the required number of readys
-		if ki.Threshold <= len(ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].ReceivedReadys) {
-			logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" We're in threshold %v", len(ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].ReceivedReadys))
-			if ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Current() == SKWaitingForReadys {
-				go func(keyLog KEYGENLog, keyIndex string, dealer string) {
-					err := keyLog.SubshareState.Event(EKTReachedSubshare, keyIndex, dealer)
+		if ki.Threshold <= len(keyLog.ReceivedReadys) {
+			logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" We're in threshold %v", len(keyLog.ReceivedReadys))
+			if keyLog.SubshareState.Is(SKWaitingForReadys) {
+				go func(innerKeyLog KEYGENLog, keyIndex string, dealer string) {
+					err := innerKeyLog.SubshareState.Event(EKTReachedSubshare, keyIndex, dealer)
 					if err != nil {
 						logging.Error(err.Error())
 					}
-				}(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)], msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+				}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
 			}
 
 			// if we've got all of the readys we classify share as perfect
-			if len(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedReadys) == len(ki.NodeLog) {
-				if ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Current() == SKValidSubshare {
-					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" We launch perfec %v", len(ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].ReceivedReadys))
-					go func(keyLog KEYGENLog) {
-						err := keyLog.SubshareState.Event(EKAllReachedSubshare)
+			if len(keyLog.ReceivedReadys) == len(ki.NodeLog) {
+				// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
+				if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
+					go func(innerKeyLog KEYGENLog) {
+						err := innerKeyLog.SubshareState.Event(EKAllReachedSubshare)
 						if err != nil {
 							logging.Error(err.Error())
 						}
-					}(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)])
+					}(keyLog)
 				}
 			}
 		}

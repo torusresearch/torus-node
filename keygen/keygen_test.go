@@ -128,10 +128,10 @@ func TestKeygen(t *testing.T) {
 				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
 				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
 				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
-				t.Log("Ready:")
-				for _, ready := range nodeLog.ReceivedReadys {
-					t.Log(ready)
-				}
+				// 	t.Log("Ready:")
+				// 	for _, ready := range nodeLog.ReceivedReadys {
+				// 		t.Log(ready)
+				// 	}
 			}
 		}
 		instance.Unlock()

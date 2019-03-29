@@ -23,7 +23,7 @@ type Transport struct {
 }
 
 func (transport *Transport) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
-	fmt.Println("SendKEYGENSend Called: ", to)
+	// fmt.Println("SendKEYGENSend Called: ", to)
 	go func(ins map[string]*KeygenInstance) {
 		err := ins[to.Text(16)].OnKEYGENSend(msg, transport.nodeIndex)
 		if err != nil {
@@ -34,7 +34,7 @@ func (transport *Transport) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
 }
 
 func (transport *Transport) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
-	fmt.Println("SendKEYGENEcho Called: ", to)
+	// fmt.Println("SendKEYGENEcho Called: ", to)
 	go func(ins map[string]*KeygenInstance) {
 		err := ins[to.Text(16)].OnKEYGENEcho(msg, transport.nodeIndex)
 		if err != nil {
@@ -45,7 +45,7 @@ func (transport *Transport) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
 }
 
 func (transport *Transport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
-	fmt.Println("SendKEYGENReady: ", to)
+	// fmt.Println("SendKEYGENReady: ", to)
 	go func(ins map[string]*KeygenInstance) {
 		err := ins[to.Text(16)].OnKEYGENReady(msg, transport.nodeIndex)
 		if err != nil {
@@ -56,7 +56,7 @@ func (transport *Transport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
 }
 
 func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
-	logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
+	// logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
 	time.Sleep(1 * time.Second)
 	for _, instance := range *transport.nodeKegenInstances {
 		// logging.Debugf("index: %s", k)
@@ -71,7 +71,7 @@ func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]com
 }
 
 func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
-	fmt.Println("BroadcastKEYGENShareComplete Called: ", transport.nodeIndex)
+	// fmt.Println("BroadcastKEYGENShareComplete Called: ", transport.nodeIndex)
 	time.Sleep(1 * time.Second)
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm []KEYGENShareComplete, tns big.Int) {
@@ -128,6 +128,10 @@ func TestKeygen(t *testing.T) {
 				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
 				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
 				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
+				t.Log("Ready:")
+				for _, ready := range nodeLog.ReceivedReadys {
+					t.Log(ready)
+				}
 			}
 		}
 		instance.Unlock()

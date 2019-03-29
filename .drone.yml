@@ -1,0 +1,13 @@
+kind: pipeline
+name: default
+
+workspace:
+  base: /go
+  path: src/github.com/octocat/hello-world
+
+steps:
+- name: test
+  image: golang
+  commands:
+  - go get
+  - go test

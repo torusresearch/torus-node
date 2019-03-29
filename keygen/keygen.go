@@ -462,10 +462,11 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	if ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].SubshareState.Current() == SKWaitingForSends {
+	keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
+	if keyLog.SubshareState.Current() == SKWaitingForSends {
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
-			ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].C,
+			keyLog.C,
 			ki.NodeIndex,
 			msg.AIY,
 			msg.AIprimeY,
@@ -480,14 +481,15 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		var tmp = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 		tmp.ReceivedSend = msg
 		ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)] = tmp
+		keyLog = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 
 		// and send echo
-		go func(keyLog KEYGENLog, keyIndex string, from string) {
-			err := keyLog.SubshareState.Event(EKSendEcho, keyIndex, from)
+		go func(innerKeyLog KEYGENLog, keyIndex string, from string) {
+			err := innerKeyLog.SubshareState.Event(EKSendEcho, keyIndex, from)
 			if err != nil {
 				logging.Error(err.Error())
 			}
-		}(ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)], msg.KeyIndex.Text(16), fromNodeIndex.Text(16))
+		}(keyLog, msg.KeyIndex.Text(16), fromNodeIndex.Text(16))
 
 	} else {
 		ki.MsgBuffer.StoreKEYGENSend(msg, fromNodeIndex)
@@ -498,10 +500,11 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	if ki.State.Current() == SIRunningKeygen {
+	keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
+	if keyLog.SubshareState.Is(SKWaitingForEchos) {
 		//verify echo, if correct log echo. If there are more then threshold Echos we send ready
 		if !pvss.AVSSVerifyPoint(
-			ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].C,
+			keyLog.C,
 			fromNodeIndex,
 			ki.NodeIndex,
 			msg.Aij,
@@ -514,19 +517,17 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 		}
 
 		//log echo
-		ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedEchoes[fromNodeIndex.Text(16)] = msg
+		keyLog.ReceivedEchoes[fromNodeIndex.Text(16)] = msg
 
 		// check for echos
-		if ki.Threshold <= len(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].ReceivedEchoes) {
+		if ki.Threshold <= len(keyLog.ReceivedEchoes) {
 			//since threshoold and above we send ready
-			if ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)].SubshareState.Current() == SKWaitingForEchos {
-				go func(keyLog KEYGENLog, keyIndex string, dealer string) {
-					err := keyLog.SubshareState.Event(EKSendReady, keyIndex, dealer)
-					if err != nil {
-						logging.Error(err.Error())
-					}
-				}(ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)], msg.KeyIndex.Text(16), msg.Dealer.Text(16))
-			}
+			go func(innerKeyLog KEYGENLog, keyIndex string, dealer string) {
+				err := innerKeyLog.SubshareState.Event(EKSendReady, keyIndex, dealer)
+				if err != nil {
+					logging.Error(err.Error())
+				}
+			}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
 		}
 	} else {
 		ki.MsgBuffer.StoreKEYGENEcho(msg, fromNodeIndex)

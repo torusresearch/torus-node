@@ -57,7 +57,6 @@ func (transport *Transport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
 
 func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
 	// logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
-	time.Sleep(1 * time.Second)
 	for _, instance := range *transport.nodeKegenInstances {
 		// logging.Debugf("index: %s", k)
 		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
@@ -72,7 +71,6 @@ func (transport *Transport) BroadcastInitiateKeygen(commitmentMatrixes [][][]com
 
 func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
 	// fmt.Println("BroadcastKEYGENShareComplete Called: ", transport.nodeIndex)
-	time.Sleep(1 * time.Second)
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm []KEYGENShareComplete, tns big.Int) {
 			err := ins.OnKEYGENShareComplete(cm, tns)

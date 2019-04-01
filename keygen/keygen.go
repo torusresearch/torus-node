@@ -101,7 +101,8 @@ type KeygenInstance struct {
 	NodeIndex         big.Int
 	Threshold         int
 	State             *fsm.FSM
-	NodeLog           map[string]*fsm.FSM                // nodeindex => fsm
+	NodeLog           map[string]*fsm.FSM                // nodeindex => fsm equivilent to qualified set
+	UnqualifiedNodes  map[string]*fsm.FSM                // nodeindex => fsm equivilent to qualified set
 	KeyLog            map[string](map[string]*KEYGENLog) // keyindex => nodeindex => log
 	Secrets           map[string]KEYGENSecrets           // keyindex => KEYGENSecrets
 	StartIndex        big.Int
@@ -121,9 +122,10 @@ const (
 	SIKeygenCompleted            = "keygen_completed"
 
 	// For State - node log
-	SNStandby       = "standby"
-	SNKeygening     = "keygening"
-	SNQualifiedNode = "qualified_node"
+	SNStandby         = "standby"
+	SNKeygening       = "keygening"
+	SNQualifiedNode   = "qualified_node"
+	SNUnqualifiedNode = "unqualified_node"
 
 	// State - KeyLog
 	SKWaitingForSends  = "waiting_for_sends"
@@ -143,6 +145,7 @@ const (
 	// For node log events
 	ENInitiateKeygen = "initiate_keygen"
 	ENValidShares    = "valid_shares"
+	ENFailedRoundOne = "failed_round_one"
 
 	// Events - KeyLog
 	EKSendEcho           = "send_echo"
@@ -161,6 +164,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
 	ki.NodeLog = make(map[string]*fsm.FSM)
+	ki.UnqualifiedNodes = make(map[string]*fsm.FSM)
 	ki.ComChannel = comChannel
 	// Initialize buffer
 	ki.MsgBuffer = KEYGENMsgBuffer{}
@@ -218,7 +222,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					siprime := big.NewInt(int64(0))
 					// just a check for the right number of subshares
 					if len(ki.KeyLog[keyIndex.Text(16)]) != len(ki.NodeLog) {
-						logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Not correct number of subshares found for: keyindex %s, Expected %s Actual %s", keyIndex.Text(16), len(ki.NodeLog), len(ki.KeyLog[keyIndex.Text(16)]))
+						logging.Errorf("NODE "+ki.NodeIndex.Text(16)+" Not correct number of subshares found for: keyindex %s, Expected %s Actual %s", keyIndex.Text(16), len(ki.NodeLog), len(ki.KeyLog[keyIndex.Text(16)]))
 					}
 					for _, v := range ki.KeyLog[keyIndex.Text(16)] {
 						// add up subshares
@@ -254,6 +258,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 			fsm.Events{
 				{Name: ENInitiateKeygen, Src: []string{SNStandby}, Dst: SNKeygening},
 				{Name: ENValidShares, Src: []string{SNKeygening}, Dst: SNQualifiedNode},
+				{Name: ENFailedRoundOne, Src: []string{SNStandby}, Dst: SNUnqualifiedNode},
 			},
 			fsm.Callbacks{
 				"enter_state": func(e *fsm.Event) {
@@ -327,12 +332,16 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 			fprime: fprime,
 		}
 	}
+
+	//TODO: Trigger setting up of listeners here
 	err := ki.Transport.BroadcastInitiateKeygen(commitmentMatrixes)
 	if err != nil {
 		return err
 	}
-	//TODO: We neet to set a timing (t1) here
-	//TODO: Trigger setting up of listeners here
+
+	//TODO: We neet to set a timing (t1) here (Deprecated)
+	// Changed to tendermint triggering timing
+
 	return nil
 }
 

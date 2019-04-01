@@ -87,7 +87,7 @@ func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []
 	return nil
 }
 
-func TestKeygen(t *testing.T) {
+func TestOptimisticKeygen(t *testing.T) {
 
 	f, err := os.Create("cpuProfile")
 	if err != nil {

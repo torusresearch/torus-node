@@ -5,13 +5,12 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/torusresearch/torus-public/logging"
-
 	"github.com/gogo/protobuf/proto"
 	uuid "github.com/google/uuid"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	p2p "github.com/torusresearch/torus-public/dkgnode/pb"
+	"github.com/torusresearch/torus-public/logging"
 )
 
 // pattern: /protocol-name/request-or-response-message/version

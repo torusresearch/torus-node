@@ -46,6 +46,7 @@ module.exports = {
       provider: function() {
         return new HDWalletProvider(mnemonic, 'https://ganache.staging.dev.tor.us');
       },
+      gas: 4700000,
     },
     // digital: {
     //   provider: new HDWalletProvider(private.ganache, 'http://178.128.178.162:14103'),

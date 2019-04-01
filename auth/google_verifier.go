@@ -46,7 +46,6 @@ type GoogleVerifier struct {
 
 // GoogleVerifierParams - expected params for the google verifier
 type GoogleVerifierParams struct {
-	Index   int    `json:"index"`
 	IDToken string `json:"idtoken"`
 	Email   string `json:"email"`
 }
@@ -57,26 +56,18 @@ func (g *GoogleVerifier) GetIdentifier() string {
 }
 
 // CleanToken - trim spaces to prevent replay attacks
-func (g *GoogleVerifier) CleanToken(rawPayload *fastjson.RawMessage) *fastjson.RawMessage {
-	var p GoogleVerifierParams
-	if err := fastjson.Unmarshal(*rawPayload, &p); err != nil {
-		return nil
-	}
-	p.IDToken = strings.Trim(p.IDToken, " ")
-	res, err := fastjson.Marshal(p)
-	if err != nil {
-		return nil
-	}
-	r := fastjson.RawMessage(res)
-	return &r
+func (g *GoogleVerifier) CleanToken(token string) string {
+	return strings.Trim(token, " ")
 }
 
 // VerifyRequestIdentity - verifies identity of user based on their token
 func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *fastjson.RawMessage) (bool, error) {
 	var p GoogleVerifierParams
-	if err := fastjson.Unmarshal(*g.CleanToken(rawPayload), &p); err != nil {
+	if err := fastjson.Unmarshal(*rawPayload, &p); err != nil {
 		return false, err
 	}
+
+	p.IDToken = g.CleanToken(p.IDToken)
 
 	if p.Email == "" || p.IDToken == "" {
 		return false, errors.New("invalid payload parameters")

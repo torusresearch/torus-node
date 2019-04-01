@@ -24,44 +24,23 @@ func (v *DemoVerifier) GetIdentifier() string {
 }
 
 // CleanToken - ensure that incoming token conforms to strict format to prevent replay attacks
-func (v *DemoVerifier) CleanToken(jsonToken *fastjson.RawMessage) *fastjson.RawMessage {
-	var p DemoVerifierParams
-	if err := fastjson.Unmarshal(*jsonToken, &p); err != nil {
-		return nil
-	}
-	p.IDToken = strings.Trim(p.IDToken, " ")
-	res, err := fastjson.Marshal(p)
-	if err != nil {
-		return nil
-	}
-	r := fastjson.RawMessage(res)
-	return &r
+func (v *DemoVerifier) CleanToken(token string) string {
+	return strings.Trim(token, " ")
 }
 
 // VerifyRequestIdentity - verifies identity of user based on their token
 func (v *DemoVerifier) VerifyRequestIdentity(jsonToken *fastjson.RawMessage) (bool, error) {
 	var p DemoVerifierParams
-	if err := fastjson.Unmarshal(*v.CleanToken(jsonToken), &p); err != nil {
+	if err := fastjson.Unmarshal(*jsonToken, &p); err != nil {
 		return false, err
 	}
+
+	p.IDToken = v.CleanToken(p.IDToken)
 
 	if p.IDToken != v.ExpectedKey {
 		return false, errors.New("invalid idtoken")
 	}
 
 	v.Store[p.IDToken] = true
-	return true, nil
-}
-
-// UniqueTokenCheck - checks if token has been duplicated
-func (v *DemoVerifier) UniqueTokenCheck(jsonToken *fastjson.RawMessage) (bool, error) {
-	var p DemoVerifierParams
-	if err := fastjson.Unmarshal(*v.CleanToken(jsonToken), &p); err != nil {
-		return false, err
-	}
-	if v.Store[p.IDToken] {
-		return false, errors.New("token has been used before")
-	}
-
 	return true, nil
 }

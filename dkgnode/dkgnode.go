@@ -4,7 +4,6 @@ package dkgnode
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"log"
 	"math/big"
 	"os"
@@ -13,8 +12,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/intel-go/fastjson"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -43,22 +40,6 @@ type Suite struct {
 type googleIdentityVerifier struct {
 	*auth.GoogleVerifier
 	suite *Suite
-}
-
-func (gIV *googleIdentityVerifier) UniqueTokenCheck(rawPayload *fastjson.RawMessage) (bool, error) {
-	var p auth.GoogleVerifierParams
-	if err := fastjson.Unmarshal(*gIV.CleanToken(rawPayload), &p); err != nil {
-		return false, err
-	}
-	_, ok := gIV.suite.CacheSuite.CacheInstance.Get(p.IDToken)
-	if ok {
-		return false, errors.New("oauth is already in cache " + p.IDToken)
-	}
-
-	// add token to cache (should clean periodically)
-	gIV.suite.CacheSuite.CacheInstance.Set(p.IDToken, true, 0)
-
-	return true, nil
 }
 
 /* The entry point for our System */

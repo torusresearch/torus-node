@@ -7,10 +7,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/torusresearch/torus-public/bft"
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
 	"github.com/rs/cors"
+	"github.com/torusresearch/torus-public/bft"
 )
 
 const bftDatabasePath = "./bft.db"

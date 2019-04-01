@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/intel-go/fastjson"
@@ -9,18 +10,15 @@ import (
 // Verifier describes verification of a token, without checking for token uniqueness
 type Verifier interface {
 	GetIdentifier() string
-	CleanToken(*fastjson.RawMessage) *fastjson.RawMessage
+	CleanToken(string) string
 	VerifyRequestIdentity(*fastjson.RawMessage) (bool, error)
 }
 
 // IdentityVerifier describes a common implementation shared among torus
 // identity verifiers
-type IdentityVerifier interface {
-	Verifier
-	UniqueTokenCheck(*fastjson.RawMessage) (bool, error)
-}
 
 type VerifyMessage struct {
+	Token              string `json:"token"`
 	VerifierIdentifier string `json:"verifieridentifier"`
 }
 
@@ -45,7 +43,19 @@ func (tgv *DefaultGeneralVerifier) Verify(rawMessage *fastjson.RawMessage) (bool
 	if err != nil {
 		return false, err
 	}
-	return v.VerifyRequestIdentity(rawMessage)
+	cleanedToken := v.CleanToken(verifyMessage.Token)
+	jsonMap := make(map[string]interface{})
+	err = json.Unmarshal(*rawMessage, &jsonMap)
+	if err != nil {
+		return false, err
+	}
+	jsonMap["token"] = cleanedToken
+	cleanedRawMessageBytes, err := fastjson.Marshal(jsonMap)
+	if err != nil {
+		return false, err
+	}
+	cleanedRawMessage := fastjson.RawMessage(cleanedRawMessageBytes)
+	return v.VerifyRequestIdentity(&cleanedRawMessage)
 }
 
 // Lookup returns the appropriate verifier

@@ -2,11 +2,14 @@ package dkgnode
 
 import (
 	"errors"
+	"math/big"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/osamingo/jsonrpc"
+	"github.com/torusresearch/torus-public/secp256k1"
 )
 
 type (
@@ -30,12 +33,26 @@ type (
 		BroadcastId        []byte
 	}
 	ShareRequestHandler struct {
-		suite *Suite
+		suite   *Suite
+		TimeNow func() time.Time
+	}
+
+	ValidatedNodeSignature struct {
+		NodeSignature
+		NodeIndex big.Int
+	}
+
+	NodeSignature struct {
+		Data        string
+		Signature   string
+		NodePubKeyX string
+		NodePubKeyY string
 	}
 	ShareRequestParams struct {
-		Index   int    `json:"index"`
-		IDToken string `json:"idtoken"`
-		Email   string `json:"email"`
+		ID                 string          `json:"id"`
+		Token              string          `json:"token"`
+		NodeSignatures     []NodeSignature `json:"nodesignatures"`
+		VerifierIdentifier string          `json:verifieridentifier`
 	}
 	ShareRequestResult struct {
 		Index    int    `json:"index"`
@@ -48,7 +65,7 @@ type (
 	CommitmentRequestParams struct {
 		MessagePrefix      string `json:"messageprefix"`
 		TokenCommitment    string `json:"tokencommitment"`
-		TempPubX           string `json:"temppubx`
+		TempPubX           string `json:"temppubx"`
 		TempPubY           string `json:"temppuby"`
 		Timestamp          string `json:"timestamp"`
 		VerifierIdentifier string `json:"verifieridentifier"`
@@ -63,7 +80,6 @@ type (
 		VerifierIdentifier string
 		TimeSigned         string
 	}
-
 	CommitmentRequestResult struct {
 		Signature string `json:"signature"`
 		Data      string `json:"data"`
@@ -83,6 +99,71 @@ type (
 		Address    string `json:"address"`
 	}
 )
+
+func (nodeSig *NodeSignature) NodeValidation(suite *Suite) (*NodeReference, error) {
+	var node *NodeReference
+	for i := 0; i < len(suite.EthSuite.NodeList); i++ {
+		currNode := suite.EthSuite.NodeList[i]
+		if currNode.PublicKey.X.Text(16) == nodeSig.NodePubKeyX &&
+			currNode.PublicKey.Y.Text(16) == nodeSig.NodePubKeyY {
+			node = currNode
+		}
+	}
+	if node == nil {
+		return nil, errors.New("Node not found")
+	}
+	recSig := HexToECDSASig(nodeSig.Signature)
+	var sig32 [32]byte
+	copy(sig32[:], secp256k1.Keccak256([]byte(nodeSig.Data))[:32])
+	recoveredSig := ECDSASignature{
+		recSig.Raw,
+		sig32,
+		recSig.R,
+		recSig.S,
+		recSig.V - 27,
+	}
+	valid := ECDSAVerify(*node.PublicKey, recoveredSig)
+	if !valid {
+		return nil, errors.New("Could not validate ecdsa signature")
+	}
+
+	// check if time signed is after timestamp
+	var commitmentRequestResultData CommitmentRequestResultData
+	ok, err := commitmentRequestResultData.FromString(nodeSig.Data)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("Could not parse data from string")
+	}
+	timestamp, err := strconv.ParseInt(commitmentRequestResultData.Timestamp, 10, 64)
+	if err != nil {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not parse timestamp"}
+	}
+	now, err := strconv.ParseInt(commitmentRequestResultData.TimeSigned, 10, 64)
+	if err != nil {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not parse timestamp"}
+	}
+	if time.Unix(now, 0).Before(time.Unix(timestamp, 0)) {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Node signed before timestamp"}
+	}
+	if time.Unix(now, 0).After(time.Unix(timestamp+60, 0)) {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Node took too long to sign (> 60 seconds)"}
+	}
+
+	return node, nil
+}
+
+func (p *CommitmentRequestParams) ToString() string {
+	accumulator := ""
+	accumulator = accumulator + p.MessagePrefix + "|"
+	accumulator = accumulator + p.TokenCommitment + "|"
+	accumulator = accumulator + p.TempPubX + "|"
+	accumulator = accumulator + p.TempPubY + "|"
+	accumulator = accumulator + p.Timestamp + "|"
+	accumulator = accumulator + p.VerifierIdentifier
+	return accumulator
+}
 
 func (c *CommitmentRequestResultData) ToString() string {
 	accumulator := ""
@@ -118,7 +199,7 @@ func setUpJRPCHandler(suite *Suite) (*jsonrpc.MethodRepository, error) {
 	if err := mr.RegisterMethod("Ping", PingHandler{suite.EthSuite}, PingParams{}, PingResult{}); err != nil {
 		return nil, err
 	}
-	if err := mr.RegisterMethod("ShareRequest", ShareRequestHandler{suite}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
+	if err := mr.RegisterMethod("ShareRequest", ShareRequestHandler{suite, time.Now}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
 		return nil, err
 	}
 	if err := mr.RegisterMethod("SecretAssign", SecretAssignHandler{suite}, SecretAssignParams{}, SecretAssignResult{}); err != nil {

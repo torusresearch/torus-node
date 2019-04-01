@@ -18,6 +18,11 @@ func RandomBigInt() *big.Int {
 	return randomInt
 }
 
+// Exported function to evaluate polys
+func PolyEval(polynomial common.PrimaryPolynomial, x big.Int) *big.Int {
+	return polyEval(polynomial, int(x.Int64()))
+}
+
 // Eval computes the private share v = p(i).
 func polyEval(polynomial common.PrimaryPolynomial, x int) *big.Int { // get private share
 	xi := big.NewInt(int64(x))

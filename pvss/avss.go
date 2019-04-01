@@ -3,6 +3,7 @@ package pvss
 // Asynchronous Verifiable Secret Sharing and Proactive Cryptosystems
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/torusresearch/torus-public/common"
@@ -186,5 +187,39 @@ func AVSSVerifyShare(C [][]common.Point, m big.Int, sigma big.Int, sigmaprime bi
 		return false
 	}
 
+	return true
+}
+
+// To add commitments together
+func AVSSAddCommitment(C1 [][]common.Point, C2 [][]common.Point) ([][]common.Point, error) {
+	if len(C1) != len(C2) {
+		return nil, errors.New("Commitment not same width")
+	}
+	sumC := make([][]common.Point, len(C1))
+	for i := range C1 {
+		if len(C1[i]) != len(C2[i]) {
+			return nil, errors.New("Commitment not same length")
+		}
+		sumC[i] = make([]common.Point, len(C1))
+		for j := range C1[i] {
+			sumC[i][j] = common.BigIntToPoint(secp256k1.Curve.Add(&C1[i][j].X, &C1[i][j].Y, &C2[i][j].X, &C2[i][j].Y))
+		}
+	}
+	return sumC, nil
+}
+
+// AVSSVerifyShareCommitment to test gsihr against C
+func AVSSVerifyShareCommitment(C [][]common.Point, m big.Int, gsigmahsigmaprime common.Point) bool {
+	pt := common.Point{X: *big.NewInt(int64(0)), Y: *big.NewInt(int64(0))}
+	for j := range C {
+		Cj0 := C[j][0]
+		mj := new(big.Int).Exp(&m, big.NewInt(int64(j)), secp256k1.GeneratorOrder)
+		Cj0mj := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&Cj0.X, &Cj0.Y, mj.Bytes()))
+		pt = common.BigIntToPoint(secp256k1.Curve.Add(&pt.X, &pt.Y, &Cj0mj.X, &Cj0mj.Y))
+	}
+
+	if gsigmahsigmaprime.X.Cmp(&pt.X) != 0 || gsigmahsigmaprime.Y.Cmp(&pt.Y) != 0 {
+		return false
+	}
 	return true
 }

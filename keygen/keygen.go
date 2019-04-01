@@ -101,9 +101,9 @@ type KeygenInstance struct {
 	NodeIndex         big.Int
 	Threshold         int
 	State             *fsm.FSM
-	NodeLog           map[string]*fsm.FSM               // nodeindex => fsm
-	KeyLog            map[string](map[string]KEYGENLog) // keyindex => nodeindex => log
-	Secrets           map[string]KEYGENSecrets          // keyindex => KEYGENSecrets
+	NodeLog           map[string]*fsm.FSM                // nodeindex => fsm
+	KeyLog            map[string](map[string]*KEYGENLog) // keyindex => nodeindex => log
+	Secrets           map[string]KEYGENSecrets           // keyindex => KEYGENSecrets
 	StartIndex        big.Int
 	NumOfKeys         int
 	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
@@ -303,7 +303,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 		)
 	}
 
-	ki.KeyLog = make(map[string](map[string]KEYGENLog))
+	ki.KeyLog = make(map[string](map[string]*KEYGENLog))
 	ki.Secrets = make(map[string]KEYGENSecrets)
 
 	// prepare commitmentMatrixes for broadcast
@@ -312,7 +312,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 		//help initialize all the keylogs
 		index := big.NewInt(int64(i))
 		index.Add(index, &ki.StartIndex)
-		ki.KeyLog[index.Text(16)] = make(map[string]KEYGENLog)
+		ki.KeyLog[index.Text(16)] = make(map[string]*KEYGENLog)
 		secret := *pvss.RandomBigInt()
 		f := pvss.GenerateRandomBivariatePolynomial(secret, threshold)
 		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), threshold)
@@ -350,7 +350,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 			index := big.NewInt(int64(i))
 			index.Add(index, &ki.StartIndex)
 			//TODO: create state to handle time out of t2
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)] = KEYGENLog{
+			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)] = &KEYGENLog{
 				KeyIndex:               *index,
 				NodeIndex:              nodeIndex,
 				C:                      commitmentMatrix,
@@ -489,7 +489,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		keyLog = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 
 		// and send echo
-		go func(innerKeyLog KEYGENLog, keyIndex string, from string) {
+		go func(innerKeyLog *KEYGENLog, keyIndex string, from string) {
 			err := innerKeyLog.SubshareState.Event(EKSendEcho, keyIndex, from)
 			if err != nil {
 				logging.Error(err.Error())
@@ -527,7 +527,7 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 		// check for echos
 		if ki.Threshold <= len(keyLog.ReceivedEchoes) {
 			//since threshoold and above we send ready
-			go func(innerKeyLog KEYGENLog, keyIndex string, dealer string) {
+			go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
 				err := innerKeyLog.SubshareState.Event(EKSendReady, keyIndex, dealer)
 				if err != nil {
 					logging.Error(err.Error())
@@ -566,7 +566,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 		if ki.Threshold <= len(keyLog.ReceivedReadys) {
 			logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" We're in threshold %v", len(keyLog.ReceivedReadys))
 			if keyLog.SubshareState.Is(SKWaitingForReadys) {
-				go func(innerKeyLog KEYGENLog, keyIndex string, dealer string) {
+				go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
 					err := innerKeyLog.SubshareState.Event(EKTReachedSubshare, keyIndex, dealer)
 					if err != nil {
 						logging.Error(err.Error())
@@ -578,7 +578,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 			if len(keyLog.ReceivedReadys) == len(ki.NodeLog) {
 				// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
 				if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
-					go func(innerKeyLog KEYGENLog) {
+					go func(innerKeyLog *KEYGENLog) {
 						err := innerKeyLog.SubshareState.Event(EKAllReachedSubshare)
 						if err != nil {
 							logging.Error(err.Error())

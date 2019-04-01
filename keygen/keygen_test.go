@@ -2,8 +2,14 @@ package keygen
 
 import (
 	"fmt"
+	"log"
 	"math/big"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
@@ -82,6 +88,15 @@ func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []
 }
 
 func TestKeygen(t *testing.T) {
+
+	f, err := os.Create("cpuProfile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	runtime.GOMAXPROCS(10)
 	logging.SetLevelString("debug")
 	comsChannel := make(chan string)
 	numOfNodes := 5
@@ -105,7 +120,7 @@ func TestKeygen(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex, comsChannel)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 10, nodeList, threshold, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)
@@ -114,11 +129,13 @@ func TestKeygen(t *testing.T) {
 		}(nodeIndex)
 	}
 
+	count := 0
 	// wait till all nodes are done
 	for i := 0; i < len(nodeList); i++ {
 		t.Log(i)
 		select {
 		case <-comsChannel:
+			count++
 		}
 	}
 
@@ -140,5 +157,6 @@ func TestKeygen(t *testing.T) {
 		}
 		instance.Unlock()
 	}
+	assert.True(t, count == len(nodeList))
 
 }

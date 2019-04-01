@@ -107,15 +107,9 @@ func TestTimeboundOne(t *testing.T) {
 	threshold := 4
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
-	allNodeInstances := make(map[string]AVSSKeygen)
 	for i := range nodeList {
-		if i == 0 {
-			nodeList[i] = *big.NewInt(int64(i + 1))
-			allNodeInstances[nodeList[i].Text(16)] = &mockDeadNode{}
-		} else {
-			nodeList[i] = *big.NewInt(int64(i + 1))
-			nodeKegenInstances[nodeList[i].Text(16)] = &KeygenInstance{}
-		}
+		nodeList[i] = *big.NewInt(int64(i + 1))
+		nodeKegenInstances[nodeList[i].Text(16)] = &KeygenInstance{}
 	}
 
 	//edit transport functions
@@ -123,17 +117,22 @@ func TestTimeboundOne(t *testing.T) {
 		var nodeIndex big.Int
 		nodeIndex.SetString(k, 16)
 		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
-		v.Transport = &transport
+		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
+			v.Transport = &mockDeadTransport{}
+		} else {
+			v.Transport = &transport
+		}
+
 		//set up store
 		v.Store = &mockKeygenStore{}
 	}
 
 	//start!
-	for i, nodeIndex := range nodeList {
-		// dont start first node (to malicious node)
-		if i == 0 {
-			continue
-		}
+	for _, nodeIndex := range nodeList {
+		// // dont start first node (to malicious node)
+		// if i == 0 {
+		// 	continue
+		// }
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex, comsChannel)
@@ -228,6 +227,29 @@ func (transport *mockTransport) BroadcastKEYGENShareComplete(keygenShareComplete
 			}
 		}(instance, keygenShareCompletes, transport.nodeIndex)
 	}
+	return nil
+}
+
+type mockDeadTransport struct {
+}
+
+func (transport *mockDeadTransport) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
+	return nil
+}
+
+func (transport *mockDeadTransport) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
+	return nil
+}
+
+func (transport *mockDeadTransport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
+	return nil
+}
+
+func (transport *mockDeadTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+	return nil
+}
+
+func (transport *mockDeadTransport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
 	return nil
 }
 

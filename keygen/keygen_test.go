@@ -60,13 +60,17 @@ func TestOptimisticKeygen(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	count := 0
 	// wait till all nodes are done
-	for i := 0; i < len(nodeList); i++ {
-		t.Log(i)
+	count := 0
+	for {
 		select {
-		case <-comsChannel:
-			count++
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+		}
+		if count >= len(nodeList) {
+			break
 		}
 	}
 
@@ -112,6 +116,15 @@ func TestTimeboundOne(t *testing.T) {
 		nodeKegenInstances[nodeList[i].Text(16)] = &KeygenInstance{}
 	}
 
+	done := false
+	// build timer function to kill of exceeds time
+	go func(d *bool) {
+		time.Sleep(3 * time.Second)
+		if !*d {
+			assert.True(t, *d, "TestTimeboundOne timed out")
+		}
+	}(&done)
+
 	//edit transport functions
 	for k, v := range nodeKegenInstances {
 		var nodeIndex big.Int
@@ -144,7 +157,7 @@ func TestTimeboundOne(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// log node status
 	for i, nodeIndex := range nodeList {
@@ -155,14 +168,51 @@ func TestTimeboundOne(t *testing.T) {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]
 		instance.Lock()
 		t.Log(nodeIndex.Text(16), instance.State.Current())
-		for _, ni := range nodeList {
-			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
-		}
+		// for _, ni := range nodeList {
+		// 	t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+		// }
 		instance.Unlock()
 	}
 
-	// trigger keygen here
+	// trigger timebound one here
+	for i, nodeIndex := range nodeList {
+		// to not cause a panic
+		if i == 0 {
+			continue
+		}
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		err := instance.TriggerRoundOneTimebound()
+		if err != nil {
+			t.Log(err)
+		}
+	}
 
+	// wait till nodes are done (w/o malicious node)
+	count := 0
+	for {
+		select {
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+		}
+		if count >= len(nodeList)-1 { // accounted for here
+			break
+		}
+	}
+
+	// log node status
+	for i, nodeIndex := range nodeList {
+		// to not cause a panic
+		if i == 0 {
+			continue
+		}
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
+		instance.Unlock()
+	}
 }
 
 type mockTransport struct {

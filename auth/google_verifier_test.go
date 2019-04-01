@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/intel-go/fastjson"
-	"github.com/osamingo/jsonrpc"
 )
 
 type GoogleIdentityVerifier struct {
@@ -15,7 +16,7 @@ type GoogleIdentityVerifier struct {
 
 func (g *GoogleIdentityVerifier) UniqueTokenCheck(rM *fastjson.RawMessage) (bool, error) {
 	var p GoogleVerifierParams
-	if err := jsonrpc.Unmarshal(rM, &p); err != nil {
+	if err := fastjson.Unmarshal(*rM, &p); err != nil {
 		return false, err
 	}
 	if !g.tokenStore[p.IDToken] {
@@ -33,6 +34,7 @@ func TestEmptyEmailVerifier(t *testing.T) {
 		GoogleVerifier{},
 		make(map[string]bool),
 	}
+	assert.Equal(t, v.GetIdentifier(), "google")
 	ok, err := v.VerifyRequestIdentity(&rawMsg)
 	if ok || err.Error() != "invalid payload parameters" {
 		t.Fatal("a request with empty email and idToken passed without error")

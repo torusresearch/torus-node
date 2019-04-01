@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -10,10 +9,9 @@ import (
 	"time"
 
 	"github.com/intel-go/fastjson"
-	"github.com/osamingo/jsonrpc"
 )
 
-// AuthBodyGoogle - expected response body from google endpoint when checking submitted token
+// GoogleAuthResponse - expected response body from google endpoint when checking submitted token
 type GoogleAuthResponse struct {
 	Azp           string `json:"azp"`
 	Email         string `json:"email"`
@@ -34,6 +32,7 @@ type GoogleAuthResponse struct {
 	Typ           string `json:"typ"`
 }
 
+// GoogleOAuthEndpoint - endpoint for checking tokens
 const GoogleOAuthEndpoint = "https://www.googleapis.com/oauth2/v3"
 
 // GoogleVerifier - Google verifier details
@@ -52,10 +51,30 @@ type GoogleVerifierParams struct {
 	Email   string `json:"email"`
 }
 
+// GetIdentifier - get identifier string for verifier
+func (g *GoogleVerifier) GetIdentifier() string {
+	return "google"
+}
+
+// CleanToken - trim spaces to prevent replay attacks
+func (g *GoogleVerifier) CleanToken(rawPayload *fastjson.RawMessage) *fastjson.RawMessage {
+	var p GoogleVerifierParams
+	if err := fastjson.Unmarshal(*rawPayload, &p); err != nil {
+		return nil
+	}
+	p.IDToken = strings.Trim(p.IDToken, " ")
+	res, err := fastjson.Marshal(p)
+	if err != nil {
+		return nil
+	}
+	r := fastjson.RawMessage(res)
+	return &r
+}
+
 // VerifyRequestIdentity - verifies identity of user based on their token
 func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *fastjson.RawMessage) (bool, error) {
 	var p GoogleVerifierParams
-	if err := jsonrpc.Unmarshal(rawPayload, &p); err != nil {
+	if err := fastjson.Unmarshal(*g.CleanToken(rawPayload), &p); err != nil {
 		return false, err
 	}
 
@@ -73,7 +92,7 @@ func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *fastjson.RawMessage) 
 		return false, err
 	}
 	var body GoogleAuthResponse
-	err = json.Unmarshal(b, &body)
+	err = fastjson.Unmarshal(b, &body)
 	if err != nil {
 		return false, err
 	}

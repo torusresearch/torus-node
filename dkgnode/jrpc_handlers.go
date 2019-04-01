@@ -5,14 +5,72 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"time"
 
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
+	cache "github.com/patrickmn/go-cache"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 )
+
+func (h CommitmentRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+	var p CommitmentRequestParams
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+	timestamp := p.Timestamp
+	tokenCommitment := p.TokenCommitment
+	verifierIdentifier := p.VerifierIdentifier
+
+	// check if message prefix is correct
+	if p.MessagePrefix != "mug00" {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Incorrect message prefix"}
+	}
+
+	// check if timestamp has expired
+	sec, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not parse timestamp"}
+	}
+	if h.TimeNow().After(time.Unix(sec+60, 0)) {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Expired token (> 60 seconds)"}
+	}
+
+	// check if tokenCommitment has been seen before for that particular verifierIdentifier
+	if h.suite.CacheSuite.TokenCaches[verifierIdentifier] == nil {
+		h.suite.CacheSuite.TokenCaches[verifierIdentifier] = cache.New(cache.NoExpiration, 10*time.Minute)
+	}
+	tokenCache := h.suite.CacheSuite.TokenCaches[verifierIdentifier]
+	_, found := tokenCache.Get(tokenCommitment)
+	if found {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Duplicate token found"}
+	}
+	tokenCache.Set(string(tokenCommitment), true, 1*time.Minute)
+
+	// sign data
+	commitmentRequestResultData := CommitmentRequestResultData{
+		p.MessagePrefix,
+		p.TokenCommitment,
+		p.TempPubX,
+		p.TempPubY,
+		p.Timestamp,
+		p.VerifierIdentifier,
+		strconv.FormatInt(time.Now().Unix(), 10),
+	}
+
+	sig := ECDSASign([]byte(commitmentRequestResultData.ToString()), h.suite.EthSuite.NodePrivateKey)
+
+	res := CommitmentRequestResult{
+		Signature: ECDSASigToHex(sig),
+		Data:      commitmentRequestResultData.ToString(),
+		NodePubX:  h.suite.EthSuite.NodePublicKey.X.Text(16),
+		NodePubY:  h.suite.EthSuite.NodePublicKey.Y.Text(16),
+	}
+	return res, nil
+}
 
 func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
@@ -48,7 +106,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	tmpInt := siMapping[p.Index].Value
 
 	// Here we verify the identity of the user
-	identityVerified, err := h.suite.DefaultVerifier.VerifyRequestIdentity(params)
+	identityVerified, err := h.suite.DefaultVerifier.Verify(params)
 	if err != nil {
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "oauth is invalid, err: " + err.Error()}
 	}

@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/intel-go/fastjson"
-	"github.com/osamingo/jsonrpc"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -37,7 +36,7 @@ type Suite struct {
 	CacheSuite      *CacheSuite
 	Config          *Config
 	ABCIApp         *ABCIApp
-	DefaultVerifier auth.IdentityVerifier
+	DefaultVerifier auth.GeneralVerifier
 	P2PSuite        *P2PSuite
 }
 
@@ -48,7 +47,7 @@ type googleIdentityVerifier struct {
 
 func (gIV *googleIdentityVerifier) UniqueTokenCheck(rawPayload *fastjson.RawMessage) (bool, error) {
 	var p auth.GoogleVerifierParams
-	if err := jsonrpc.Unmarshal(rawPayload, &p); err != nil {
+	if err := fastjson.Unmarshal(*gIV.CleanToken(rawPayload), &p); err != nil {
 		return false, err
 	}
 	_, ok := gIV.suite.CacheSuite.CacheInstance.Get(p.IDToken)
@@ -77,12 +76,6 @@ func New() {
 	//Main suite of functions used in node
 	suite := Suite{}
 	suite.Config = cfg
-	// We can use a flag here to change the default verifier
-	// In the future we should allow a range of verifiers
-	suite.DefaultVerifier = &googleIdentityVerifier{
-		auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
-		&suite,
-	}
 
 	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
 
@@ -119,6 +112,13 @@ func New() {
 	SetupBft(&suite)
 	// setup local caching
 	SetupCache(&suite)
+
+	// We can use a flag here to change the default verifier
+	// In the future we should allow a range of verifiers
+	suite.DefaultVerifier = auth.NewGeneralVerifier(googleIdentityVerifier{
+		auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
+		&suite,
+	})
 
 	//build folders for tendermint logs
 	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)

@@ -133,7 +133,7 @@ func (p *PingProtocol) Ping(peerid peer.ID) error {
 	// sign the data
 	signature, err := p.localHost.signProtoMessage(req)
 	if err != nil {
-		return fmt.Errorf("Failed to sign pb data: &s", err)
+		return fmt.Errorf("Failed to sign pb data: %s", err.Error())
 	}
 
 	// add the signature to the message
@@ -141,7 +141,7 @@ func (p *PingProtocol) Ping(peerid peer.ID) error {
 
 	err = p.localHost.sendProtoMessage(peerid, pingRequest, req)
 	if err != nil {
-		return fmt.Errorf("Failed to send proto message: &s", err)
+		return fmt.Errorf("Failed to send proto message: %s", err.Error())
 	}
 
 	// store ref request so response handler has access to it

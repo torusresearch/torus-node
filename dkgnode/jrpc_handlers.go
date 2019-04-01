@@ -195,7 +195,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Cannot parse uint for user index here: " + err.Error()}
 	}
 
-	tmpInt = siMapping[int(userIndex)].Value
+	tmpInt := siMapping[int(userIndex)].Value
 
 	return ShareRequestResult{
 		Index:    siMapping[int(userIndex)].Index,

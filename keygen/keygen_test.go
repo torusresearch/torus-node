@@ -87,6 +87,15 @@ func (transport *Transport) BroadcastKEYGENShareComplete(keygenShareCompletes []
 	return nil
 }
 
+type mockKeygenStore struct {
+}
+
+func (ks *mockKeygenStore) StoreKEYGENSecret(keyIndex big.Int, secret KEYGENSecrets) error {
+	return nil
+}
+func (ks *mockKeygenStore) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error {
+	return nil
+}
 func TestOptimisticKeygen(t *testing.T) {
 
 	f, err := os.Create("cpuProfile")
@@ -114,6 +123,8 @@ func TestOptimisticKeygen(t *testing.T) {
 		nodeIndex.SetString(k, 16)
 		transport := Transport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
 		v.Transport = &transport
+		//set up store
+		v.Store = &mockKeygenStore{}
 	}
 
 	//start!

@@ -10,3 +10,5 @@ log*.txt
 /temporary
 .build
 *.org
+/keygen/cpuProfile
+/keygen/timeboundOne

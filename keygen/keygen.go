@@ -95,6 +95,12 @@ type AVSSKeygenTransport interface {
 	BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error
 }
 
+// To store necessary shares and secrets
+type AVSSKeygenStorage interface {
+	StoreKEYGENSecret(keyIndex big.Int, secret KEYGENSecrets) error
+	StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error
+}
+
 // Main Keygen Struct
 type KeygenInstance struct {
 	sync.Mutex
@@ -109,6 +115,7 @@ type KeygenInstance struct {
 	NumOfKeys         int
 	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
 	Transport         AVSSKeygenTransport
+	Store             AVSSKeygenStorage
 	MsgBuffer         KEYGENMsgBuffer
 	ComChannel        chan string
 }
@@ -189,6 +196,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 				for i := int(startingIndex.Int64()); i < numOfKeys+int(startingIndex.Int64()); i++ {
 					keyIndex := big.NewInt(int64(i))
 					committedSecrets := ki.Secrets[keyIndex.Text(16)]
+					ki.Store.StoreKEYGENSecret(*keyIndex, committedSecrets)
 					for k := range ki.NodeLog {
 						nodeIndex := big.Int{}
 						nodeIndex.SetString(k, 16)
@@ -230,7 +238,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
 					}
 					c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
-
+					ki.Store.StoreCompletedShare(keyIndex, *si, *siprime)
 					keygenShareCompletes[i] = KEYGENShareComplete{
 						KeyIndex: keyIndex,
 						c:        c,

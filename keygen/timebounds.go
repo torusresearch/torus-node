@@ -74,7 +74,7 @@ func (ki *KeygenInstance) TriggerRoundTwoTimebound() error {
 			return err
 		}
 
-		// initiate keygen with qualified set
+		// continue with keygen with remaining qualified set
 		go func() {
 			err := ki.State.Event(EIAllSubsharesDone)
 			if err != nil {

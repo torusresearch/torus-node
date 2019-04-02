@@ -215,6 +215,122 @@ func TestTimeboundOne(t *testing.T) {
 	}
 }
 
+func TestTimeboundTwo(t *testing.T) {
+
+	f, err := os.Create("profile_timebound_one")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	runtime.GOMAXPROCS(10)
+	logging.SetLevelString("debug")
+	comsChannel := make(chan string)
+	numOfNodes := 5
+	threshold := 4
+	nodeList := make([]big.Int, numOfNodes)
+	nodeKegenInstances := make(map[string]*KeygenInstance)
+	for i := range nodeList {
+		nodeList[i] = *big.NewInt(int64(i + 1))
+		nodeKegenInstances[nodeList[i].Text(16)] = &KeygenInstance{}
+	}
+
+	done := false
+	// build timer function to kill of exceeds time
+	go func(d *bool) {
+		time.Sleep(3 * time.Second)
+		if !*d {
+			assert.True(t, *d, "TestTimeboundOne timed out")
+		}
+	}(&done)
+
+	//edit transport functions
+	for k, v := range nodeKegenInstances {
+		var nodeIndex big.Int
+		nodeIndex.SetString(k, 16)
+		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
+			v.Transport = &mockDeadTransportTwo{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		} else {
+			v.Transport = &transport
+		}
+
+		//set up store
+		v.Store = &mockKeygenStore{}
+	}
+
+	//start!
+	for _, nodeIndex := range nodeList {
+		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
+		go func(nIndex big.Int) {
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex, comsChannel)
+			defer func() {
+				if err != nil {
+					t.Logf("Initiate Keygen error: %s", err)
+				}
+			}()
+		}(nodeIndex)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	// log node status
+	for i, nodeIndex := range nodeList {
+		// to not cause a panic
+		if i == 0 {
+			continue
+		}
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		// for _, ni := range nodeList {
+		// 	t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+		// }
+		instance.Unlock()
+	}
+
+	// trigger timebound one here
+	for i, nodeIndex := range nodeList {
+		// to not cause a panic
+		if i == 0 {
+			continue
+		}
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		err := instance.TriggerRoundTwoTimebound()
+		if err != nil {
+			t.Log(err)
+		}
+	}
+
+	// wait till nodes are done (w/o malicious node)
+	count := 0
+	for {
+		select {
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+		}
+		if count >= len(nodeList)-1 { // accounted for here
+			break
+		}
+	}
+
+	// log node status
+	for i, nodeIndex := range nodeList {
+		// to not cause a panic
+		if i == 0 {
+			continue
+		}
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
+		instance.Unlock()
+	}
+}
+
 type mockTransport struct {
 	nodeIndex          big.Int
 	nodeKegenInstances *map[string]*KeygenInstance
@@ -300,6 +416,40 @@ func (transport *mockDeadTransport) BroadcastInitiateKeygen(commitmentMatrixes [
 }
 
 func (transport *mockDeadTransport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
+	return nil
+}
+
+type mockDeadTransportTwo struct {
+	nodeIndex          big.Int
+	nodeKegenInstances *map[string]*KeygenInstance
+}
+
+func (transport *mockDeadTransportTwo) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
+	return nil
+}
+
+func (transport *mockDeadTransportTwo) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
+	return nil
+}
+
+func (transport *mockDeadTransportTwo) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
+	return nil
+}
+
+func (transport *mockDeadTransportTwo) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+	for _, instance := range *transport.nodeKegenInstances {
+		// logging.Debugf("index: %s", k)
+		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
+			err := ins.OnInitiateKeygen(cm, tns)
+			if err != nil {
+				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
+			}
+		}(instance, commitmentMatrixes, transport.nodeIndex)
+	}
+	return nil
+}
+
+func (transport *mockDeadTransportTwo) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
 	return nil
 }
 

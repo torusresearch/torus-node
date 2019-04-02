@@ -3,9 +3,9 @@ package secp256k1
 import (
 	"math/big"
 
-	"github.com/torusresearch/torus-public/common"
 	secp256k1 "github.com/btcsuite/btcd/btcec"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/torusresearch/torus-public/common"
 )
 
 type KoblitzCurve struct {
@@ -13,8 +13,10 @@ type KoblitzCurve struct {
 }
 
 var (
-	Curve          = &KoblitzCurve{secp256k1.S256()}
-	FieldOrder     = common.HexToBigInt("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
+	Curve = &KoblitzCurve{secp256k1.S256()}
+	// field order, also known as p, usually used for scalars
+	FieldOrder = common.HexToBigInt("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
+	// group order, also known as q, it is the number of points in the curve, and is usually used in exponents
 	GeneratorOrder = common.HexToBigInt("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	// scalar to the power of this is like square root, eg. y^sqRoot = y^0.5 (if it exists)
 	SqRoot = common.HexToBigInt("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c")

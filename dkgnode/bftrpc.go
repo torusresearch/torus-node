@@ -11,7 +11,7 @@ import (
 )
 
 type BftRPC struct {
-	*client.HTTP
+	client.Client
 }
 
 //BFT Transactions are registered under this interface

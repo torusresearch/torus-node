@@ -233,8 +233,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					if len(ki.KeyLog[keyIndex.Text(16)]) != len(ki.NodeLog) {
 						logging.Errorf("NODE "+ki.NodeIndex.Text(16)+" Not correct number of subshares found for: keyindex %s, Expected %s Actual %s", keyIndex.Text(16), len(ki.NodeLog), len(ki.KeyLog[keyIndex.Text(16)]))
 					}
-					for _, v := range ki.KeyLog[keyIndex.Text(16)] {
-						// add up subshares
+					for nodeIndex, _ := range ki.NodeLog {
+						// add up subshares for qualified set
+						v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
 						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
 						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
 					}

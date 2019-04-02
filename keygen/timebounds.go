@@ -43,3 +43,46 @@ func (ki *KeygenInstance) TriggerRoundOneTimebound() error {
 	}
 	return nil
 }
+
+// Call this (to be triggered by timing set and checked by tendermint) when time has exceeded timebound one (t1)
+func (ki *KeygenInstance) TriggerRoundTwoTimebound() error {
+	ki.Lock()
+	defer ki.Unlock()
+	if ki.State.Is(SIRunningKeygen) { // check if in correct state
+		// we iterate through each key
+		// for an incomplete key, we change node status to failure
+		for _, keyMap := range ki.KeyLog {
+			for nodeIndex, keyLog := range keyMap {
+				if !keyLog.SubshareState.Is(SKValidSubshare) || !keyLog.SubshareState.Is(SKPerfectSubshare) {
+					// key (and thus node) is faulty
+					err := ki.NodeLog[nodeIndex].Event(ENFailedRoundTwo)
+					if err != nil {
+						logging.Errorf("Error at ENFailedRoundTwo: " + err.Error())
+					} else {
+						err = ki.removeNodeFromQualifedSet(nodeIndex)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+
+		if len(ki.NodeLog) < ki.Threshold {
+			err := errors.New("Number of qualified nodes under threshold in timebound 2")
+			ki.ComChannel <- "keygen failed: " + err.Error()
+			return err
+		}
+
+		// initiate keygen with qualified set
+		go func() {
+			err := ki.State.Event(EIAllSubsharesDone)
+			if err != nil {
+				logging.Errorf("Error initiating keygen with smaller set: %v", err)
+			}
+		}()
+	} else {
+		return errors.New("Can't TriggerRoundTwoTimebound when not in " + SIRunningKeygen + " in state " + ki.State.Current())
+	}
+	return nil
+}

@@ -153,6 +153,7 @@ const (
 	ENInitiateKeygen = "initiate_keygen"
 	ENValidShares    = "valid_shares"
 	ENFailedRoundOne = "failed_round_one"
+	ENFailedRoundTwo = "failed_round_two"
 
 	// Events - KeyLog
 	EKSendEcho           = "send_echo"
@@ -267,6 +268,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 				{Name: ENInitiateKeygen, Src: []string{SNStandby}, Dst: SNKeygening},
 				{Name: ENValidShares, Src: []string{SNKeygening}, Dst: SNQualifiedNode},
 				{Name: ENFailedRoundOne, Src: []string{SNStandby}, Dst: SNUnqualifiedNode},
+				{Name: ENFailedRoundTwo, Src: []string{SNStandby, SNKeygening}, Dst: SNUnqualifiedNode},
 			},
 			fsm.Callbacks{
 				"enter_state": func(e *fsm.Event) {

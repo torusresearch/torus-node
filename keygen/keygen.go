@@ -229,10 +229,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					// form perfect Si
 					si := big.NewInt(int64(0))
 					siprime := big.NewInt(int64(0))
-					// just a check for the right number of subshares
-					if len(ki.KeyLog[keyIndex.Text(16)]) != len(ki.NodeLog) {
-						logging.Errorf("NODE "+ki.NodeIndex.Text(16)+" Not correct number of subshares found for: keyindex %s, Expected %s Actual %s", keyIndex.Text(16), len(ki.NodeLog), len(ki.KeyLog[keyIndex.Text(16)]))
-					}
+
 					for nodeIndex, _ := range ki.NodeLog {
 						// add up subshares for qualified set
 						v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
@@ -636,11 +633,12 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENSha
 		// add up all commitments
 		var sumCommitments [][]common.Point
 		//TODO: Potentially quite intensive
-		for _, keylog := range ki.KeyLog[keygenShareCom.KeyIndex.Text(16)] {
+		for nodeIndex, _ := range ki.NodeLog {
+			keyLog := ki.KeyLog[keygenShareCom.KeyIndex.Text(16)][nodeIndex]
 			if len(sumCommitments) == 0 {
-				sumCommitments = keylog.C
+				sumCommitments = keyLog.C
 			} else {
-				sumCommitments, _ = pvss.AVSSAddCommitment(sumCommitments, keylog.C)
+				sumCommitments, _ = pvss.AVSSAddCommitment(sumCommitments, keyLog.C)
 				// if err != nil {
 				// 	return err
 				// }

@@ -160,7 +160,7 @@ func TestPVSS(test *testing.T) {
 	pubKeySender := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false
-	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 10, *privKeySender)
+	signcryptedShares, _, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 10, *privKeySender)
 	if err != nil {
 		fmt.Println(err)
 		errorsExist = true
@@ -191,14 +191,52 @@ func TestPVSS(test *testing.T) {
 // 	assert.True(test, testX.Cmp(new(big.Int).SetInt64(int64(0))) == 0)
 // }
 
-func TestLagrangeInterpolation(test *testing.T) {
-	nodeList, privateKeys := createRandomNodes(20)
+func TestLagrangeInterpolatePolynomial(test *testing.T) {
+	nodeList, privateKeys := createRandomNodes(16)
 	secret := RandomBigInt()
 	privKeySender := RandomBigInt()
 	pubKeySender := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeySender.Bytes()))
 
 	errorsExist := false
-	signcryptedShares, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 11, *privKeySender)
+	signcryptedShares, _, originalPoly, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 11, *privKeySender)
+	if err != nil {
+		fmt.Println(err)
+		errorsExist = true
+	}
+	decryptedShares := make([]common.PrimaryShare, 11)
+	for i := range decryptedShares {
+		share, err := UnsigncryptShare(signcryptedShares[i].SigncryptedShare, privateKeys[i], pubKeySender)
+		if err != nil {
+			fmt.Println(err)
+			errorsExist = true
+		}
+		decryptedShares[i] = common.PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
+	}
+	lagrange := LagrangeScalar(decryptedShares, 0)
+	assert.True(test, secret.Cmp(lagrange) == 0)
+	assert.False(test, errorsExist)
+	points := make([]common.Point, 11)
+	for i := 0; i < len(decryptedShares); i++ {
+		points[i] = common.Point{
+			X: *big.NewInt(int64(decryptedShares[i].Index)),
+			Y: decryptedShares[i].Value,
+		}
+	}
+	recoveredPoly := LagrangeInterpolatePolynomial(points)
+	for i := 0; i < len(originalPoly.Coeff); i++ {
+		origCoeff := originalPoly.Coeff[i]
+		assert.Equal(test, recoveredPoly[i].Text(16), origCoeff.Text(16))
+	}
+}
+
+func TestLagrangeInterpolation(test *testing.T) {
+	nodeList, privateKeys := createRandomNodes(16)
+	secret := RandomBigInt()
+	privKeySender := RandomBigInt()
+	pubKeySender := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeySender.Bytes()))
+
+	errorsExist := false
+	signcryptedShares, _, _, err := CreateAndPrepareShares(nodeList.Nodes, *secret, 11, *privKeySender)
 	if err != nil {
 		fmt.Println(err)
 		errorsExist = true
@@ -225,7 +263,7 @@ func TestPedersons(test *testing.T) {
 	allSigncryptedShares := make([][]*common.SigncryptedOutput, len(nodeList.Nodes))
 	allPubPoly := make([][]common.Point, len(nodeList.Nodes))
 	for i := range nodeList.Nodes {
-		signcryptedShares, pubPoly, err := CreateAndPrepareShares(nodeList.Nodes, secrets[i], 11, privateKeys[i])
+		signcryptedShares, pubPoly, _, err := CreateAndPrepareShares(nodeList.Nodes, secrets[i], 11, privateKeys[i])
 		allSigncryptedShares[i] = signcryptedShares
 		allPubPoly[i] = *pubPoly
 		if err != nil {

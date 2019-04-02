@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"math/big"
+	"sort"
 
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
@@ -210,7 +211,7 @@ func CreateShares(nodes []common.Node, secret big.Int, threshold int) (*[]common
 }
 
 // deprecated: use CreateShares and let client handle signcryption. Client may need to add more information before signcrypting (eg. broadcast id)
-func CreateAndPrepareShares(nodes []common.Node, secret big.Int, threshold int, privKey big.Int) ([]*common.SigncryptedOutput, *[]common.Point, error) {
+func CreateAndPrepareShares(nodes []common.Node, secret big.Int, threshold int, privKey big.Int) ([]*common.SigncryptedOutput, *[]common.Point, *common.PrimaryPolynomial, error) {
 	// TODO: IMPT
 	polynomial := *generateRandomZeroPolynomial(secret, threshold)
 
@@ -223,10 +224,10 @@ func CreateAndPrepareShares(nodes []common.Node, secret big.Int, threshold int, 
 	// signcrypt shares
 	signcryptedShares, err := batchSigncryptShare(nodes, shares, privKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return signcryptedShares, &pubPoly, nil
+	return signcryptedShares, &pubPoly, &polynomial, nil
 }
 
 func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sendingNodePubKey common.Point) (*[]byte, error) {
@@ -284,6 +285,71 @@ func UnsigncryptShare(signcryption common.Signcryption, privKey big.Int, sending
 // 	// secret.Mod(secret, secp256k1.GeneratorOrder)
 // 	return secret
 // }
+
+func LagrangeInterpolatePolynomial(points []common.Point) []big.Int {
+	denominator := func(i int, points []common.Point) big.Int {
+		result := big.NewInt(int64(1))
+		x_i := points[i].X
+		for j := len(points) - 1; j >= 0; j-- {
+			if i != j {
+				tmp := new(big.Int).Sub(&x_i, &points[j].X)
+				tmp.Mod(tmp, secp256k1.GeneratorOrder)
+				result.Mul(result, tmp)
+				result.Mod(result, secp256k1.GeneratorOrder)
+			}
+		}
+		return *result
+	}
+	interpolationPoly := func(i int, points []common.Point) []big.Int {
+		coefficients := make([]big.Int, len(points))
+		d := denominator(i, points)
+		coefficients[0] = *new(big.Int).ModInverse(&d, secp256k1.GeneratorOrder)
+		for k := 0; k < len(points); k++ {
+			new_coefficients := make([]big.Int, len(points))
+			if k == i {
+				continue
+			}
+			var j int
+			if k < i {
+				j = k + 1
+			} else {
+				j = k
+			}
+			j = j - 1
+			for ; j >= 0; j-- {
+				new_coefficients[j+1].Add(&new_coefficients[j+1], &coefficients[j])
+				new_coefficients[j+1].Mod(&new_coefficients[j+1], secp256k1.GeneratorOrder)
+				tmp := new(big.Int).Mul(&points[k].X, &coefficients[j])
+				tmp.Mod(tmp, secp256k1.GeneratorOrder)
+				new_coefficients[j].Sub(&new_coefficients[j], tmp)
+				new_coefficients[j].Mod(&new_coefficients[j], secp256k1.GeneratorOrder)
+			}
+			coefficients = new_coefficients
+		}
+		return coefficients
+	}
+	pointSort := func(points []common.Point) []common.Point {
+		sortedPoints := make([]common.Point, len(points))
+		copy(sortedPoints, points)
+		sort.SliceStable(sortedPoints, func(i, j int) bool {
+			return sortedPoints[i].X.Cmp(&sortedPoints[j].X) == -1
+		})
+		return sortedPoints[:]
+	}
+	lagrange := func(unsortedPoints []common.Point) []big.Int {
+		points := pointSort(unsortedPoints)
+		polynomial := make([]big.Int, len(points))
+		for i := 0; i < len(points); i++ {
+			coefficients := interpolationPoly(i, points)
+			for k := 0; k < len(points); k++ {
+				polynomial[k].Add(&polynomial[k], new(big.Int).Mul(&points[i].Y, &coefficients[k]))
+				polynomial[k].Mod(&polynomial[k], secp256k1.GeneratorOrder)
+			}
+		}
+		return polynomial
+	}
+	return lagrange(points)
+}
 
 func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret := new(big.Int)

@@ -116,7 +116,7 @@ type KeygenInstance struct {
 	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
 	Transport         AVSSKeygenTransport
 	Store             AVSSKeygenStorage
-	MsgBuffer         KEYGENMsgBuffer
+	MsgBuffer         KEYGENBuffer
 	ComChannel        chan string
 }
 
@@ -175,8 +175,8 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.UnqualifiedNodes = make(map[string]*fsm.FSM)
 	ki.ComChannel = comChannel
 	// Initialize buffer
-	ki.MsgBuffer = KEYGENMsgBuffer{}
-	ki.MsgBuffer.InitializeMsgBuffer(startingIndex, numOfKeys)
+	ki.MsgBuffer = KEYGENBuffer{}
+	ki.MsgBuffer.InitializeMsgBuffer(startingIndex, numOfKeys, nodeIndexes)
 	// We start initiate keygen state at waiting_initiate_keygen
 	ki.State = fsm.NewFSM(
 		SIWaitingInitiateKeygen,
@@ -461,10 +461,10 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 							ki.MsgBuffer.RetrieveKEYGENSends(*index, ki)
 						},
 						"enter_" + SKWaitingForEchos: func(e *fsm.Event) {
-							ki.MsgBuffer.RetrieveKEYGENEchoes(*index, ki)
+							ki.MsgBuffer.RetrieveKEYGENEchoes(*index, nodeIndex, ki)
 						},
 						"enter_" + SKWaitingForReadys: func(e *fsm.Event) {
-							ki.MsgBuffer.RetrieveKEYGENReadys(*index, ki)
+							ki.MsgBuffer.RetrieveKEYGENReadys(*index, nodeIndex, ki)
 						},
 					},
 				),

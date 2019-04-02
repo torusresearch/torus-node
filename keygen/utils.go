@@ -1,6 +1,11 @@
 package keygen
 
-import "errors"
+import (
+	"errors"
+	"math/big"
+
+	"github.com/torusresearch/torus-public/common"
+)
 
 // Check if its is a qualified node in this keygen instance
 func (ki *KeygenInstance) isQualifiedNode(nodeIndex string) (bool, error) {
@@ -32,4 +37,8 @@ func (ki *KeygenInstance) removeNodeFromQualifedSet(index string) error {
 	ki.UnqualifiedNodes[index] = node
 	delete(ki.NodeLog, index)
 	return nil
+}
+
+func (ki *KeygenInstance) derivePolynomialFromPoints([]common.Point) ([]big.Int, error) {
+	return nil, nil
 }

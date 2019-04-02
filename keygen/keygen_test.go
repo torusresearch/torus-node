@@ -157,7 +157,7 @@ func TestTimeboundOne(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// log node status
 	for i, nodeIndex := range nodeList {
@@ -175,11 +175,11 @@ func TestTimeboundOne(t *testing.T) {
 	}
 
 	// trigger timebound one here
-	for i, nodeIndex := range nodeList {
+	for _, nodeIndex := range nodeList {
 		// to not cause a panic
-		if i == 0 {
-			continue
-		}
+		// if i == 0 {
+		// 	continue
+		// }
 		instance := nodeKegenInstances[nodeIndex.Text(16)]
 		err := instance.TriggerRoundOneTimebound()
 		if err != nil {
@@ -384,7 +384,6 @@ func (transport *mockTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][
 }
 
 func (transport *mockTransport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
-	// fmt.Println("BroadcastKEYGENShareComplete Called: ", transport.nodeIndex)
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm []KEYGENShareComplete, tns big.Int) {
 			err := ins.OnKEYGENShareComplete(cm, tns)

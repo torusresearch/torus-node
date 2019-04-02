@@ -657,7 +657,7 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENSha
 		// add up all commitments
 		var sumCommitments [][]common.Point
 		//TODO: Potentially quite intensive
-		logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" length of nodelog %s", len(ki.NodeLog))
+		logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"nodelog length %v", len(ki.NodeLog))
 		for nodeIndex, _ := range ki.NodeLog {
 			keyLog := ki.KeyLog[keygenShareCom.KeyIndex.Text(16)][nodeIndex]
 			if len(sumCommitments) == 0 {

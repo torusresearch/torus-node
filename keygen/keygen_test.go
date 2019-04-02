@@ -217,7 +217,7 @@ func TestTimeboundOne(t *testing.T) {
 
 func TestTimeboundTwo(t *testing.T) {
 
-	f, err := os.Create("profile_timebound_one")
+	f, err := os.Create("profile_timebound_two")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -290,7 +290,7 @@ func TestTimeboundTwo(t *testing.T) {
 		instance.Unlock()
 	}
 
-	// trigger timebound one here
+	// trigger timebound two here
 	for i, nodeIndex := range nodeList {
 		// to not cause a panic
 		if i == 0 {
@@ -303,7 +303,7 @@ func TestTimeboundTwo(t *testing.T) {
 		}
 	}
 
-	// wait till nodes are done (w/o malicious node)
+	// // wait till nodes are done (w/o malicious node)
 	count := 0
 	for {
 		select {
@@ -317,7 +317,7 @@ func TestTimeboundTwo(t *testing.T) {
 		}
 	}
 
-	// log node status
+	// // log node status
 	for i, nodeIndex := range nodeList {
 		// to not cause a panic
 		if i == 0 {
@@ -326,7 +326,7 @@ func TestTimeboundTwo(t *testing.T) {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]
 		instance.Lock()
 		t.Log(nodeIndex.Text(16), instance.State.Current())
-		assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
+		assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundTwo")
 		instance.Unlock()
 	}
 }

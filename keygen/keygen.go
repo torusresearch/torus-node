@@ -458,13 +458,26 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 						// Below functions are for the state machines to catch up on previously sent messages using
 						// MsgBuffer We dont need to lock as msg buffer should do so
 						"enter_" + SKWaitingForSends: func(e *fsm.Event) {
-							ki.MsgBuffer.RetrieveKEYGENSends(*index, ki)
+							send := ki.MsgBuffer.RetrieveKEYGENSends(*index, nodeIndex)
+							if send != nil {
+								go ki.OnKEYGENSend(*send, nodeIndex)
+							}
 						},
 						"enter_" + SKWaitingForEchos: func(e *fsm.Event) {
-							ki.MsgBuffer.RetrieveKEYGENEchoes(*index, nodeIndex, ki)
+							bufferEchoes := ki.MsgBuffer.RetrieveKEYGENEchoes(*index, nodeIndex)
+							for from, echo := range bufferEchoes {
+								intNodeIndex := big.Int{}
+								intNodeIndex.SetString(from, 16)
+								go (ki).OnKEYGENEcho(*echo, intNodeIndex)
+							}
 						},
 						"enter_" + SKWaitingForReadys: func(e *fsm.Event) {
-							ki.MsgBuffer.RetrieveKEYGENReadys(*index, nodeIndex, ki)
+							bufferReadys := ki.MsgBuffer.RetrieveKEYGENReadys(*index, nodeIndex)
+							for from, ready := range bufferReadys {
+								intNodeIndex := big.Int{}
+								intNodeIndex.SetString(from, 16)
+								go (ki).OnKEYGENReady(*ready, intNodeIndex)
+							}
 						},
 					},
 				),
@@ -553,6 +566,17 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 		}
 	} else {
 		ki.MsgBuffer.StoreKEYGENEcho(msg, fromNodeIndex)
+
+		// // Here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
+		// if keyLog.SubshareState.Is(SKWaitingForSends) {
+		// 	// TODO: change this into a state change path
+		// 	// if we have enough ECHOs to test
+		// 	if ki.MsgBuffer.CheckLengthOfEcho(msg.KeyIndex, msg.Dealer) >= ki.Threshold {
+		// 		// here we have to try for all permutations to come up with an KEYGENSend that suits the commitments
+
+		// 	}
+		// }
+
 	}
 	return nil
 }
@@ -633,6 +657,7 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENSha
 		// add up all commitments
 		var sumCommitments [][]common.Point
 		//TODO: Potentially quite intensive
+		logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" length of nodelog %s", len(ki.NodeLog))
 		for nodeIndex, _ := range ki.NodeLog {
 			keyLog := ki.KeyLog[keygenShareCom.KeyIndex.Text(16)][nodeIndex]
 			if len(sumCommitments) == 0 {

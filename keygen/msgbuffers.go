@@ -77,47 +77,37 @@ func (buf *KEYGENBuffer) StoreKEYGENReady(msg KEYGENReady, from big.Int) error {
 
 //TODO: Handle failed message
 // Retrieve from the message buffer and iterate over messages
-func (buf *KEYGENBuffer) RetrieveKEYGENSends(keyIndex big.Int, ki AVSSKeygen) {
+func (buf *KEYGENBuffer) RetrieveKEYGENSends(keyIndex big.Int, dealer big.Int) *KEYGENSend {
 	buf.Lock()
 	defer buf.Unlock()
-	count := 0
-	for nodeIndex, buffer := range buf.Buffer[keyIndex.Text(16)] {
-		send := buffer.ReceivedSend
-		if send != nil {
-			intNodeIndex := big.Int{}
-			intNodeIndex.SetString(nodeIndex, 16)
-			go (ki).OnKEYGENSend(*send, intNodeIndex)
-			count++
-		}
-	}
-	logging.Debugf("RetrieveKEYGENSends called with %v msgs", count)
+	logging.Debugf("RetrieveKEYGENSends called where %v", buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedSend == nil)
+	return buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedSend
 }
 
-func (buf *KEYGENBuffer) RetrieveKEYGENEchoes(keyIndex big.Int, dealer big.Int, ki AVSSKeygen) {
+func (buf *KEYGENBuffer) RetrieveKEYGENEchoes(keyIndex big.Int, dealer big.Int) map[string]*KEYGENEcho {
 	buf.Lock()
 	defer buf.Unlock()
-
-	count := 0
-	for from, echo := range buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes {
-		intNodeIndex := big.Int{}
-		intNodeIndex.SetString(from, 16)
-		go (ki).OnKEYGENEcho(*echo, intNodeIndex)
-		count++
-	}
-	logging.Debugf("RetrieveKEYGENEchoes called with %v msgs", count)
+	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes))
+	return buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes
 }
 
-func (buf *KEYGENBuffer) RetrieveKEYGENReadys(keyIndex big.Int, dealer big.Int, ki AVSSKeygen) {
+func (buf *KEYGENBuffer) RetrieveKEYGENReadys(keyIndex big.Int, dealer big.Int) map[string]*KEYGENReady {
 	buf.Lock()
 	defer buf.Unlock()
-	count := 0
-	for from, ready := range buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedReadys {
-		intNodeIndex := big.Int{}
-		intNodeIndex.SetString(from, 16)
-		go (ki).OnKEYGENReady(*ready, intNodeIndex)
-		count++
-	}
-	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", count)
+	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedReadys))
+	return buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedReadys
+}
+
+func (buf *KEYGENBuffer) CheckLengthOfEcho(keyIndex big.Int, dealer big.Int) int {
+	buf.Lock()
+	defer buf.Unlock()
+	return len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes)
+}
+
+func (buf *KEYGENBuffer) CheckLengthOfReady(keyIndex big.Int, dealer big.Int) int {
+	buf.Lock()
+	defer buf.Unlock()
+	return len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedReadys)
 }
 
 // func (buf *KEYGENMsgLog) RetrieveKEYGENShareCompletes(keyIndex big.Int, ki *AVSSKeygen) {

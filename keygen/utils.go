@@ -39,6 +39,6 @@ func (ki *KeygenInstance) removeNodeFromQualifedSet(index string) error {
 	return nil
 }
 
-func (ki *KeygenInstance) derivePolynomialFromPoints([]common.Point) ([]big.Int, error) {
+func derivePolynomialFromPoints([]common.Point) ([]big.Int, error) {
 	return nil, nil
 }

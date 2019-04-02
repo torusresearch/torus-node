@@ -273,7 +273,7 @@ func TestTimeboundTwo(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// log node status
 	for i, nodeIndex := range nodeList {

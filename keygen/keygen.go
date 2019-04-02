@@ -135,11 +135,12 @@ const (
 	SNUnqualifiedNode = "unqualified_node"
 
 	// State - KeyLog
-	SKWaitingForSends  = "waiting_for_sends"
-	SKWaitingForEchos  = "waiting_for_echos"
-	SKWaitingForReadys = "waiting_for_readys"
-	SKValidSubshare    = "valid_subshare"
-	SKPerfectSubshare  = "perfect_subshare"
+	SKWaitingForSends    = "waiting_for_sends"
+	SKWaitingForEchos    = "waiting_for_echos"
+	SKWaitingForReadys   = "waiting_for_readys"
+	SKValidSubshare      = "valid_subshare"
+	SKPerfectSubshare    = "perfect_subshare"
+	SKEchoReconstructing = "echo_reconstructing"
 )
 
 // KEYGEN Events (EK)
@@ -160,6 +161,7 @@ const (
 	EKSendReady          = "send_ready"
 	EKTReachedSubshare   = "t_reached_subshare"
 	EKAllReachedSubshare = "all_reached_subshare"
+	EKEchoReconstruct    = "echo_reconstruct"
 )
 
 //TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well
@@ -378,9 +380,10 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 					SKWaitingForSends,
 					fsm.Events{
 						{Name: EKSendEcho, Src: []string{SKWaitingForSends}, Dst: SKWaitingForEchos},
-						{Name: EKSendReady, Src: []string{SKWaitingForEchos}, Dst: SKWaitingForReadys},
+						{Name: EKSendReady, Src: []string{SKWaitingForEchos, SKEchoReconstructing}, Dst: SKWaitingForReadys},
 						{Name: EKTReachedSubshare, Src: []string{SKWaitingForReadys}, Dst: SKValidSubshare},
 						{Name: EKAllReachedSubshare, Src: []string{SKValidSubshare}, Dst: SKPerfectSubshare},
+						{Name: EKEchoReconstruct, Src: []string{SKWaitingForSends}, Dst: SKEchoReconstructing},
 					},
 					fsm.Callbacks{
 						"enter_state": func(e *fsm.Event) {
@@ -453,6 +456,49 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 										logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not change state to subshare done: %s", err)
 									}
 								}(ki.State)
+							}
+						},
+						"after_" + EKEchoReconstruct: func(e *fsm.Event) {
+							ki.Lock()
+							defer ki.Unlock()
+							count := 0
+							// prepare for derivation of polynomial
+							aiyPoints := make([]common.Point, ki.Threshold)
+							aiprimeyPoints := make([]common.Point, ki.Threshold)
+							bixPoints := make([]common.Point, ki.Threshold)
+							biprimexPoints := make([]common.Point, ki.Threshold)
+
+							for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedEchoes {
+								if count <= ki.Threshold {
+									fromNodeInt := big.Int{}
+									fromNodeInt.SetString(k, 16)
+									aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
+									aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
+									bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
+									biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
+								}
+								count++
+							}
+
+							aiy := pvss.LagrangeInterpolatePolynomial(aiyPoints)
+							aiprimey := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
+							bix := pvss.LagrangeInterpolatePolynomial(bixPoints)
+							biprimex := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
+							ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = KEYGENSend{
+								KeyIndex: *index,
+								AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
+								AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
+								BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
+								BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
+							}
+							// Now we send our readys
+							if ki.SubsharesComplete == ki.NumOfKeys*len(ki.NodeLog) {
+								go func(subState *fsm.FSM) {
+									err := subState.Event(EKSendReady)
+									if err != nil {
+										logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not change subshare state: %s", err)
+									}
+								}(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].SubshareState)
 							}
 						},
 						// Below functions are for the state machines to catch up on previously sent messages using
@@ -536,7 +582,8 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 	ki.Lock()
 	defer ki.Unlock()
 	keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
-	if keyLog.SubshareState.Is(SKWaitingForEchos) {
+
+	if ki.State.Current() == SIRunningKeygen {
 		//verify echo, if correct log echo. If there are more then threshold Echos we send ready
 		if !pvss.AVSSVerifyPoint(
 			keyLog.C,
@@ -556,24 +603,42 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 
 		// check for echos
 		if ki.Threshold <= len(keyLog.ReceivedEchoes) {
-			//since threshoold and above we send ready
-			go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
-				err := innerKeyLog.SubshareState.Event(EKSendReady, keyIndex, dealer)
-				if err != nil {
-					logging.Error(err.Error())
-				}
-			}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+			//since threshoold and above
+
+			// we etiher send ready
+			if keyLog.SubshareState.Is(SKWaitingForEchos) {
+				go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
+					err := innerKeyLog.SubshareState.Event(EKSendReady, keyIndex, dealer)
+					if err != nil {
+						logging.Error(err.Error())
+					}
+				}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+			}
+			// Or here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
+			if keyLog.SubshareState.Is(SKWaitingForSends) {
+				go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
+					err := innerKeyLog.SubshareState.Event(EKEchoReconstruct, keyIndex, dealer)
+					if err != nil {
+						logging.Error(err.Error())
+					}
+				}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+			}
 		}
 	} else {
 		ki.MsgBuffer.StoreKEYGENEcho(msg, fromNodeIndex)
 
-		// // Here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
+		//
 		// if keyLog.SubshareState.Is(SKWaitingForSends) {
 		// 	// TODO: change this into a state change path
 		// 	// if we have enough ECHOs to test
 		// 	if ki.MsgBuffer.CheckLengthOfEcho(msg.KeyIndex, msg.Dealer) >= ki.Threshold {
 		// 		// here we have to try for all permutations to come up with an KEYGENSend that suits the commitments
+		// 		echoBuffer := ki.MsgBuffer.RetrieveKEYGENEchoes(msg.KeyIndex, msg.Dealer)
+		// 		sets := make([][]common.Point)
+		// 		for
+		// 		for k, v := range echoBuffer {
 
+		// 		}
 		// 	}
 		// }
 

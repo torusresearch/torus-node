@@ -197,6 +197,7 @@ func TestTimeboundOne(t *testing.T) {
 			}
 		}
 		if count >= len(nodeList)-1 { // accounted for here
+			done = true
 			break
 		}
 	}
@@ -313,6 +314,7 @@ func TestTimeboundTwo(t *testing.T) {
 			}
 		}
 		if count >= len(nodeList)-1 { // accounted for here
+			done = true
 			break
 		}
 	}

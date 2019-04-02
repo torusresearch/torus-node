@@ -10,8 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tendermint/tendermint/rpc/client/mock"
+	"github.com/tendermint/tendermint/rpc/core/types"
 
+	"github.com/torusresearch/torus-public/mocks"
+
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/torusresearch/torus-public/auth"
 	"github.com/torusresearch/torus-public/secp256k1"
 
@@ -19,6 +22,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type TestTransportStruct struct {
@@ -117,7 +121,8 @@ func TestShareRequest(t *testing.T) {
 					NodePublicKey:  nodePubK,
 				},
 				CacheSuite: &CacheSuite{
-					TokenCaches: tokenCaches,
+					CacheInstance: cache.New(cache.NoExpiration, 10*time.Minute),
+					TokenCaches:   tokenCaches,
 				},
 			},
 			TimeNow: func() time.Time {
@@ -147,7 +152,20 @@ func TestShareRequest(t *testing.T) {
 		nodeResponses[i] = commitmentRequestResult
 	}
 
+	mockClient := &mocks.Client{}
+	mockClient.On("ABCIQuery", "GetEmailIndex", mock.Anything).Return(&core_types.ResultABCIQuery{
+		Response: abci.ResponseQuery{
+			Value: []byte("1"),
+		},
+	}, nil)
 	// bundle collated node responses and send it to a node to get back your share
+	userSecretShare := big.NewInt(int64(42))
+	siStore := make(map[int]SiStore)
+	siStore[1] = SiStore{
+		Index: 1,
+		Value: userSecretShare,
+	}
+
 	h := ShareRequestHandler{
 		TimeNow: time.Now,
 		suite: &Suite{
@@ -161,13 +179,12 @@ func TestShareRequest(t *testing.T) {
 			},
 			BftSuite: &BftSuite{
 				BftRPC: &BftRPC{
-					&mock.Client{},
+					mockClient,
 				},
 			},
 		},
 	}
-	siStore := new(map[int]SiStore)
-	h.suite.CacheSuite.CacheInstance.Set("Si_Mapping", siStore, 10*time.Minute)
+	h.suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siStore, 10*time.Minute)
 
 	var nodeSignatures []NodeSignature
 	for i := 0; i < len(nodeResponses); i++ {
@@ -192,7 +209,8 @@ func TestShareRequest(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(response)
+	shareRequestResult := response.(ShareRequestResult)
+	assert.Equal(t, shareRequestResult.HexShare, userSecretShare.Text(16))
 }
 
 type TestMockDefaultVerifier struct {
@@ -216,4 +234,7 @@ func (TestMockVerifier) GetIdentifier() string {
 }
 func (TestMockVerifier) VerifyRequestIdentity(*fastjson.RawMessage) (bool, error) {
 	return true, nil
+}
+
+type TestMockClient interface {
 }

@@ -97,7 +97,13 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 
 	// verify token validity against verifier
-	h.suite.DefaultVerifier.Verify(params)
+	verified, err := h.suite.DefaultVerifier.Verify(params)
+	if err != nil {
+		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while verifying params" + err.Error()}
+	}
+	if !verified {
+		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Could not verify params"}
+	}
 	// Validate signatures
 	var validSignatures []ValidatedNodeSignature
 	for i := 0; i < len(p.NodeSignatures); i++ {
@@ -193,7 +199,6 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
 	}
 	siMapping := tmpSi.(map[int]SiStore)
-
 	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.ID))
 	if err != nil {
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}

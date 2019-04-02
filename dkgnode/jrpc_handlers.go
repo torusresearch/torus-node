@@ -98,7 +98,6 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 	// verify token validity against verifier
 	h.suite.DefaultVerifier.Verify(params)
-
 	// Validate signatures
 	var validSignatures []ValidatedNodeSignature
 	for i := 0; i < len(p.NodeSignatures); i++ {
@@ -108,11 +107,13 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 				p.NodeSignatures[i],
 				*nodeRef.Index,
 			})
+		} else {
+			fmt.Println(err)
 		}
 	}
 	// Check if we have threshold number of signatures
 	if len(validSignatures) < h.suite.Config.Threshold {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures"}
+		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures. Only " + strconv.Itoa(len(validSignatures)) + "valid signatures found."}
 	}
 	// Find common data string, and filter valid signatures on the wrong data
 	// this is to prevent nodes from submitting valid signatures on wrong data
@@ -135,17 +136,23 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 	var validCommonSignatures []ValidatedNodeSignature
 	for i := 0; i < len(validSignatures); i++ {
-		if validSignatures[i].Data == commonDataString {
+		var commitmentRequestResultData CommitmentRequestResultData
+		commitmentRequestResultData.FromString(validSignatures[i].Data)
+		stringData := commitmentRequestResultData.MessagePrefix + "|" +
+			commitmentRequestResultData.TokenCommitment + "|" +
+			commitmentRequestResultData.Timestamp + "|" +
+			commitmentRequestResultData.VerifierIdentifier
+		if stringData == commonDataString {
 			validCommonSignatures = append(validCommonSignatures, validSignatures[i])
 		}
 	}
 	if len(validCommonSignatures) < h.suite.Config.Threshold {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures on the same data"}
+		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures on the same data, " + strconv.Itoa(len(validCommonSignatures)) + " valid signatures."}
 	}
 	var commonData = strings.Split(commonDataString, "|")
-	var commonTokenCommitment = commonData[0]
-	var commonTimestamp = commonData[1]
-	var commonVerifierIdentifier = commonData[2]
+	var commonTokenCommitment = commonData[1]
+	var commonTimestamp = commonData[2]
+	var commonVerifierIdentifier = commonData[3]
 
 	// Lookup verifier
 	verifier, err := h.suite.DefaultVerifier.Lookup(commonVerifierIdentifier)
@@ -156,6 +163,8 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	// verify that hash of token = tokenCommitment
 	var cleanedToken = verifier.CleanToken(p.Token)
 	if hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))) != commonTokenCommitment {
+		fmt.Println("hex", hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))))
+		fmt.Println("tokcom", commonTokenCommitment)
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Token commitment and token are not compatible"}
 	}
 
@@ -168,12 +177,6 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Expired token (> 60 seconds)"}
 	}
 
-	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
-	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
-	}
-	siMapping := tmpSi.(map[int]SiStore)
-
 	// Here we verify the identity of the user
 	identityVerified, err := h.suite.DefaultVerifier.Verify(params)
 	if err != nil {
@@ -184,6 +187,12 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		// TODO: @zhen / @len -> what should be the error message?
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid identity", Data: "oauth is invalid, err: " + err.Error()}
 	}
+
+	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
+	if !found {
+		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
+	}
+	siMapping := tmpSi.(map[int]SiStore)
 
 	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.ID))
 	if err != nil {

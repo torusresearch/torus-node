@@ -43,8 +43,8 @@ type (
 	}
 
 	NodeSignature struct {
-		Data        string
 		Signature   string
+		Data        string
 		NodePubKeyX string
 		NodePubKeyY string
 	}

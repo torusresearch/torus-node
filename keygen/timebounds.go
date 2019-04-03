@@ -49,14 +49,12 @@ func (ki *KeygenInstance) TriggerRoundTwoTimebound() error {
 	ki.Lock()
 	defer ki.Unlock()
 	if ki.State.Is(SIRunningKeygen) { // check if in correct state
-		logging.Debugf("We're in here 1")
 		// we iterate through each key
 		// for an incomplete key, we change node status to failure
 		for _, keyMap := range ki.KeyLog {
-			for nodeIndex, keyLog := range keyMap {
-				if !keyLog.SubshareState.Is(SKValidSubshare) && !keyLog.SubshareState.Is(SKPerfectSubshare) {
+			for nodeIndex, _ := range ki.NodeLog {
+				if !keyMap[nodeIndex].SubshareState.Is(SKValidSubshare) && !keyMap[nodeIndex].SubshareState.Is(SKPerfectSubshare) {
 					// key (and thus node) is faulty
-					logging.Debugf("We're in here 3 %v is at %s", nodeIndex, keyLog.SubshareState.Current())
 					err := ki.NodeLog[nodeIndex].Event(ENFailedRoundTwo)
 					if err != nil {
 						logging.Errorf("Error at ENFailedRoundTwo: " + err.Error())
@@ -70,14 +68,11 @@ func (ki *KeygenInstance) TriggerRoundTwoTimebound() error {
 			}
 		}
 
-		logging.Debugf("We're in here 4")
-
 		if len(ki.NodeLog) < ki.Threshold {
 			err := errors.New("Number of qualified nodes under threshold in timebound 2")
 			ki.ComChannel <- "keygen failed: " + err.Error()
 			return err
 		}
-		logging.Debugf("We're in here 2")
 
 		// continue with keygen with remaining qualified set
 		go func() {

@@ -109,6 +109,7 @@ func TestTimeboundOne(t *testing.T) {
 	comsChannel := make(chan string)
 	numOfNodes := 5
 	threshold := 4
+	numKeys := 10
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	for i := range nodeList {
@@ -148,7 +149,7 @@ func TestTimeboundOne(t *testing.T) {
 		// }
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex, comsChannel)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)
@@ -194,13 +195,15 @@ func TestTimeboundOne(t *testing.T) {
 		case msg := <-comsChannel:
 			if msg == SIKeygenCompleted {
 				count++
+				logging.Debugf("Number of Nodes ready: %v", count)
 			}
 		}
-		if count >= len(nodeList)-1 { // accounted for here
+		if count >= (len(nodeList) - 1) { // accounted for here
 			done = true
 			break
 		}
 	}
+	// time.Sleep(12 * time.Second)
 
 	// log node status
 	for i, nodeIndex := range nodeList {
@@ -211,7 +214,24 @@ func TestTimeboundOne(t *testing.T) {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]
 		instance.Lock()
 		t.Log(nodeIndex.Text(16), instance.State.Current())
-		assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
+		for keyIndex := range instance.KeyLog {
+			for g, ni := range nodeList {
+				if g == 0 {
+					continue
+				}
+				if instance.KeyLog[keyIndex][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
+					t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+					nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
+					t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
+					t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
+					// 	t.Log("Ready:")
+					// 	for _, ready := range nodeLog.ReceivedReadys {
+					// 		t.Log(ready)
+					// 	}
+				}
+			}
+		}
+		// assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
 		instance.Unlock()
 	}
 }
@@ -265,7 +285,7 @@ func TestTimeboundTwo(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex, comsChannel)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 10, nodeList, threshold, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)
@@ -274,7 +294,7 @@ func TestTimeboundTwo(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	// log node status
 	for i, nodeIndex := range nodeList {
@@ -388,9 +408,11 @@ func TestEchoReconstruction(t *testing.T) {
 		case msg := <-comsChannel:
 			if msg == SIKeygenCompleted {
 				count++
+				logging.Debugf("Number of Nodes ready: %v", count)
 			}
 		}
 		if count >= len(nodeList) {
+
 			break
 		}
 	}

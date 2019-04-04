@@ -7,7 +7,7 @@ platform:
 
 steps:
 - name: test
-  image: golang
+  image: overmorrow/torus-builder:1.12
   volumes:
   - name: deps
     path: /go

@@ -8,6 +8,10 @@ platform:
 steps:
 - name: test
   image: golang
+  volumes:
+  - name: deps
+    path: /go
   commands:
-  - go test ./logging
+  - go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci
+  - cd ./dkgnode
   - go build

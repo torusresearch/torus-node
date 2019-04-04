@@ -28,8 +28,10 @@ func TestOptimisticKeygen(t *testing.T) {
 	runtime.GOMAXPROCS(10)
 	logging.SetLevelString("debug")
 	comsChannel := make(chan string)
-	numOfNodes := 5
-	threshold := 4
+	numOfNodes := 9
+	threshold := 5
+	malNodes := 2
+	numKeys := 5
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	for i := range nodeList {
@@ -51,7 +53,7 @@ func TestOptimisticKeygen(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 10, nodeList, threshold, nIndex, comsChannel)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)
@@ -107,9 +109,10 @@ func TestTimeboundOne(t *testing.T) {
 	runtime.GOMAXPROCS(10)
 	logging.SetLevelString("debug")
 	comsChannel := make(chan string)
-	numOfNodes := 5
-	threshold := 4
-	numKeys := 10
+	numOfNodes := 9
+	threshold := 5
+	malNodes := 2
+	numKeys := 5
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	for i := range nodeList {
@@ -149,7 +152,7 @@ func TestTimeboundOne(t *testing.T) {
 		// }
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, nIndex, comsChannel)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)
@@ -248,8 +251,10 @@ func TestTimeboundTwo(t *testing.T) {
 	runtime.GOMAXPROCS(10)
 	logging.SetLevelString("debug")
 	comsChannel := make(chan string)
-	numOfNodes := 5
-	threshold := 4
+	numOfNodes := 9
+	threshold := 5
+	malNodes := 2
+	numKeys := 5
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	for i := range nodeList {
@@ -285,7 +290,7 @@ func TestTimeboundTwo(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 10, nodeList, threshold, nIndex, comsChannel)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)
@@ -366,7 +371,9 @@ func TestEchoReconstruction(t *testing.T) {
 	logging.SetLevelString("debug")
 	comsChannel := make(chan string)
 	numOfNodes := 5
-	threshold := 4
+	threshold := 3
+	malNodes := 0
+	numKeys := 1
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	for i := range nodeList {
@@ -392,7 +399,7 @@ func TestEchoReconstruction(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
 		go func(nIndex big.Int) {
-			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), 1, nodeList, threshold, nIndex, comsChannel)
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nIndex, comsChannel)
 			defer func() {
 				if err != nil {
 					t.Logf("Initiate Keygen error: %s", err)

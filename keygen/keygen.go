@@ -3,6 +3,7 @@ package keygen
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sync"
 
@@ -72,7 +73,7 @@ type KEYGENSecrets struct {
 
 type AVSSKeygen interface {
 	// Trigger Start for Keygen and Initialize
-	InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int, comChannel chan string) error
+	InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, comChannel chan string) error
 
 	// For this, these listeners must be triggered on incoming messages
 	// Listeners and Reactions
@@ -105,7 +106,9 @@ type AVSSKeygenStorage interface {
 type KeygenInstance struct {
 	sync.Mutex
 	NodeIndex         big.Int
-	Threshold         int
+	Threshold         int // in AVSS Paper this is k
+	NumMalNodes       int // in AVSS Paper this is t
+	TotalNodes        int // in AVSS Paper this is n
 	State             *fsm.FSM
 	NodeLog           map[string]*fsm.FSM                // nodeindex => fsm equivilent to qualified set
 	UnqualifiedNodes  map[string]*fsm.FSM                // nodeindex => fsm equivilent to qualified set
@@ -164,12 +167,14 @@ const (
 	EKEchoReconstruct    = "echo_reconstruct"
 )
 
-//TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well
-func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, nodeIndex big.Int, comChannel chan string) error {
+//TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well & store
+func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, comChannel chan string) error {
 	ki.Lock()
 	defer ki.Unlock()
 	ki.NodeIndex = nodeIndex
 	ki.Threshold = threshold
+	ki.NumMalNodes = numMalNodes
+	ki.TotalNodes = len(nodeIndexes)
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
@@ -477,6 +482,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 						"after_" + EKEchoReconstruct: func(e *fsm.Event) {
 							ki.Lock()
 							defer ki.Unlock()
+							logging.Debug("Echo Reconstruct is called 2")
 							count := 0
 							// prepare for derivation of polynomial
 							aiyPoints := make([]common.Point, ki.Threshold)
@@ -507,15 +513,15 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 								BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
 								BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
 							}
+							logging.Debug("Echo Reconstruct is called 3")
 							// Now we send our readys
-							if ki.SubsharesComplete == ki.NumOfKeys*len(ki.NodeLog) {
-								go func(subState *fsm.FSM) {
-									err := subState.Event(EKSendReady)
-									if err != nil {
-										logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not change subshare state: %s", err)
-									}
-								}(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].SubshareState)
-							}
+							go func(keyLog *KEYGENLog) {
+								logging.Debugf("Echo Reconstruct is called 4 %v", keyLog.SubshareState.Current())
+								err := keyLog.SubshareState.Event(EKSendReady)
+								if err != nil {
+									logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not change subshare state: %s", err)
+								}
+							}(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)])
 						},
 						// Below functions are for the state machines to catch up on previously sent messages using
 						// MsgBuffer We dont need to lock as msg buffer should do so
@@ -618,7 +624,8 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 		keyLog.ReceivedEchoes[fromNodeIndex.Text(16)] = msg
 
 		// check for echos
-		if ki.Threshold <= len(keyLog.ReceivedEchoes) {
+		ratio := int(math.Ceil((float64(ki.TotalNodes) + float64(ki.NumMalNodes) + 1.0) / 2.0)) // this is just greater equal than (differs from AVSS Paper equals) because we fsm to only send ready at most once
+		if ki.Threshold <= len(keyLog.ReceivedEchoes) && ratio <= len(keyLog.ReceivedEchoes) {
 			//since threshoold and above
 
 			// we etiher send ready
@@ -633,6 +640,7 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 			// Or here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
 			if keyLog.SubshareState.Is(SKWaitingForSends) {
 				go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
+					logging.Debug("Echo Reconstruct is called 1")
 					err := innerKeyLog.SubshareState.Event(EKEchoReconstruct, keyIndex, dealer)
 					if err != nil {
 						logging.Error(err.Error())
@@ -642,22 +650,6 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 		}
 	} else {
 		ki.MsgBuffer.StoreKEYGENEcho(msg, fromNodeIndex)
-
-		//
-		// if keyLog.SubshareState.Is(SKWaitingForSends) {
-		// 	// TODO: change this into a state change path
-		// 	// if we have enough ECHOs to test
-		// 	if ki.MsgBuffer.CheckLengthOfEcho(msg.KeyIndex, msg.Dealer) >= ki.Threshold {
-		// 		// here we have to try for all permutations to come up with an KEYGENSend that suits the commitments
-		// 		echoBuffer := ki.MsgBuffer.RetrieveKEYGENEchoes(msg.KeyIndex, msg.Dealer)
-		// 		sets := make([][]common.Point)
-		// 		for
-		// 		for k, v := range echoBuffer {
-
-		// 		}
-		// 	}
-		// }
-
 	}
 	return nil
 }

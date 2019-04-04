@@ -265,7 +265,7 @@ func TestTimeboundTwo(t *testing.T) {
 	done := false
 	// build timer function to kill of exceeds time
 	go func(d *bool) {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		if !*d {
 			assert.True(t, *d, "TestTimeboundOne timed out")
 		}
@@ -299,7 +299,7 @@ func TestTimeboundTwo(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// log node status
 	for i, nodeIndex := range nodeList {
@@ -329,7 +329,7 @@ func TestTimeboundTwo(t *testing.T) {
 		}
 	}
 
-	// // wait till nodes are done (w/o malicious node)
+	// wait till nodes are done (w/o malicious node)
 	count := 0
 	for {
 		select {
@@ -343,6 +343,8 @@ func TestTimeboundTwo(t *testing.T) {
 			break
 		}
 	}
+
+	// time.Sleep(5 * time.Second)
 
 	// // log node status
 	for i, nodeIndex := range nodeList {

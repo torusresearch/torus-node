@@ -427,18 +427,16 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 							// we send readys here when we have collected enough echos
 							for k := range ki.NodeLog {
 								nodeToSendIndex := big.Int{}
-								keyIndex := big.Int{}
-								dealer := big.Int{}
+								keyIndexStr := index.Text(16)
+								dealerStr := nodeIndex.Text(16)
 								nodeToSendIndex.SetString(k, 16)
-								keyIndex.SetString(e.Args[0].(string), 16)
-								dealer.SetString(e.Args[1].(string), 16)
 								keygenReady := KEYGENReady{
-									KeyIndex: keyIndex,
-									Dealer:   dealer,
-									Aij:      *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.AIY, nodeToSendIndex),
-									Aprimeij: *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.AIprimeY, nodeToSendIndex),
-									Bij:      *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.BIX, nodeToSendIndex),
-									Bprimeij: *pvss.PolyEval(ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend.BIprimeX, nodeToSendIndex),
+									KeyIndex: *index,
+									Dealer:   nodeIndex,
+									Aij:      *pvss.PolyEval(ki.KeyLog[keyIndexStr][dealerStr].ReceivedSend.AIY, nodeToSendIndex),
+									Aprimeij: *pvss.PolyEval(ki.KeyLog[keyIndexStr][dealerStr].ReceivedSend.AIprimeY, nodeToSendIndex),
+									Bij:      *pvss.PolyEval(ki.KeyLog[keyIndexStr][dealerStr].ReceivedSend.BIX, nodeToSendIndex),
+									Bprimeij: *pvss.PolyEval(ki.KeyLog[keyIndexStr][dealerStr].ReceivedSend.BIprimeX, nodeToSendIndex),
 								}
 								err := ki.Transport.SendKEYGENReady(keygenReady, nodeToSendIndex)
 								if err != nil {

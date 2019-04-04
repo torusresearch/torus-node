@@ -12,6 +12,6 @@ steps:
   - name: deps
     path: /go
   commands:
-  - go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci
+  - go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci -mod=vendor
   - cd ./dkgnode
-  - go build
+  - go build -mod=vendor

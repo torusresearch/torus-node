@@ -5,15 +5,9 @@ platform:
     os: linux
     arch: amd64
 
-workspace:
-  base: /go
-  path: src/github.com/torusresearch/torus-public
-
 steps:
-- name: test-n-build
-  image: 703476792259.dkr.ecr.ap-southeast-1.amazonaws.com/torus/torus-builder:latest
+- name: test
+  image: golang
   commands:
-  - cd /go/src/github.com/torusresearch/torus-public
-  - go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci
-  - cd dkgnode
+  - go test ./logging
   - go build

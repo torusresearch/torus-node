@@ -52,6 +52,11 @@ type KEYGENShareComplete struct {
 	gsihr    common.Point
 }
 
+type KEYGENDKGComplete struct {
+	Nonce  int
+	Proofs []KEYGENShareComplete
+}
+
 // KeyIndex => NodeIndex => KEYGENLog
 type KEYGENLog struct {
 	KeyIndex               big.Int
@@ -87,7 +92,7 @@ type AVSSKeygen interface {
 	OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error
 	OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error
 	OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error
-	OnKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete, fromNodeIndex big.Int) error
+	OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error
 
 	// Storage for Secrets/Shares/etc... go here
 }
@@ -99,7 +104,7 @@ type AVSSKeygenTransport interface {
 	SendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
 	SendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
 	SendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
-	BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error
+	BroadcastKEYGENShareComplete(msg KEYGENDKGComplete) error
 }
 
 // To store necessary shares and secrets
@@ -126,6 +131,7 @@ type KeygenInstance struct {
 	Transport         AVSSKeygenTransport
 	Store             AVSSKeygenStorage
 	MsgBuffer         KEYGENBuffer
+	Nonce             int
 	ComChannel        chan string
 }
 
@@ -184,6 +190,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
+	ki.Nonce = 0
 	ki.NodeLog = make(map[string]*NodeLog)
 	ki.UnqualifiedNodes = make(map[string]*NodeLog)
 	ki.ComChannel = comChannel
@@ -260,10 +267,11 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 						gsihr:    gshr,
 					}
 				}
-				err := ki.Transport.BroadcastKEYGENShareComplete(keygenShareCompletes)
+				err := ki.Transport.BroadcastKEYGENShareComplete(KEYGENDKGComplete{Nonce: ki.Nonce, Proofs: keygenShareCompletes})
 				if err != nil {
 					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENShareComplete: %s", err)
 				}
+				ki.Nonce++
 			},
 			"enter_" + SIKeygenCompleted: func(e *fsm.Event) {
 				ki.ComChannel <- SIKeygenCompleted
@@ -471,8 +479,21 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 						"after_" + EKAllReachedSubshare: func(e *fsm.Event) {
 							ki.Lock()
 							defer ki.Unlock()
-							ki.SubsharesComplete = ki.SubsharesComplete + 1
+							// Add to counts
+							ki.SubsharesComplete++
+							ki.NodeLog[nodeIndex.Text(16)].PerfectShareCount++
 							logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"Count of Perfect: %v", ki.SubsharesComplete)
+							// Check if Node subshares are complete
+							if ki.NodeLog[nodeIndex.Text(16)].PerfectShareCount == ki.NumOfKeys {
+								go func(state *NodeLog) {
+									// end keygen
+									err := state.Event(ENValidShares)
+									if err != nil {
+										logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not change state to subshare done: %s", err)
+									}
+								}(ki.NodeLog[nodeIndex.Text(16)])
+							}
+
 							// Check if all subshares are complete
 							if ki.SubsharesComplete == ki.NumOfKeys*len(ki.NodeLog) {
 								go func(state *fsm.FSM) {
@@ -487,7 +508,6 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 						"after_" + EKEchoReconstruct: func(e *fsm.Event) {
 							ki.Lock()
 							defer ki.Unlock()
-							logging.Debug("Echo Reconstruct is called 2")
 							count := 0
 							// prepare for derivation of polynomial
 							aiyPoints := make([]common.Point, ki.Threshold)
@@ -518,10 +538,8 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 								BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
 								BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
 							}
-							logging.Debug("Echo Reconstruct is called 3")
 							// Now we send our readys
 							go func(keyLog *KEYGENLog) {
-								logging.Debugf("Echo Reconstruct is called 4 %v", keyLog.SubshareState.Current())
 								err := keyLog.SubshareState.Event(EKSendReady)
 								if err != nil {
 									logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not change subshare state: %s", err)
@@ -711,12 +729,12 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	return nil
 }
 
-func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
 	//verify shareCompletes
 	logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"For KkeygenShareComplete %s", fromNodeIndex.Text(16))
-	for i, keygenShareCom := range keygenShareCompletes {
+	for i, keygenShareCom := range keygenShareCompletes.Proofs {
 		// ensure valid keyindex
 		expectedKeyIndex := big.NewInt(int64(i))
 		expectedKeyIndex.Add(expectedKeyIndex, &ki.StartIndex)

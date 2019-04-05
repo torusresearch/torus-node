@@ -509,9 +509,9 @@ func (transport *mockTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][
 	return nil
 }
 
-func (transport *mockTransport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
+func (transport *mockTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	for _, instance := range *transport.nodeKegenInstances {
-		go func(ins *KeygenInstance, cm []KEYGENShareComplete, tns big.Int) {
+		go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
 			err := ins.OnKEYGENShareComplete(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
@@ -540,7 +540,7 @@ func (transport *mockDeadTransport) BroadcastInitiateKeygen(commitmentMatrixes [
 	return nil
 }
 
-func (transport *mockDeadTransport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
+func (transport *mockDeadTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	return nil
 }
 
@@ -574,7 +574,7 @@ func (transport *mockDeadTransportTwo) BroadcastInitiateKeygen(commitmentMatrixe
 	return nil
 }
 
-func (transport *mockDeadTransportTwo) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
+func (transport *mockDeadTransportTwo) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	return nil
 }
 
@@ -634,9 +634,9 @@ func (transport *mockEvilTransport) BroadcastInitiateKeygen(commitmentMatrixes [
 	return nil
 }
 
-func (transport *mockEvilTransport) BroadcastKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete) error {
+func (transport *mockEvilTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	for _, instance := range *transport.nodeKegenInstances {
-		go func(ins *KeygenInstance, cm []KEYGENShareComplete, tns big.Int) {
+		go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
 			err := ins.OnKEYGENShareComplete(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
@@ -675,6 +675,6 @@ func (mn *mockDeadNode) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) erro
 func (mn *mockDeadNode) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
 	return nil
 }
-func (mn *mockDeadNode) OnKEYGENShareComplete(keygenShareCompletes []KEYGENShareComplete, fromNodeIndex big.Int) error {
+func (mn *mockDeadNode) OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	return nil
 }

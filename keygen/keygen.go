@@ -686,7 +686,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 			}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
 			// }
 
-			if len(keyLog.ReceivedReadys) == len(ki.NodeLog) {
+			if len(keyLog.ReceivedReadys) >= ki.Threshold+ki.NumMalNodes {
 				// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
 				// if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
 				go func(innerKeyLog *KEYGENLog) {
@@ -715,7 +715,7 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENSha
 		expectedKeyIndex.Add(expectedKeyIndex, &ki.StartIndex)
 
 		if expectedKeyIndex.Cmp(&keygenShareCom.KeyIndex) != 0 {
-			logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"KeyIndex %s, Expected %s", keygenShareCom.KeyIndex.Text(16), expectedKeyIndex.Text(16))
+			logging.Debugf("NODE "+ki.NodeIndex.Text(16)+" KeyIndex %s, Expected %s", keygenShareCom.KeyIndex.Text(16), expectedKeyIndex.Text(16))
 			return errors.New("Faulty key index on OnKEYGENShareComplete")
 
 		}

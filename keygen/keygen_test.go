@@ -16,6 +16,8 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 )
 
+const XXXTestLogging = "debug"
+
 func TestOptimisticKeygen(t *testing.T) {
 
 	f, err := os.Create("profile_optimistic")
@@ -26,7 +28,7 @@ func TestOptimisticKeygen(t *testing.T) {
 	defer pprof.StopCPUProfile()
 
 	runtime.GOMAXPROCS(10)
-	logging.SetLevelString("debug")
+	logging.SetLevelString(XXXTestLogging)
 	comsChannel := make(chan string)
 	numOfNodes := 9
 	threshold := 5
@@ -107,7 +109,7 @@ func TestTimeboundOne(t *testing.T) {
 	defer pprof.StopCPUProfile()
 
 	runtime.GOMAXPROCS(10)
-	logging.SetLevelString("debug")
+	logging.SetLevelString(XXXTestLogging)
 	comsChannel := make(chan string)
 	numOfNodes := 9
 	threshold := 5
@@ -123,10 +125,8 @@ func TestTimeboundOne(t *testing.T) {
 	done := false
 	// build timer function to kill of exceeds time
 	go func(d *bool) {
-		time.Sleep(5 * time.Second)
-		if !*d {
-			assert.True(t, *d, "TestTimeboundOne timed out")
-		}
+		time.Sleep(10 * time.Second)
+		comsChannel <- "timeout"
 	}(&done)
 
 	//edit transport functions
@@ -198,13 +198,15 @@ func TestTimeboundOne(t *testing.T) {
 		case msg := <-comsChannel:
 			if msg == SIKeygenCompleted {
 				count++
-				logging.Debugf("Number of Nodes ready: %v", count)
+			}
+			if msg == "timeout" {
+				done = true
 			}
 		}
-		if count >= (len(nodeList) - 1) { // accounted for here
-			done = true
+		if count >= len(nodeList)-1 || done { // accounted for here
 			break
 		}
+
 	}
 	// time.Sleep(12 * time.Second)
 
@@ -249,7 +251,7 @@ func TestTimeboundTwo(t *testing.T) {
 	defer pprof.StopCPUProfile()
 
 	runtime.GOMAXPROCS(10)
-	logging.SetLevelString("debug")
+	logging.SetLevelString(XXXTestLogging)
 	comsChannel := make(chan string)
 	numOfNodes := 9
 	threshold := 5
@@ -266,9 +268,7 @@ func TestTimeboundTwo(t *testing.T) {
 	// build timer function to kill of exceeds time
 	go func(d *bool) {
 		time.Sleep(10 * time.Second)
-		if !*d {
-			assert.True(t, *d, "TestTimeboundOne timed out")
-		}
+		comsChannel <- "timeout"
 	}(&done)
 
 	//edit transport functions
@@ -337,9 +337,11 @@ func TestTimeboundTwo(t *testing.T) {
 			if msg == SIKeygenCompleted {
 				count++
 			}
+			if msg == "timeout" {
+				done = true
+			}
 		}
-		if count >= len(nodeList)-1 { // accounted for here
-			done = true
+		if count >= len(nodeList)-1 || done { // accounted for here
 			break
 		}
 	}
@@ -370,7 +372,7 @@ func TestEchoReconstruction(t *testing.T) {
 	defer pprof.StopCPUProfile()
 
 	runtime.GOMAXPROCS(10)
-	logging.SetLevelString("debug")
+	logging.SetLevelString(XXXTestLogging)
 	comsChannel := make(chan string)
 	numOfNodes := 5
 	threshold := 3
@@ -382,6 +384,13 @@ func TestEchoReconstruction(t *testing.T) {
 		nodeList[i] = *big.NewInt(int64(i + 1))
 		nodeKegenInstances[nodeList[i].Text(16)] = &KeygenInstance{}
 	}
+
+	done := false
+	// build timer function to kill of exceeds time
+	go func(d *bool) {
+		time.Sleep(10 * time.Second)
+		comsChannel <- "timeout"
+	}(&done)
 
 	//edit transport functions
 	for k, v := range nodeKegenInstances {
@@ -410,22 +419,22 @@ func TestEchoReconstruction(t *testing.T) {
 		}(nodeIndex)
 	}
 
-	// wait till all nodes are done
-	// count := 0
-	// for {
-	// 	select {
-	// 	case msg := <-comsChannel:
-	// 		if msg == SIKeygenCompleted {
-	// 			count++
-	// 			logging.Debugf("Number of Nodes ready: %v", count)
-	// 		}
-	// 	}
-	// 	if count >= len(nodeList) {
-
-	// 		break
-	// 	}
-	// }
-	time.Sleep(3 * time.Second)
+	// wait till nodes are done (w/o malicious node)
+	count := 0
+	for {
+		select {
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+			if msg == "timeout" {
+				done = true
+			}
+		}
+		if count >= len(nodeList) || done { // accounted for here
+			break
+		}
+	}
 
 	for _, nodeIndex := range nodeList {
 		instance := nodeKegenInstances[nodeIndex.Text(16)]

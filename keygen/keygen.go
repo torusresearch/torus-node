@@ -44,6 +44,7 @@ type KEYGENReady struct {
 
 type KEYGENShareComplete struct {
 	KeyIndex big.Int
+	Nonce    int // for retry in the case of insynchrony issues
 	c        big.Int
 	u1       big.Int
 	u2       big.Int
@@ -69,6 +70,11 @@ type KEYGENSecrets struct {
 	secret big.Int
 	f      [][]big.Int
 	fprime [][]big.Int
+}
+
+type NodeLog struct {
+	fsm.FSM
+	PerfectShareCount int
 }
 
 type AVSSKeygen interface {
@@ -110,8 +116,8 @@ type KeygenInstance struct {
 	NumMalNodes       int // in AVSS Paper this is t
 	TotalNodes        int // in AVSS Paper this is n
 	State             *fsm.FSM
-	NodeLog           map[string]*fsm.FSM                // nodeindex => fsm equivilent to qualified set
-	UnqualifiedNodes  map[string]*fsm.FSM                // nodeindex => fsm equivilent to qualified set
+	NodeLog           map[string]*NodeLog                // nodeindex => fsm equivilent to qualified set
+	UnqualifiedNodes  map[string]*NodeLog                // nodeindex => fsm equivilent to unqualified set
 	KeyLog            map[string](map[string]*KEYGENLog) // keyindex => nodeindex => log
 	Secrets           map[string]KEYGENSecrets           // keyindex => KEYGENSecrets
 	StartIndex        big.Int
@@ -178,8 +184,8 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
-	ki.NodeLog = make(map[string]*fsm.FSM)
-	ki.UnqualifiedNodes = make(map[string]*fsm.FSM)
+	ki.NodeLog = make(map[string]*NodeLog)
+	ki.UnqualifiedNodes = make(map[string]*NodeLog)
 	ki.ComChannel = comChannel
 	// Initialize buffer
 	ki.MsgBuffer = KEYGENBuffer{}
@@ -267,7 +273,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 
 	// Node Log tracks the state of other nodes involved in this Keygen phase
 	for _, nodeIndex := range nodeIndexes {
-		ki.NodeLog[nodeIndex.Text(16)] = fsm.NewFSM(
+		tempFsm := fsm.NewFSM(
 			SNStandby,
 			fsm.Events{
 				{Name: ENInitiateKeygen, Src: []string{SNStandby}, Dst: SNKeygening},
@@ -321,6 +327,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 				},
 			},
 		)
+		ki.NodeLog[nodeIndex.Text(16)] = &NodeLog{FSM: *tempFsm, PerfectShareCount: 0}
 	}
 
 	ki.KeyLog = make(map[string](map[string]*KEYGENLog))
@@ -550,7 +557,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 			}
 		}
 
-		go func(nodeLog *fsm.FSM) {
+		go func(nodeLog *NodeLog) {
 			err := nodeLog.Event(ENInitiateKeygen)
 			if err != nil {
 				logging.Error(err.Error())
@@ -717,7 +724,6 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENSha
 		if expectedKeyIndex.Cmp(&keygenShareCom.KeyIndex) != 0 {
 			logging.Debugf("NODE "+ki.NodeIndex.Text(16)+" KeyIndex %s, Expected %s", keygenShareCom.KeyIndex.Text(16), expectedKeyIndex.Text(16))
 			return errors.New("Faulty key index on OnKEYGENShareComplete")
-
 		}
 		// by first verifying NIZKPK Proof
 		if !pvss.VerifyNIZKPK(keygenShareCom.c, keygenShareCom.u1, keygenShareCom.u2, keygenShareCom.gsi, keygenShareCom.gsihr) {
@@ -747,7 +753,7 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes []KEYGENSha
 	}
 
 	// we get here if everything passes
-	go func(nodeLog *fsm.FSM) {
+	go func(nodeLog *NodeLog) {
 		nodeLog.Event(ENValidShares)
 	}(ki.NodeLog[fromNodeIndex.Text(16)])
 

@@ -54,17 +54,17 @@ func (pssMessage *PSSMessage) JSON() *fastjson.RawMessage {
 // PSSID is the identifying string for PSSMessage
 type PSSID string
 
-type PSSInfo struct {
+type PSSIDDetails struct {
 	ID   big.Int
 	Step string
 	From int
 	To   int
 }
 
-func (pssInfo *PSSInfo) ToString() string {
-	return pssInfo.ID.Text(16) + "|" + pssInfo.Step + "|" + strconv.Itoa(pssInfo.From) + "|" + strconv.Itoa(pssInfo.To)
+func (pssIDDetails *PSSIDDetails) ToString() string {
+	return pssIDDetails.ID.Text(16) + "|" + pssIDDetails.Step + "|" + strconv.Itoa(pssIDDetails.From) + "|" + strconv.Itoa(pssIDDetails.To)
 }
-func (pssInfo *PSSInfo) FromString(s string) {
+func (pssIDDetails *PSSIDDetails) FromString(s string) {
 	substrings := strings.Split(s, "|")
 	if len(substrings) != 4 {
 		return
@@ -73,18 +73,18 @@ func (pssInfo *PSSInfo) FromString(s string) {
 	if !ok {
 		return
 	}
-	pssInfo.ID = *id
-	pssInfo.Step = substrings[1]
+	pssIDDetails.ID = *id
+	pssIDDetails.Step = substrings[1]
 	from, err := strconv.Atoi(substrings[2])
 	if err != nil {
 		return
 	}
-	pssInfo.From = from
+	pssIDDetails.From = from
 	to, err := strconv.Atoi(substrings[3])
 	if err != nil {
 		return
 	}
-	pssInfo.To = to
+	pssIDDetails.To = to
 }
 
 type NodeDetails common.Node
@@ -115,8 +115,8 @@ func (n *NodeDetails) FromString(s string) {
 }
 
 type PSSTransport interface {
-	Send(NodeDetails, fastjson.RawMessage) error
-	Receive(NodeDetails, fastjson.RawMessage) error
+	Send(NodeDetails, PSSMessage) error
+	Receive(NodeDetails, PSSMessage) error
 }
 
 var LocalNodeDirectory map[string]*LocalTransport
@@ -126,12 +126,12 @@ type LocalTransport struct {
 	NodeDirectory *map[string]*LocalTransport
 }
 
-func (l *LocalTransport) Send(nodeDetails NodeDetails, rawMessage fastjson.RawMessage) error {
-	return (*l.NodeDirectory)[nodeDetails.ToString()].Receive(l.PSSNode.NodeDetails, rawMessage)
+func (l *LocalTransport) Send(nodeDetails NodeDetails, pssMessage PSSMessage) error {
+	return (*l.NodeDirectory)[nodeDetails.ToString()].Receive(l.PSSNode.NodeDetails, pssMessage)
 }
 
-func (l *LocalTransport) Receive(nodeDetails NodeDetails, rawMessage fastjson.RawMessage) error {
-	return nil
+func (l *LocalTransport) Receive(senderDetails NodeDetails, pssMessage PSSMessage) error {
+	return l.PSSNode.ProcessMessage(senderDetails, pssMessage)
 }
 
 type NodeNetwork struct {
@@ -149,6 +149,10 @@ type PSSNode struct {
 	ShareStore  map[string]Sharing
 	Transport   PSSTransport
 	Resharings  []PSS
+}
+
+func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMessage) error {
+	return nil
 }
 
 func NewPSSNode(

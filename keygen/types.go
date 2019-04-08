@@ -93,22 +93,27 @@ func (pssMsgShare *PSSMsgShare) ToBytes() []byte {
 	return byt
 }
 
-type PSSMsgSend struct {
-	PSSID  PSSID
-	C      [][]common.Point
-	A      []big.Int
-	Aprime []big.Int
-	B      []big.Int
-	Bprime []big.Int
+type PSSMsgRecover struct {
+	SharingID SharingID
 }
 
-type pssMsgSendBase struct {
-	PSSID  string
-	C      [][][2]string
-	A      []string
-	Aprime []string
-	B      []string
-	Bprime []string
+func (pssMsgRecover *PSSMsgRecover) FromBytes(byt []byte) error {
+	var p fjson.Parser
+	val, err := p.Parse(string(byt))
+	if err != nil {
+		return err
+	}
+	pssMsgRecover.SharingID = SharingID(val.GetStringBytes("sharingid"))
+	return nil
+}
+
+func (pssMsgRecover *PSSMsgRecover) ToBytes() []byte {
+	byt, err := fastjson.Marshal(pssMsgRecover)
+	if err != nil {
+		logging.Error("Could not mpsshal PSSMsgRecover struct")
+		return []byte("")
+	}
+	return byt
 }
 
 type Parser interface {
@@ -195,6 +200,25 @@ func (p *parser) UnmarshalPM(args [][][2]string) (res [][]common.Point) {
 	}
 	return
 }
+
+type PSSMsgSend struct {
+	PSSID  PSSID
+	C      [][]common.Point
+	A      []big.Int
+	Aprime []big.Int
+	B      []big.Int
+	Bprime []big.Int
+}
+
+type pssMsgSendBase struct {
+	PSSID  string
+	C      [][][2]string
+	A      []string
+	Aprime []string
+	B      []string
+	Bprime []string
+}
+
 func (pssMsgSend *PSSMsgSend) ToBytes() []byte {
 	byt, _ := fastjson.Marshal(pssMsgSendBase{
 		string(pssMsgSend.PSSID),
@@ -219,5 +243,50 @@ func (pssMsgSend *PSSMsgSend) FromBytes(data []byte) error {
 	pssMsgSend.Aprime = BaseParser.UnmarshalIA(p.Aprime)
 	pssMsgSend.B = BaseParser.UnmarshalIA(p.B)
 	pssMsgSend.Bprime = BaseParser.UnmarshalIA(p.Bprime)
+	return nil
+}
+
+type PSSMsgEcho struct {
+	PSSID      PSSID
+	C          [][]common.Point
+	Alpha      big.Int
+	Alphaprime big.Int
+	Beta       big.Int
+	Betaprime  big.Int
+}
+
+type pssMsgEchoBase struct {
+	PSSID      string
+	C          [][][2]string
+	Alpha      string
+	Alphaprime string
+	Beta       string
+	Betaprime  string
+}
+
+func (pssMsgEcho *PSSMsgEcho) ToBytes() []byte {
+	byt, _ := fastjson.Marshal(pssMsgEchoBase{
+		PSSID:      string(pssMsgEcho.PSSID),
+		C:          BaseParser.MarshalPM(pssMsgEcho.C),
+		Alpha:      BaseParser.MarshalI(pssMsgEcho.Alpha),
+		Alphaprime: BaseParser.MarshalI(pssMsgEcho.Alphaprime),
+		Beta:       BaseParser.MarshalI(pssMsgEcho.Beta),
+		Betaprime:  BaseParser.MarshalI(pssMsgEcho.Betaprime),
+	})
+	return byt
+}
+
+func (pssMsgEcho *PSSMsgEcho) FromBytes(data []byte) error {
+	var p pssMsgEchoBase
+	err := fastjson.Unmarshal(data, &p)
+	if err != nil {
+		return err
+	}
+	pssMsgEcho.PSSID = PSSID(p.PSSID)
+	pssMsgEcho.C = BaseParser.UnmarshalPM(p.C)
+	pssMsgEcho.Alpha = BaseParser.UnmarshalI(p.Alpha)
+	pssMsgEcho.Alphaprime = BaseParser.UnmarshalI(p.Alphaprime)
+	pssMsgEcho.Beta = BaseParser.UnmarshalI(p.Beta)
+	pssMsgEcho.Betaprime = BaseParser.UnmarshalI(p.Betaprime)
 	return nil
 }

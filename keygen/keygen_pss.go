@@ -31,15 +31,16 @@ type PSS struct {
 	PSSID    PSSID
 	F        [][]big.Int
 	Fprime   [][]big.Int
+	C        [][]common.Point
 	Messages []PSSMessage
-	CStore   map[PSSCID]PSSC
+	CStore   map[CID]C
 	State    PSSState
 }
 
-type PSSCID string
+type CID string
 
-type PSSC struct {
-	PSSCID  PSSCID
+type C struct {
+	CID     CID
 	C       [][]common.Point
 	EC      int
 	RC      int
@@ -143,7 +144,7 @@ func (l *LocalTransport) Receive(senderDetails NodeDetails, pssMessage PSSMessag
 }
 
 type NodeNetwork struct {
-	Nodes []common.Node
+	Nodes map[NodeDetailsID]common.Node
 	T     int
 	K     int
 	ID    string
@@ -159,7 +160,7 @@ type PSSNode struct {
 	PSSStore    map[PSSID]*PSS
 }
 
-func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMessage) error {
+func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
 	if _, found := pssNode.PSSStore[pssMessage.PSSID]; !found {
 		pssNode.PSSStore[pssMessage.PSSID] = &PSS{
 			PSSID: pssMessage.PSSID,
@@ -169,6 +170,7 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 				PSSTypes.Player.NotPlayer,
 				PSSTypes.ReceivedSend.False,
 			},
+			CStore: make(map[CID]C),
 		}
 	}
 	pss := pssNode.PSSStore[pssMessage.PSSID]
@@ -181,7 +183,7 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 	if pssMessage.Method == "share" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(nodeDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 		if pss.State.Dealer != PSSTypes.Dealer.IsDealer {
 			return errors.New("PSS could not be started since the node is not a dealer")
@@ -199,7 +201,7 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 		}
 		pss.F = pvss.GenerateRandomBivariatePolynomial(sharing.Si, pssNode.NewNodes.K)
 		pss.Fprime = pvss.GenerateRandomBivariatePolynomial(sharing.Siprime, pssNode.NewNodes.K)
-		// pss.C = pvss.GetCommitmentMatrix(pss.F, pss.Fprime)
+		pss.C = pvss.GetCommitmentMatrix(pss.F, pss.Fprime)
 
 		for _, newNode := range pssNode.NewNodes.Nodes {
 			nodeDetails := NodeDetails(newNode)
@@ -208,8 +210,8 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 				Index:     sharing.I,
 			}).ToPSSID()
 			pssMsgSend := &PSSMsgSend{
-				PSSID: pssID,
-				// C:      pss.C,
+				PSSID:  pssID,
+				C:      pss.C,
 				A:      pvss.EvaluateBivarPolyAtX(pss.F, *big.NewInt(int64(nodeDetails.Index))).Coeff,
 				Aprime: pvss.EvaluateBivarPolyAtX(pss.Fprime, *big.NewInt(int64(nodeDetails.Index))).Coeff,
 				B:      pvss.EvaluateBivarPolyAtY(pss.F, *big.NewInt(int64(nodeDetails.Index))).Coeff,
@@ -223,11 +225,21 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 			go func() {
 				pssNode.Transport.Send(nodeDetails, nextPSSMessage)
 			}()
+
+			nextNextPSSMessage := PSSMessage{
+				PSSID:  PSSID(""),
+				Method: "recover",
+				Data:   (&PSSMsgRecover{SharingID: pssMsgShare.SharingID}).ToBytes(),
+			}
+
+			go func() {
+				pssNode.Transport.Send(nodeDetails, nextNextPSSMessage)
+			}()
 		}
 	} else if pssMessage.Method == "send" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(nodeDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 		if pss.State.Player != PSSTypes.Player.IsPlayer {
 			return errors.New("Could not receive send message because node is not a player")
@@ -242,12 +254,63 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 		if err != nil {
 			return err
 		}
-		// pvss.AVSSVerifyPoly(pssMsgSend.C)
-
+		var pssIDDetails PSSIDDetails
+		err = pssIDDetails.FromPSSID(pssMessage.PSSID)
+		if err != nil {
+			return err
+		}
+		senderID := pssNode.NewNodes.Nodes[senderDetails.ToNodeDetailsID()].Index
+		if senderID == pssIDDetails.Index {
+			pss.State.ReceivedSend = PSSTypes.ReceivedSend.True
+		} else {
+			return errors.New("'Send' message contains index of " + strconv.Itoa(pssIDDetails.Index) + " was not sent by node " + strconv.Itoa(senderID))
+		}
+		verified := pvss.AVSSVerifyPoly(
+			pssMsgSend.C,
+			*big.NewInt(int64(pssNode.NodeDetails.Index)),
+			common.PrimaryPolynomial{Coeff: pssMsgSend.A, Threshold: pssNode.NewNodes.K},
+			common.PrimaryPolynomial{Coeff: pssMsgSend.Aprime, Threshold: pssNode.NewNodes.K},
+			common.PrimaryPolynomial{Coeff: pssMsgSend.B, Threshold: pssNode.NewNodes.K},
+			common.PrimaryPolynomial{Coeff: pssMsgSend.Bprime, Threshold: pssNode.NewNodes.K},
+		)
+		if !verified {
+			return errors.New("Could not verify polys against commitment")
+		}
+		for _, newNode := range pssNode.NewNodes.Nodes {
+			nodeDetails := NodeDetails(newNode)
+			pssMsgEcho := PSSMsgEcho{
+				PSSID: pssMsgSend.PSSID,
+				C:     pssMsgSend.C,
+				Alpha: *pvss.PolyEval(
+					common.PrimaryPolynomial{Coeff: pssMsgSend.A, Threshold: pssNode.NewNodes.K},
+					*big.NewInt(int64(nodeDetails.Index)),
+				),
+				Alphaprime: *pvss.PolyEval(
+					common.PrimaryPolynomial{Coeff: pssMsgSend.Aprime, Threshold: pssNode.NewNodes.K},
+					*big.NewInt(int64(nodeDetails.Index)),
+				),
+				Beta: *pvss.PolyEval(
+					common.PrimaryPolynomial{Coeff: pssMsgSend.B, Threshold: pssNode.NewNodes.K},
+					*big.NewInt(int64(nodeDetails.Index)),
+				),
+				Betaprime: *pvss.PolyEval(
+					common.PrimaryPolynomial{Coeff: pssMsgSend.Bprime, Threshold: pssNode.NewNodes.K},
+					*big.NewInt(int64(nodeDetails.Index)),
+				),
+			}
+			nextPSSMessage := PSSMessage{
+				PSSID:  pssMsgEcho.PSSID,
+				Method: "echo",
+				Data:   pssMsgEcho.ToBytes(),
+			}
+			go func() {
+				pssNode.Transport.Send(nodeDetails, nextPSSMessage)
+			}()
+		}
 	} else if pssMessage.Method == "echo" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(nodeDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 
 		// logic
@@ -255,7 +318,7 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 	} else if pssMessage.Method == "ready" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(nodeDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 
 		// logic
@@ -263,7 +326,7 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 	} else if pssMessage.Method == "shared" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(nodeDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 
 		// logic
@@ -276,10 +339,10 @@ func (pssNode *PSSNode) ProcessMessage(nodeDetails NodeDetails, pssMessage PSSMe
 
 func NewPSSNode(
 	nodeDetails common.Node,
-	oldNodeList []common.Node,
+	oldNodeList map[NodeDetailsID]common.Node,
 	oldNodesT int,
 	oldNodesK int,
-	newNodeList []common.Node,
+	newNodeList map[NodeDetailsID]common.Node,
 	newNodesT int,
 	newNodesK int,
 	nodeIndex big.Int,

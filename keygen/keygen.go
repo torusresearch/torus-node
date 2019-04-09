@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/torusresearch/torus-public/pvss"
 
@@ -136,6 +137,8 @@ type KeygenInstance struct {
 	ComChannel        chan string
 }
 
+const retryDelay = 2
+
 // KEYGEN STATES (SK)
 const (
 	// State - Internal
@@ -167,6 +170,7 @@ const (
 	EIAllInitiateKeygen  = "all_initiate_keygen"
 	EIAllSubsharesDone   = "all_subshares_done"
 	EIAllKeygenCompleted = "all_keygen_completed"
+	EIResendDKGCompleted = "resend_dkg_completed"
 
 	// For node log events
 	ENInitiateKeygen      = "initiate_keygen"
@@ -208,8 +212,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 		SIWaitingInitiateKeygen,
 		fsm.Events{
 			{Name: EIAllInitiateKeygen, Src: []string{SIWaitingInitiateKeygen}, Dst: SIRunningKeygen},
-			{Name: EIAllSubsharesDone, Src: []string{SIRunningKeygen}, Dst: SIWaitingKEYGENShareComplete},
+			{Name: EIAllSubsharesDone, Src: []string{SIWaitingKEYGENShareComplete, SIRunningKeygen}, Dst: SIWaitingKEYGENShareComplete},
 			{Name: EIAllKeygenCompleted, Src: []string{SIWaitingKEYGENShareComplete}, Dst: SIKeygenCompleted},
+			{Name: EIResendDKGCompleted, Src: []string{SIWaitingKEYGENShareComplete}, Dst: SIWaitingKEYGENShareComplete},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) {
@@ -290,6 +295,17 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENShareComplete: %s", err)
 				}
 				ki.Nonce++
+				// Here we retry in the case of synchrony issues
+				go func() {
+					// TODO: rename to send DKG Complete
+					time.Sleep(retryDelay * time.Second)
+					if ki.State.Is(SIWaitingKEYGENShareComplete) {
+						err := ki.State.Event(EIAllSubsharesDone)
+						if err != nil {
+							logging.Error(err.Error())
+						}
+					}
+				}()
 			},
 			"enter_" + SIKeygenCompleted: func(e *fsm.Event) {
 				ki.ComChannel <- SIKeygenCompleted
@@ -546,16 +562,28 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 								count++
 							}
 
-							aiy := pvss.LagrangeInterpolatePolynomial(aiyPoints)
-							aiprimey := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
-							bix := pvss.LagrangeInterpolatePolynomial(bixPoints)
-							biprimex := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
+							aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
+							aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
+							bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
+							biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
 							ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = KEYGENSend{
 								KeyIndex: *index,
 								AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
 								AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
 								BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
 								BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
+							}
+
+							correctPoly := pvss.AVSSVerifyPoly(
+								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
+								ki.NodeIndex,
+								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
+								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
+								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
+								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
+							)
+							if !correctPoly {
+								logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
 							}
 							// Now we send our readys
 							go func(keyLog *KEYGENLog) {

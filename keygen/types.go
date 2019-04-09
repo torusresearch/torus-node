@@ -3,7 +3,6 @@ package keygen
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -503,6 +502,7 @@ var LocalNodeDirectory map[string]*LocalTransport
 type LocalTransport struct {
 	PSSNode       *PSSNode
 	NodeDirectory *map[NodeDetailsID]*LocalTransport
+	OutputChannel *chan string
 	// TODO: implement middleware feature
 }
 
@@ -530,7 +530,11 @@ func (l *LocalTransport) Broadcast(nodeNetwork NodeNetwork, pssMessage PSSMessag
 }
 
 func (l *LocalTransport) Output(s string) {
-	fmt.Println("OUTPUT:", s)
+	if l.OutputChannel != nil {
+		go func() {
+			*l.OutputChannel <- "Output: " + s
+		}()
+	}
 }
 
 type NodeNetwork struct {

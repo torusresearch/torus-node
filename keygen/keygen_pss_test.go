@@ -86,7 +86,7 @@ func TestKeygenSharing(test *testing.T) {
 	k := 5
 	t := 2
 	commCh, nodes, nodeList := SetupTestNodes(n, k, t)
-	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(n) + " nodes with reconstruction " + strconv.Itoa(k) + " and threshold " + strconv.Itoa(t))
+	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(keys) + " keys, " + strconv.Itoa(n) + " nodes with reconstruction " + strconv.Itoa(k) + " and threshold " + strconv.Itoa(t))
 	var secrets []big.Int
 	var sharingIDs []SharingID
 	for h := 0; h < keys; h++ {
@@ -142,14 +142,17 @@ func TestKeygenSharing(test *testing.T) {
 		var shares []common.PrimaryShare
 		for _, node := range nodes {
 			var subshares []common.PrimaryShare
-			for _, noderef := range nodes {
-				subshares = append(subshares, common.PrimaryShare{
-					Index: noderef.NodeDetails.Index,
-					Value: node.PSSStore[(&PSSIDDetails{
-						SharingID: sharingID,
-						Index:     noderef.NodeDetails.Index,
-					}).ToPSSID()].Si,
-				})
+			for _, noderef := range nodes { // assuming that all nodes are part of the valid set
+				val := node.PSSStore[(&PSSIDDetails{
+					SharingID: sharingID,
+					Index:     noderef.NodeDetails.Index,
+				}).ToPSSID()].Si
+				if val.Cmp(big.NewInt(int64(0))) != 0 {
+					subshares = append(subshares, common.PrimaryShare{
+						Index: noderef.NodeDetails.Index,
+						Value: val,
+					})
+				}
 			}
 			reconstructedSi := pvss.LagrangeScalar(subshares, 0)
 			shares = append(shares, common.PrimaryShare{

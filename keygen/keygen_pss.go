@@ -4,160 +4,20 @@ import (
 	"errors"
 	"math/big"
 	"strconv"
-	"strings"
-	"sync"
 
 	"github.com/torusresearch/torus-public/pvss"
-
-	"github.com/intel-go/fastjson"
 
 	"github.com/torusresearch/torus-public/common"
 )
 
-type SharingID string
-type Sharing struct {
-	sync.Mutex
-	SharingID SharingID
-	Nodes     []common.Node
-	Epoch     int
-	I         int
-	Si        big.Int
-	Siprime   big.Int
-	C         []common.Point
-}
-
-type PSS struct {
-	sync.Mutex
-	PSSID    PSSID
-	F        [][]big.Int
-	Fprime   [][]big.Int
-	C        [][]common.Point
-	Messages []PSSMessage
-	CStore   map[CID]C
-	State    PSSState
-}
-
-type CID string
-
-type C struct {
-	CID     CID
-	C       [][]common.Point
-	EC      int
-	RC      int
-	AC      []common.Point
-	ACprime []common.Point
-	BC      []common.Point
-	BCprime []common.Point
-}
-
-type PSSMessage struct {
-	PSSID  PSSID  `json:"pssid"`
-	Method string `json:"type"`
-	Data   []byte `json:"data"`
-}
-
-func (pssMessage *PSSMessage) JSON() *fastjson.RawMessage {
-	json, err := fastjson.Marshal(pssMessage)
-	if err != nil {
-		return nil
-	} else {
-		res := fastjson.RawMessage(json)
-		return &res
+// max(roundUp((n+t+1)/2), k)
+func ecThreshold(n, k, t int) (res int) {
+	nkt1half := n + t + 1
+	nkt1half = (nkt1half + 1) / 2
+	if nkt1half >= k {
+		return nkt1half
 	}
-}
-
-// PSSID is the identifying string for PSSMessage
-type PSSID string
-
-type PSSIDDetails struct {
-	SharingID SharingID
-	Index     int
-}
-
-func (pssIDDetails *PSSIDDetails) ToPSSID() PSSID {
-	return PSSID(string(pssIDDetails.SharingID) + "|" + strconv.Itoa(pssIDDetails.Index))
-}
-func (pssIDDetails *PSSIDDetails) FromPSSID(pssID PSSID) error {
-	s := string(pssID)
-	substrings := strings.Split(s, "|")
-	if len(substrings) != 2 {
-		return errors.New("Error parsing PSSIDDetails, too few fields")
-	}
-	pssIDDetails.SharingID = SharingID(substrings[0])
-	index, err := strconv.Atoi(substrings[1])
-	if err != nil {
-		return err
-	}
-	pssIDDetails.Index = index
-	return nil
-}
-
-type NodeDetailsID string
-
-type NodeDetails common.Node
-
-func (n *NodeDetails) ToNodeDetailsID() NodeDetailsID {
-	return NodeDetailsID(strconv.Itoa(n.Index) + "|" + n.PubKey.X.Text(16) + "|" + n.PubKey.Y.Text(16))
-}
-func (n *NodeDetails) FromNodeDetailsID(nodeDetailsID NodeDetailsID) {
-	s := string(nodeDetailsID)
-	substrings := strings.Split(s, "|")
-	if len(substrings) != 3 {
-		return
-	}
-	index, err := strconv.Atoi(substrings[0])
-	if err != nil {
-		return
-	}
-	n.Index = index
-	pubkeyX, ok := new(big.Int).SetString(substrings[1], 16)
-	if !ok {
-		return
-	}
-	n.PubKey.X = *pubkeyX
-	pubkeyY, ok := new(big.Int).SetString(substrings[2], 16)
-	if !ok {
-		return
-	}
-	n.PubKey.Y = *pubkeyY
-}
-
-type PSSTransport interface {
-	Send(NodeDetails, PSSMessage) error
-	Receive(NodeDetails, PSSMessage) error
-}
-
-var LocalNodeDirectory map[string]*LocalTransport
-
-type LocalTransport struct {
-	PSSNode       PSSNode
-	NodeDirectory *map[NodeDetailsID]*LocalTransport
-	// TODO: implement middleware feature
-}
-
-func (l *LocalTransport) Send(nodeDetails NodeDetails, pssMessage PSSMessage) error {
-	return (*l.NodeDirectory)[nodeDetails.ToNodeDetailsID()].Receive(l.PSSNode.NodeDetails, pssMessage)
-}
-
-func (l *LocalTransport) Receive(senderDetails NodeDetails, pssMessage PSSMessage) error {
-	return l.PSSNode.ProcessMessage(senderDetails, pssMessage)
-}
-
-type NodeNetwork struct {
-	Nodes map[NodeDetailsID]common.Node
-	T     int
-	K     int
-	ID    string
-}
-
-type PSSNode struct {
-	NodeDetails NodeDetails
-	OldNodes    NodeNetwork
-	NewNodes    NodeNetwork
-	NodeIndex   big.Int
-	ShareStore  map[SharingID]*Sharing
-	Transport   PSSTransport
-	PSSStore    map[PSSID]*PSS
+	return k
 }
 
 func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
@@ -169,6 +29,8 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				PSSTypes.Dealer.NotDealer,
 				PSSTypes.Player.NotPlayer,
 				PSSTypes.ReceivedSend.False,
+				PSSTypes.ReceivedEchoMap,
+				PSSTypes.ReceivedReadyMap,
 			},
 			CStore: make(map[CID]C),
 		}
@@ -226,16 +88,20 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				pssNode.Transport.Send(nodeDetails, nextPSSMessage)
 			}()
 
-			nextNextPSSMessage := PSSMessage{
-				PSSID:  PSSID(""),
-				Method: "recover",
-				Data:   (&PSSMsgRecover{SharingID: pssMsgShare.SharingID}).ToBytes(),
-			}
+			// TODO: uncomment below for PSS
 
-			go func() {
-				pssNode.Transport.Send(nodeDetails, nextNextPSSMessage)
-			}()
+			// nextNextPSSMessage := PSSMessage{
+			// 	PSSID:  PSSID(""),
+			// 	Method: "recover",
+			// 	Data:   (&PSSMsgRecover{SharingID: pssMsgShare.SharingID}).ToBytes(),
+			// }
+
+			// go func() {
+			// 	pssNode.Transport.Send(nodeDetails, nextNextPSSMessage)
+			// }()
 		}
+	} else if pssMessage.Method == "recover" {
+
 	} else if pssMessage.Method == "send" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
@@ -277,34 +143,33 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			return errors.New("Could not verify polys against commitment")
 		}
 		for _, newNode := range pssNode.NewNodes.Nodes {
-			nodeDetails := NodeDetails(newNode)
 			pssMsgEcho := PSSMsgEcho{
 				PSSID: pssMsgSend.PSSID,
 				C:     pssMsgSend.C,
 				Alpha: *pvss.PolyEval(
 					common.PrimaryPolynomial{Coeff: pssMsgSend.A, Threshold: pssNode.NewNodes.K},
-					*big.NewInt(int64(nodeDetails.Index)),
+					*big.NewInt(int64(newNode.Index)),
 				),
 				Alphaprime: *pvss.PolyEval(
 					common.PrimaryPolynomial{Coeff: pssMsgSend.Aprime, Threshold: pssNode.NewNodes.K},
-					*big.NewInt(int64(nodeDetails.Index)),
+					*big.NewInt(int64(newNode.Index)),
 				),
 				Beta: *pvss.PolyEval(
 					common.PrimaryPolynomial{Coeff: pssMsgSend.B, Threshold: pssNode.NewNodes.K},
-					*big.NewInt(int64(nodeDetails.Index)),
+					*big.NewInt(int64(newNode.Index)),
 				),
 				Betaprime: *pvss.PolyEval(
 					common.PrimaryPolynomial{Coeff: pssMsgSend.Bprime, Threshold: pssNode.NewNodes.K},
-					*big.NewInt(int64(nodeDetails.Index)),
+					*big.NewInt(int64(newNode.Index)),
 				),
 			}
 			nextPSSMessage := PSSMessage{
-				PSSID:  pssMsgEcho.PSSID,
+				PSSID:  pss.PSSID,
 				Method: "echo",
 				Data:   pssMsgEcho.ToBytes(),
 			}
 			go func() {
-				pssNode.Transport.Send(nodeDetails, nextPSSMessage)
+				pssNode.Transport.Send(NodeDetails(newNode), nextPSSMessage)
 			}()
 		}
 	} else if pssMessage.Method == "echo" {
@@ -312,25 +177,197 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if pss.State.Phase == PSSTypes.Phases.Ended {
 			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
+		receivedEcho, found := pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()]
+		if found && receivedEcho == PSSTypes.ReceivedEcho.True {
+			return errors.New("Already received a echo message for PSSID " + string(pss.PSSID))
+		}
 
 		// logic
+		pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()] = PSSTypes.ReceivedEcho.True
+		var pssMsgEcho PSSMsgEcho
+		err := pssMsgEcho.FromBytes(pssMessage.Data)
+		if err != nil {
+			return err
+		}
 
+		verified := pvss.AVSSVerifyPoint(
+			pssMsgEcho.C,
+			*big.NewInt(int64(senderDetails.Index)),
+			*big.NewInt(int64(pssNode.NodeDetails.Index)),
+			pssMsgEcho.Alpha,
+			pssMsgEcho.Alphaprime,
+			pssMsgEcho.Beta,
+			pssMsgEcho.Betaprime,
+		)
+		if !verified {
+			return errors.New("Could not verify point against commitments for echo message")
+		}
+
+		cID := GetCIDFromPointMatrix(pssMsgEcho.C)
+		c, found := pss.CStore[cID]
+		if !found {
+			pss.CStore[cID] = C{
+				CID: cID,
+			}
+		}
+		c.AC[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgEcho.Alpha,
+		}
+		c.ACprime[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgEcho.Alphaprime,
+		}
+		c.BC[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgEcho.Beta,
+		}
+		c.BCprime[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgEcho.Betaprime,
+		}
+		c.EC = c.EC + 1
+		if c.EC == ecThreshold(pssNode.NewNodes.N, pssNode.NewNodes.K, pssNode.NewNodes.T) &&
+			c.RC < pssNode.NewNodes.K {
+			c.Abar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.AC))
+			c.Abarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.ACprime))
+			c.Bbar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BC))
+			c.Bbarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BCprime))
+			for _, newNode := range pssNode.NewNodes.Nodes {
+				pssMsgReady := PSSMsgReady{
+					PSSID: pss.PSSID,
+					C:     c.C,
+					Alpha: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Abar, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+					Alphaprime: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Abarprime, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+					Beta: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Bbar, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+					Betaprime: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Bbarprime, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+				}
+				nextPSSMessage := PSSMessage{
+					PSSID:  pss.PSSID,
+					Method: "echo",
+					Data:   pssMsgReady.ToBytes(),
+				}
+				go func() {
+					pssNode.Transport.Send(NodeDetails(newNode), nextPSSMessage)
+				}()
+			}
+		}
 	} else if pssMessage.Method == "ready" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
 			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
-
-		// logic
-
-	} else if pssMessage.Method == "shared" {
-		// state checks
-		if pss.State.Phase == PSSTypes.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
+		receivedReady, found := pss.State.ReceivedReady[senderDetails.ToNodeDetailsID()]
+		if found && receivedReady == PSSTypes.ReceivedReady.True {
+			return errors.New("Already received a ready message for PSSID " + string(pss.PSSID))
 		}
 
 		// logic
+		pss.State.ReceivedReady[senderDetails.ToNodeDetailsID()] = PSSTypes.ReceivedReady.True
+		var pssMsgReady PSSMsgReady
+		err := pssMsgReady.FromBytes(pssMessage.Data)
+		if err != nil {
+			return err
+		}
 
+		verified := pvss.AVSSVerifyPoint(
+			pssMsgReady.C,
+			*big.NewInt(int64(senderDetails.Index)),
+			*big.NewInt(int64(pssNode.NodeDetails.Index)),
+			pssMsgReady.Alpha,
+			pssMsgReady.Alphaprime,
+			pssMsgReady.Beta,
+			pssMsgReady.Betaprime,
+		)
+		if !verified {
+			return errors.New("Could not verify point against commitments for echo message")
+		}
+
+		cID := GetCIDFromPointMatrix(pssMsgReady.C)
+		c, found := pss.CStore[cID]
+		if !found {
+			pss.CStore[cID] = C{
+				CID: cID,
+			}
+		}
+		c.AC[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgReady.Alpha,
+		}
+		c.ACprime[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgReady.Alphaprime,
+		}
+		c.BC[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgReady.Beta,
+		}
+		c.BCprime[senderDetails.Index] = common.Point{
+			X: *big.NewInt(int64(senderDetails.Index)),
+			Y: pssMsgReady.Betaprime,
+		}
+		c.RC = c.RC + 1
+		if c.RC == pssNode.NewNodes.K &&
+			c.EC < ecThreshold(pssNode.NewNodes.N, pssNode.NewNodes.K, pssNode.NewNodes.T) {
+			c.Abar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.AC))
+			c.Abarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.ACprime))
+			c.Bbar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BC))
+			c.Bbarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BCprime))
+			for _, newNode := range pssNode.NewNodes.Nodes {
+				pssMsgReady := PSSMsgReady{
+					PSSID: pss.PSSID,
+					C:     c.C,
+					Alpha: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Abar, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+					Alphaprime: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Abarprime, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+					Beta: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Bbar, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+					Betaprime: *pvss.PolyEval(
+						common.PrimaryPolynomial{Coeff: c.Bbarprime, Threshold: pssNode.NewNodes.K},
+						*big.NewInt(int64(newNode.Index)),
+					),
+				}
+				nextPSSMessage := PSSMessage{
+					PSSID:  pss.PSSID,
+					Method: "echo",
+					Data:   pssMsgReady.ToBytes(),
+				}
+				go func() {
+					pssNode.Transport.Send(NodeDetails(newNode), nextPSSMessage)
+				}()
+			}
+		} else if c.RC == pssNode.NewNodes.K+pssNode.NewNodes.T {
+			pss.Cbar = c.C
+			pss.Si = c.Abar[0]
+			pss.Siprime = c.Abarprime[0]
+			err := pssNode.Transport.Output(PSSMessage{
+				PSSID:  pss.PSSID,
+				Method: "out",
+				Data:   []byte("shared"),
+			})
+			if err != nil {
+				return err
+			}
+		}
 	} else {
 		return errors.New("PssMessage method not found")
 	}
@@ -339,10 +376,10 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 
 func NewPSSNode(
 	nodeDetails common.Node,
-	oldNodeList map[NodeDetailsID]common.Node,
+	oldNodeList map[NodeDetailsID]NodeDetails,
 	oldNodesT int,
 	oldNodesK int,
-	newNodeList map[NodeDetailsID]common.Node,
+	newNodeList map[NodeDetailsID]NodeDetails,
 	newNodesT int,
 	newNodesK int,
 	nodeIndex big.Int,

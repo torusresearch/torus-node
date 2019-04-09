@@ -241,7 +241,7 @@ func TestLagrangeInterpolation(test *testing.T) {
 		fmt.Println(err)
 		errorsExist = true
 	}
-	decryptedShares := make([]common.PrimaryShare, 11)
+	decryptedShares := make([]common.PrimaryShare, 16)
 	for i := range decryptedShares {
 		share, err := UnsigncryptShare(signcryptedShares[i].SigncryptedShare, privateKeys[i], pubKeySender)
 		if err != nil {
@@ -251,7 +251,12 @@ func TestLagrangeInterpolation(test *testing.T) {
 		decryptedShares[i] = common.PrimaryShare{i + 1, *new(big.Int).SetBytes(*share)}
 	}
 	lagrange := LagrangeScalar(decryptedShares, 0)
-
+	assert.True(test, secret.Cmp(lagrange) == 0)
+	lagrange = LagrangeScalar(decryptedShares[0:11], 0)
+	assert.True(test, secret.Cmp(lagrange) == 0)
+	lagrange = LagrangeScalar(decryptedShares[0:12], 0)
+	assert.True(test, secret.Cmp(lagrange) == 0)
+	lagrange = LagrangeScalar(decryptedShares[2:15], 0)
 	assert.True(test, secret.Cmp(lagrange) == 0)
 	assert.False(test, errorsExist)
 }

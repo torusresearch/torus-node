@@ -14,6 +14,10 @@ import (
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
+func RandomPoly(secret big.Int, threshold int) *common.PrimaryPolynomial {
+	return generateRandomZeroPolynomial(secret, threshold)
+}
+
 func RandomBigInt() *big.Int {
 	randomInt, _ := rand.Int(rand.Reader, secp256k1.GeneratorOrder)
 	return randomInt

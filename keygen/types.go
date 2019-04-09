@@ -1,6 +1,7 @@
 package keygen
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -10,9 +11,7 @@ import (
 
 	"github.com/intel-go/fastjson"
 	"github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
-	fjson "github.com/valyala/fastjson"
 )
 
 // Dont try to cast, use the exported structs to get the types you need
@@ -70,9 +69,9 @@ var PSSTypes = struct {
 	Player           pssPlayers
 	ReceivedSend     pssReceivedSends
 	ReceivedEcho     pssReceivedEchos
-	ReceivedEchoMap  map[NodeDetailsID]pssReceivedEcho
+	ReceivedEchoMap  func() map[NodeDetailsID]pssReceivedEcho
 	ReceivedReady    pssReceivedReadys
-	ReceivedReadyMap map[NodeDetailsID]pssReceivedReady
+	ReceivedReadyMap func() map[NodeDetailsID]pssReceivedReady
 }{
 	pssPhases{
 		Initial:   pssPhase("initial"),
@@ -96,12 +95,20 @@ var PSSTypes = struct {
 		True:  pssReceivedEcho(true),
 		False: pssReceivedEcho(false),
 	},
-	make(map[NodeDetailsID]pssReceivedEcho),
+	CreateReceivedEchoMap,
 	pssReceivedReadys{
 		True:  pssReceivedReady(true),
 		False: pssReceivedReady(false),
 	},
-	make(map[NodeDetailsID]pssReceivedReady),
+	CreateReceivedReadyMap,
+}
+
+func CreateReceivedEchoMap() map[NodeDetailsID]pssReceivedEcho {
+	return make(map[NodeDetailsID]pssReceivedEcho)
+}
+
+func CreateReceivedReadyMap() map[NodeDetailsID]pssReceivedReady {
+	return make(map[NodeDetailsID]pssReceivedReady)
 }
 
 type PSSMsgShare struct {
@@ -109,21 +116,11 @@ type PSSMsgShare struct {
 }
 
 func (pssMsgShare *PSSMsgShare) FromBytes(byt []byte) error {
-	var p fjson.Parser
-	val, err := p.Parse(string(byt))
-	if err != nil {
-		return err
-	}
-	pssMsgShare.SharingID = SharingID(val.GetStringBytes("sharingid"))
-	return nil
+	return fastjson.Unmarshal(byt, &pssMsgShare)
 }
 
 func (pssMsgShare *PSSMsgShare) ToBytes() []byte {
-	byt, err := fastjson.Marshal(pssMsgShare)
-	if err != nil {
-		logging.Error("Could not marshal PSSMsgShare struct")
-		return []byte("")
-	}
+	byt, _ := fastjson.Marshal(pssMsgShare)
 	return byt
 }
 
@@ -132,21 +129,11 @@ type PSSMsgRecover struct {
 }
 
 func (pssMsgRecover *PSSMsgRecover) FromBytes(byt []byte) error {
-	var p fjson.Parser
-	val, err := p.Parse(string(byt))
-	if err != nil {
-		return err
-	}
-	pssMsgRecover.SharingID = SharingID(val.GetStringBytes("sharingid"))
-	return nil
+	return fastjson.Unmarshal(byt, &pssMsgRecover)
 }
 
 func (pssMsgRecover *PSSMsgRecover) ToBytes() []byte {
-	byt, err := fastjson.Marshal(pssMsgRecover)
-	if err != nil {
-		logging.Error("Could not mpsshal PSSMsgRecover struct")
-		return []byte("")
-	}
+	byt, _ := fastjson.Marshal(pssMsgRecover)
 	return byt
 }
 
@@ -245,12 +232,12 @@ type PSSMsgSend struct {
 }
 
 type pssMsgSendBase struct {
-	PSSID  string
-	C      [][][2]string
-	A      []string
-	Aprime []string
-	B      []string
-	Bprime []string
+	PSSID  string        `json:"pssid"`
+	C      [][][2]string `json:"c"`
+	A      []string      `json:"a"`
+	Aprime []string      `json:"aprime"`
+	B      []string      `json:"b"`
+	Bprime []string      `json:"bprime"`
 }
 
 func (pssMsgSend *PSSMsgSend) ToBytes() []byte {
@@ -290,12 +277,12 @@ type PSSMsgEcho struct {
 }
 
 type pssMsgEchoBase struct {
-	PSSID      string
-	C          [][][2]string
-	Alpha      string
-	Alphaprime string
-	Beta       string
-	Betaprime  string
+	PSSID      string        `json:"pssid"`
+	C          [][][2]string `json:"c"`
+	Alpha      string        `json:"alpha"`
+	Alphaprime string        `json:"alphaprime"`
+	Beta       string        `json:"beta"`
+	Betaprime  string        `json:"betaprime"`
 }
 
 func (pssMsgEcho *PSSMsgEcho) ToBytes() []byte {
@@ -335,12 +322,12 @@ type PSSMsgReady struct {
 }
 
 type pssMsgReadyBase struct {
-	PSSID      string
-	C          [][][2]string
-	Alpha      string
-	Alphaprime string
-	Beta       string
-	Betaprime  string
+	PSSID      string        `json:"pssid"`
+	C          [][][2]string `json:"c"`
+	Alpha      string        `json:"alpha"`
+	Alphaprime string        `json:"alphaprime"`
+	Beta       string        `json:"beta"`
+	Betaprime  string        `json:betaprime`
 }
 
 func (pssMsgReady *PSSMsgReady) ToBytes() []byte {
@@ -392,7 +379,7 @@ type PSS struct {
 	Cbar     [][]common.Point
 	C        [][]common.Point
 	Messages []PSSMessage
-	CStore   map[CID]C
+	CStore   map[CID]*C
 	State    PSSState
 }
 
@@ -404,7 +391,7 @@ func GetCIDFromPointMatrix(pm [][]common.Point) CID {
 			bytes = append(bytes, pt.Y.Bytes()...)
 		}
 	}
-	return CID(secp256k1.Keccak256(bytes))
+	return CID(hex.EncodeToString(secp256k1.Keccak256(bytes)))
 }
 
 type CID string
@@ -504,18 +491,24 @@ func (n *NodeDetails) FromNodeDetailsID(nodeDetailsID NodeDetailsID) {
 }
 
 type PSSTransport interface {
+	SetPSSNode(*PSSNode) error
 	Send(NodeDetails, PSSMessage) error
 	Receive(NodeDetails, PSSMessage) error
 	Broadcast(NodeNetwork, PSSMessage) error
-	Output(PSSMessage) error
+	Output(string)
 }
 
 var LocalNodeDirectory map[string]*LocalTransport
 
 type LocalTransport struct {
-	PSSNode       PSSNode
+	PSSNode       *PSSNode
 	NodeDirectory *map[NodeDetailsID]*LocalTransport
 	// TODO: implement middleware feature
+}
+
+func (l *LocalTransport) SetPSSNode(ref *PSSNode) error {
+	l.PSSNode = ref
+	return nil
 }
 
 func (l *LocalTransport) Send(nodeDetails NodeDetails, pssMessage PSSMessage) error {
@@ -536,9 +529,8 @@ func (l *LocalTransport) Broadcast(nodeNetwork NodeNetwork, pssMessage PSSMessag
 	return nil
 }
 
-func (l *LocalTransport) Output(pssMessage PSSMessage) error {
-	fmt.Println("OUTPUT:", pssMessage)
-	return nil
+func (l *LocalTransport) Output(s string) {
+	fmt.Println("OUTPUT:", s)
 }
 
 type NodeNetwork struct {
@@ -550,6 +542,7 @@ type NodeNetwork struct {
 }
 
 type PSSNode struct {
+	sync.Mutex
 	NodeDetails NodeDetails
 	OldNodes    NodeNetwork
 	NewNodes    NodeNetwork

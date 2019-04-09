@@ -21,23 +21,25 @@ func ecThreshold(n, k, t int) (res int) {
 }
 
 func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
+	pssNode.Lock()
+	defer pssNode.Unlock()
 	if _, found := pssNode.PSSStore[pssMessage.PSSID]; !found {
 		pssNode.PSSStore[pssMessage.PSSID] = &PSS{
 			PSSID: pssMessage.PSSID,
 			State: PSSState{
 				PSSTypes.Phases.Initial,
-				PSSTypes.Dealer.NotDealer,
-				PSSTypes.Player.NotPlayer,
+				PSSTypes.Dealer.IsDealer,
+				PSSTypes.Player.IsPlayer,
 				PSSTypes.ReceivedSend.False,
-				PSSTypes.ReceivedEchoMap,
-				PSSTypes.ReceivedReadyMap,
+				PSSTypes.ReceivedEchoMap(),
+				PSSTypes.ReceivedReadyMap(),
 			},
-			CStore: make(map[CID]C),
+			CStore: make(map[CID]*C),
 		}
 	}
 	pss := pssNode.PSSStore[pssMessage.PSSID]
-	pss.Mutex.Lock()
-	defer pss.Mutex.Unlock()
+	pss.Lock()
+	defer pss.Unlock()
 
 	pss.Messages = append(pss.Messages, pssMessage)
 
@@ -61,12 +63,13 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if !found {
 			return errors.New("Could not find sharing for sharingID " + string(pssMsgShare.SharingID))
 		}
+		sharing.Lock()
+		defer sharing.Unlock()
 		pss.F = pvss.GenerateRandomBivariatePolynomial(sharing.Si, pssNode.NewNodes.K)
 		pss.Fprime = pvss.GenerateRandomBivariatePolynomial(sharing.Siprime, pssNode.NewNodes.K)
 		pss.C = pvss.GetCommitmentMatrix(pss.F, pss.Fprime)
 
 		for _, newNode := range pssNode.NewNodes.Nodes {
-			nodeDetails := NodeDetails(newNode)
 			pssID := (&PSSIDDetails{
 				SharingID: sharing.SharingID,
 				Index:     sharing.I,
@@ -74,19 +77,22 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			pssMsgSend := &PSSMsgSend{
 				PSSID:  pssID,
 				C:      pss.C,
-				A:      pvss.EvaluateBivarPolyAtX(pss.F, *big.NewInt(int64(nodeDetails.Index))).Coeff,
-				Aprime: pvss.EvaluateBivarPolyAtX(pss.Fprime, *big.NewInt(int64(nodeDetails.Index))).Coeff,
-				B:      pvss.EvaluateBivarPolyAtY(pss.F, *big.NewInt(int64(nodeDetails.Index))).Coeff,
-				Bprime: pvss.EvaluateBivarPolyAtY(pss.Fprime, *big.NewInt(int64(nodeDetails.Index))).Coeff,
+				A:      pvss.EvaluateBivarPolyAtX(pss.F, *big.NewInt(int64(newNode.Index))).Coeff,
+				Aprime: pvss.EvaluateBivarPolyAtX(pss.Fprime, *big.NewInt(int64(newNode.Index))).Coeff,
+				B:      pvss.EvaluateBivarPolyAtY(pss.F, *big.NewInt(int64(newNode.Index))).Coeff,
+				Bprime: pvss.EvaluateBivarPolyAtY(pss.Fprime, *big.NewInt(int64(newNode.Index))).Coeff,
 			}
 			nextPSSMessage := PSSMessage{
 				PSSID:  pssID,
 				Method: "send",
 				Data:   pssMsgSend.ToBytes(),
 			}
-			go func() {
-				pssNode.Transport.Send(nodeDetails, nextPSSMessage)
-			}()
+			go func(newN NodeDetails, msg PSSMessage) {
+				err := pssNode.Transport.Send(newN, msg)
+				if err != nil {
+					pssNode.Transport.Output(err.Error())
+				}
+			}(newNode, nextPSSMessage)
 
 			// TODO: uncomment below for PSS
 
@@ -96,12 +102,12 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			// 	Data:   (&PSSMsgRecover{SharingID: pssMsgShare.SharingID}).ToBytes(),
 			// }
 
-			// go func() {
-			// 	pssNode.Transport.Send(nodeDetails, nextNextPSSMessage)
-			// }()
+			// go func(newN NodeDetails, msg PSSMessage) {
+			// 	pssNode.Transport.Send(newN, msg)
+			// }(newNode, nextNextPSSMessage)
 		}
 	} else if pssMessage.Method == "recover" {
-
+		panic("RECOVER NOT IMPLEMENTED")
 	} else if pssMessage.Method == "send" {
 		// state checks
 		if pss.State.Phase == PSSTypes.Phases.Ended {
@@ -168,9 +174,12 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Method: "echo",
 				Data:   pssMsgEcho.ToBytes(),
 			}
-			go func() {
-				pssNode.Transport.Send(NodeDetails(newNode), nextPSSMessage)
-			}()
+			go func(newN NodeDetails, msg PSSMessage) {
+				err := pssNode.Transport.Send(newN, msg)
+				if err != nil {
+					pssNode.Transport.Output(err.Error())
+				}
+			}(newNode, nextPSSMessage)
 		}
 	} else if pssMessage.Method == "echo" {
 		// state checks
@@ -179,7 +188,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		}
 		receivedEcho, found := pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()]
 		if found && receivedEcho == PSSTypes.ReceivedEcho.True {
-			return errors.New("Already received a echo message for PSSID " + string(pss.PSSID))
+			return errors.New("Already received a echo message for PSSID " + string(pss.PSSID) + "from sender " + string(senderDetails.ToNodeDetailsID()))
 		}
 
 		// logic
@@ -206,10 +215,16 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		cID := GetCIDFromPointMatrix(pssMsgEcho.C)
 		c, found := pss.CStore[cID]
 		if !found {
-			pss.CStore[cID] = C{
-				CID: cID,
+			pss.CStore[cID] = &C{
+				CID:     cID,
+				C:       pssMsgEcho.C,
+				AC:      make(map[int]common.Point),
+				ACprime: make(map[int]common.Point),
+				BC:      make(map[int]common.Point),
+				BCprime: make(map[int]common.Point),
 			}
 		}
+		c = pss.CStore[cID]
 		c.AC[senderDetails.Index] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgEcho.Alpha,
@@ -229,10 +244,11 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		c.EC = c.EC + 1
 		if c.EC == ecThreshold(pssNode.NewNodes.N, pssNode.NewNodes.K, pssNode.NewNodes.T) &&
 			c.RC < pssNode.NewNodes.K {
-			c.Abar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.AC))
-			c.Abarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.ACprime))
-			c.Bbar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BC))
-			c.Bbarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BCprime))
+			// Note: Despite the name mismatch below, this is correct, and the AVSS spec is wrong.
+			c.Abar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BC))
+			c.Abarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BCprime))
+			c.Bbar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.AC))
+			c.Bbarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.ACprime))
 			for _, newNode := range pssNode.NewNodes.Nodes {
 				pssMsgReady := PSSMsgReady{
 					PSSID: pss.PSSID,
@@ -256,12 +272,15 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}
 				nextPSSMessage := PSSMessage{
 					PSSID:  pss.PSSID,
-					Method: "echo",
+					Method: "ready",
 					Data:   pssMsgReady.ToBytes(),
 				}
-				go func() {
-					pssNode.Transport.Send(NodeDetails(newNode), nextPSSMessage)
-				}()
+				go func(newN NodeDetails, msg PSSMessage) {
+					err := pssNode.Transport.Send(newN, msg)
+					if err != nil {
+						pssNode.Transport.Output(err.Error())
+					}
+				}(newNode, nextPSSMessage)
 			}
 		}
 	} else if pssMessage.Method == "ready" {
@@ -281,7 +300,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if err != nil {
 			return err
 		}
-
 		verified := pvss.AVSSVerifyPoint(
 			pssMsgReady.C,
 			*big.NewInt(int64(senderDetails.Index)),
@@ -292,14 +310,18 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			pssMsgReady.Betaprime,
 		)
 		if !verified {
-			return errors.New("Could not verify point against commitments for echo message")
+			return errors.New("Could not verify point against commitments for ready message")
 		}
 
 		cID := GetCIDFromPointMatrix(pssMsgReady.C)
 		c, found := pss.CStore[cID]
 		if !found {
-			pss.CStore[cID] = C{
-				CID: cID,
+			pss.CStore[cID] = &C{
+				CID:     cID,
+				AC:      make(map[int]common.Point),
+				ACprime: make(map[int]common.Point),
+				BC:      make(map[int]common.Point),
+				BCprime: make(map[int]common.Point),
 			}
 		}
 		c.AC[senderDetails.Index] = common.Point{
@@ -348,25 +370,21 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}
 				nextPSSMessage := PSSMessage{
 					PSSID:  pss.PSSID,
-					Method: "echo",
+					Method: "ready",
 					Data:   pssMsgReady.ToBytes(),
 				}
-				go func() {
-					pssNode.Transport.Send(NodeDetails(newNode), nextPSSMessage)
-				}()
+				go func(newN NodeDetails, msg PSSMessage) {
+					err := pssNode.Transport.Send(newN, msg)
+					if err != nil {
+						pssNode.Transport.Output(err.Error())
+					}
+				}(newNode, nextPSSMessage)
 			}
 		} else if c.RC == pssNode.NewNodes.K+pssNode.NewNodes.T {
 			pss.Cbar = c.C
 			pss.Si = c.Abar[0]
 			pss.Siprime = c.Abarprime[0]
-			err := pssNode.Transport.Output(PSSMessage{
-				PSSID:  pss.PSSID,
-				Method: "out",
-				Data:   []byte("shared"),
-			})
-			if err != nil {
-				return err
-			}
+			pssNode.Transport.Output(string(pss.PSSID) + " shared.")
 		}
 	} else {
 		return errors.New("PssMessage method not found")
@@ -376,30 +394,40 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 
 func NewPSSNode(
 	nodeDetails common.Node,
-	oldNodeList map[NodeDetailsID]NodeDetails,
+	oldNodeList []common.Node,
 	oldNodesT int,
 	oldNodesK int,
-	newNodeList map[NodeDetailsID]NodeDetails,
+	newNodeList []common.Node,
 	newNodesT int,
 	newNodesK int,
 	nodeIndex big.Int,
-	shareStore map[SharingID]*Sharing,
 	transport PSSTransport,
 ) *PSSNode {
-	return &PSSNode{
+	mapFromNodeList := func(nodeList []common.Node) (res map[NodeDetailsID]NodeDetails) {
+		res = make(map[NodeDetailsID]NodeDetails)
+		for _, node := range nodeList {
+			nodeDetails := NodeDetails(node)
+			res[nodeDetails.ToNodeDetailsID()] = nodeDetails
+		}
+		return
+	}
+	newPssNode := &PSSNode{
 		NodeDetails: NodeDetails(nodeDetails),
 		OldNodes: NodeNetwork{
-			Nodes: oldNodeList,
+			Nodes: mapFromNodeList(oldNodeList),
 			T:     oldNodesT,
 			K:     oldNodesK,
 		},
 		NewNodes: NodeNetwork{
-			Nodes: newNodeList,
+			Nodes: mapFromNodeList(newNodeList),
 			T:     newNodesT,
 			K:     newNodesK,
 		},
 		NodeIndex:  nodeIndex,
-		ShareStore: shareStore,
-		Transport:  transport,
+		ShareStore: make(map[SharingID]*Sharing),
+		PSSStore:   make(map[PSSID]*PSS),
 	}
+	transport.SetPSSNode(newPssNode)
+	newPssNode.Transport = transport
+	return newPssNode
 }

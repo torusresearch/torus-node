@@ -10,14 +10,15 @@ import (
 // Here we store by Key index to allow for faster fetching (less iteration) when accessing the buffer
 type KEYGENBuffer struct {
 	sync.Mutex
-	Buffer map[string](map[string]*KEYGENMsgLog) // keyIndex => nodeIndex => buffer
+	Buffer               map[string](map[string]*KEYGENMsgLog)   // keyIndex => nodeIndex => buffer
+	ReceivedDKGCompletes map[int](map[string]*KEYGENDKGComplete) // From int (array ) to M big.Int (in hex) to DKGComplete
 }
 
 type KEYGENMsgLog struct {
-	ReceivedSend           *KEYGENSend                     // Polynomials for respective commitment matrix.
-	ReceivedEchoes         map[string]*KEYGENEcho          // From(M) big.Int (in hex) to Echo
-	ReceivedReadys         map[string]*KEYGENReady         // From(M) big.Int (in hex) to Ready
-	ReceivedShareCompletes map[string]*KEYGENShareComplete // From(M) big.Int (in hex) to ShareComplete
+	ReceivedSend   *KEYGENSend             // Polynomials for respective commitment matrix.
+	ReceivedEchoes map[string]*KEYGENEcho  // From(M) big.Int (in hex) to Echo
+	ReceivedReadys map[string]*KEYGENReady // From(M) big.Int (in hex) to Ready
+
 }
 
 //Initialize message buffer
@@ -31,12 +32,13 @@ func (buf *KEYGENBuffer) InitializeMsgBuffer(startIndex big.Int, numOfKeys int, 
 		keyIndex.Add(keyIndex, &startIndex)
 		strKeyIndex := keyIndex.Text(16)
 		buf.Buffer[strKeyIndex] = make(map[string]*KEYGENMsgLog)
+		buf.ReceivedDKGCompletes = make(map[int](map[string]*KEYGENDKGComplete)) // From int (array ) to M big.Int (in hex) to DKGComplete
 
 		for _, v := range nodeList {
 			buf.Buffer[strKeyIndex][v.Text(16)] = &KEYGENMsgLog{
-				ReceivedEchoes:         make(map[string]*KEYGENEcho),          // From(M) big.Int (in hex) to Echo
-				ReceivedReadys:         make(map[string]*KEYGENReady),         // From(M) big.Int (in hex) to Ready
-				ReceivedShareCompletes: make(map[string]*KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
+				ReceivedEchoes: make(map[string]*KEYGENEcho),  // From(M) big.Int (in hex) to Echo
+				ReceivedReadys: make(map[string]*KEYGENReady), // From(M) big.Int (in hex) to Ready
+
 			}
 		}
 	}
@@ -64,16 +66,16 @@ func (buf *KEYGENBuffer) StoreKEYGENReady(msg KEYGENReady, from big.Int) error {
 	return nil
 }
 
-// func (buf *KEYGENMsgLog) StoreKEYGENShareComplete(msg KEYGENShareComplete, from big.Int) error {
-// 	buf.Lock()
-// 	defer buf.Unlock()
-// 	wrappedMsg := MsgWrapper{
-// 		From: from,
-// 		Msg:  msg,
-// 	}
-// 	buf.ReceivedShareCompletes[msg.KeyIndex.Text(16)] = append(buf.ReceivedShareCompletes[msg.KeyIndex.Text(16)], wrappedMsg)
-// 	return nil
-// }
+func (buf *KEYGENBuffer) StoreKEYGENDKGComplete(msg KEYGENDKGComplete, from big.Int) error {
+	buf.Lock()
+	defer buf.Unlock()
+	_, ok := buf.ReceivedDKGCompletes[msg.Nonce]
+	if !ok {
+		buf.ReceivedDKGCompletes[msg.Nonce] = make(map[string]*KEYGENDKGComplete)
+	}
+	buf.ReceivedDKGCompletes[msg.Nonce][from.Text(16)] = &msg
+	return nil
+}
 
 //TODO: Handle failed message
 // Retrieve from the message buffer and iterate over messages
@@ -96,6 +98,13 @@ func (buf *KEYGENBuffer) RetrieveKEYGENReadys(keyIndex big.Int, dealer big.Int) 
 	defer buf.Unlock()
 	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedReadys))
 	return buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedReadys
+}
+
+func (buf *KEYGENBuffer) RetrieveKEYGENDKGComplete(nonce int, dealer big.Int) map[string]*KEYGENDKGComplete {
+	buf.Lock()
+	defer buf.Unlock()
+	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.ReceivedDKGCompletes[nonce]))
+	return buf.ReceivedDKGCompletes[nonce]
 }
 
 func (buf *KEYGENBuffer) CheckLengthOfEcho(keyIndex big.Int, dealer big.Int) int {

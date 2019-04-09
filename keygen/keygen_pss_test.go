@@ -3,7 +3,9 @@ package keygen
 import (
 	"fmt"
 	"math/big"
+	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,12 +31,9 @@ func TestPMMarshal(test *testing.T) {
 	}
 }
 
-func SetupTestNodes() (chan string, []*PSSNode, []common.Node, int, int, int) {
+func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 	// setup
 	commCh := make(chan string)
-	n := 13
-	k := 7
-	t := 3
 	var nodePrivKeys []big.Int
 	var nodePubKeys []common.Point
 	var nodeIndexes []int
@@ -77,58 +76,92 @@ func SetupTestNodes() (chan string, []*PSSNode, []common.Node, int, int, int) {
 		nodeDetails := NodeDetails(node)
 		localTransportNodeDirectory[nodeDetails.ToNodeDetailsID()] = &localTransport
 	}
-	return commCh, nodes, nodeList, n, k, t
+	return commCh, nodes, nodeList
 }
 
 func TestKeygenSharing(test *testing.T) {
-	commCh, nodes, nodeList, n, k, t := SetupTestNodes()
+	runtime.GOMAXPROCS(10)
+	keys := 5
+	n := 9
+	k := 5
+	t := 2
+	commCh, nodes, nodeList := SetupTestNodes(n, k, t)
 	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(n) + " nodes with reconstruction " + strconv.Itoa(k) + " and threshold " + strconv.Itoa(t))
-	originalPrivateKey := pvss.RandomBigInt()
-	mask := pvss.RandomBigInt()
-	randPoly := pvss.RandomPoly(*originalPrivateKey, k)
-	randPolyprime := pvss.RandomPoly(*mask, k)
-	Si := *pvss.PolyEval(*randPoly, *big.NewInt(int64(1)))
-	Siprime := *pvss.PolyEval(*randPolyprime, *big.NewInt(int64(1)))
-
-	// setup previously shared secret
-	nodes[0].ShareStore[SharingID("TestKeygenSharing")] = &Sharing{
-		SharingID: SharingID("TestKeygenSharing"),
-		Nodes:     nodeList,
-		Epoch:     1,
-		I:         1,
-		Si:        Si,
-		Siprime:   Siprime,
-	}
-	pssMsgShare := PSSMsgShare{
-		SharingID: SharingID("TestKeygenSharing"),
-	}
-	// initial sharing
-	pssID := (&PSSIDDetails{
-		SharingID: SharingID("TestKeygenSharing"),
-		Index:     1,
-	}).ToPSSID()
-	err := nodes[0].Transport.Send(nodes[0].NodeDetails, PSSMessage{
-		PSSID:  pssID,
-		Method: "share",
-		Data:   pssMsgShare.ToBytes(),
-	})
-	assert.NoError(test, err)
-	completeMessages := 0
-	for completeMessages < n {
-		if <-commCh != "" {
-			completeMessages++
+	var secrets []big.Int
+	var sharingIDs []SharingID
+	for h := 0; h < keys; h++ {
+		secret := pvss.RandomBigInt()
+		secrets = append(secrets, *secret)
+		mask := pvss.RandomBigInt()
+		randPoly := pvss.RandomPoly(*secret, k)
+		randPolyprime := pvss.RandomPoly(*mask, k)
+		sharingID := SharingID("SHARING" + strconv.Itoa(h))
+		sharingIDs = append(sharingIDs, sharingID)
+		for _, node := range nodes {
+			index := node.NodeDetails.Index
+			Si := *pvss.PolyEval(*randPoly, *big.NewInt(int64(index)))
+			Siprime := *pvss.PolyEval(*randPolyprime, *big.NewInt(int64(index)))
+			node.ShareStore[sharingID] = &Sharing{
+				SharingID: sharingID,
+				Nodes:     nodeList,
+				Epoch:     1,
+				I:         index,
+				Si:        Si,
+				Siprime:   Siprime,
+			}
 		}
 	}
-	assert.Equal(test, completeMessages, n)
-	var shares []common.PrimaryShare
-	for _, node := range nodes {
-		node.Lock()
-		shares = append(shares, common.PrimaryShare{
-			Index: node.NodeDetails.Index,
-			Value: node.PSSStore[pssID].Si,
-		})
-		node.Unlock()
+	for _, sharingID := range sharingIDs {
+		for _, node := range nodes {
+			pssMsgShare := PSSMsgShare{
+				SharingID: sharingID,
+			}
+			pssID := (&PSSIDDetails{
+				SharingID: sharingID,
+				Index:     node.NodeDetails.Index,
+			}).ToPSSID()
+			err := node.Transport.Send(node.NodeDetails, PSSMessage{
+				PSSID:  pssID,
+				Method: "share",
+				Data:   pssMsgShare.ToBytes(),
+			})
+			assert.NoError(test, err)
+		}
 	}
-	reconstructedSecret := pvss.LagrangeScalar(shares, 0)
-	assert.Equal(test, reconstructedSecret.Text(16), Si.Text(16))
+	completeMessages := 0
+	for completeMessages < n*n*keys {
+		msg := <-commCh
+		if strings.Contains(msg, "shared") {
+			completeMessages++
+		} else {
+			assert.Fail(test, "did not get the required number of share complete messages")
+		}
+	}
+	assert.Equal(test, completeMessages, n*n*keys)
+	for g, sharingID := range sharingIDs {
+		var shares []common.PrimaryShare
+		for _, node := range nodes {
+			var subshares []common.PrimaryShare
+			for _, noderef := range nodes {
+				subshares = append(subshares, common.PrimaryShare{
+					Index: noderef.NodeDetails.Index,
+					Value: node.PSSStore[(&PSSIDDetails{
+						SharingID: sharingID,
+						Index:     noderef.NodeDetails.Index,
+					}).ToPSSID()].Si,
+				})
+			}
+			reconstructedSi := pvss.LagrangeScalar(subshares, 0)
+			shares = append(shares, common.PrimaryShare{
+				Index: node.NodeDetails.Index,
+				Value: *reconstructedSi,
+			})
+		}
+		reconstructedSecret := pvss.LagrangeScalar(shares, 0)
+		assert.Equal(test, reconstructedSecret.Text(16), secrets[g].Text(16))
+	}
 }
+
+// func TestKeygenPSS(test *testing.T) {
+// 	commCh, nodes, nodeList:= SetupTestNodes()
+// }

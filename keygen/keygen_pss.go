@@ -318,12 +318,14 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if !found {
 			pss.CStore[cID] = &C{
 				CID:     cID,
+				C:       pssMsgReady.C,
 				AC:      make(map[int]common.Point),
 				ACprime: make(map[int]common.Point),
 				BC:      make(map[int]common.Point),
 				BCprime: make(map[int]common.Point),
 			}
 		}
+		c = pss.CStore[cID]
 		c.AC[senderDetails.Index] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgReady.Alpha,

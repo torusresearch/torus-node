@@ -161,7 +161,3 @@ func TestKeygenSharing(test *testing.T) {
 		assert.Equal(test, reconstructedSecret.Text(16), secrets[g].Text(16))
 	}
 }
-
-// func TestKeygenPSS(test *testing.T) {
-// 	commCh, nodes, nodeList:= SetupTestNodes()
-// }

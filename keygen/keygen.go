@@ -142,10 +142,10 @@ const retryDelay = 2
 // KEYGEN STATES (SK)
 const (
 	// State - Internal
-	SIWaitingInitiateKeygen      = "waiting_initiate_keygen"
-	SIRunningKeygen              = "running_keygen"
-	SIWaitingKEYGENShareComplete = "waiting_keygen_share_complete"
-	SIKeygenCompleted            = "keygen_completed"
+	SIWaitingInitiateKeygen = "waiting_initiate_keygen"
+	SIRunningKeygen         = "running_keygen"
+	SIWaitingDKGComplete    = "waiting_keygen_dkg_complete"
+	SIKeygenCompleted       = "keygen_completed"
 
 	// For State - node log
 	SNStandby                  = "standby"
@@ -212,9 +212,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 		SIWaitingInitiateKeygen,
 		fsm.Events{
 			{Name: EIAllInitiateKeygen, Src: []string{SIWaitingInitiateKeygen}, Dst: SIRunningKeygen},
-			{Name: EIAllSubsharesDone, Src: []string{SIWaitingKEYGENShareComplete, SIRunningKeygen}, Dst: SIWaitingKEYGENShareComplete},
-			{Name: EIAllKeygenCompleted, Src: []string{SIWaitingKEYGENShareComplete}, Dst: SIKeygenCompleted},
-			{Name: EIResendDKGCompleted, Src: []string{SIWaitingKEYGENShareComplete}, Dst: SIWaitingKEYGENShareComplete},
+			{Name: EIAllSubsharesDone, Src: []string{SIWaitingDKGComplete, SIRunningKeygen}, Dst: SIWaitingDKGComplete},
+			{Name: EIAllKeygenCompleted, Src: []string{SIWaitingDKGComplete}, Dst: SIKeygenCompleted},
+			{Name: EIResendDKGCompleted, Src: []string{SIWaitingDKGComplete}, Dst: SIWaitingDKGComplete},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) {
@@ -243,7 +243,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 						//send to node
 						err := ki.Transport.SendKEYGENSend(keygenSend, nodeIndex)
 						if err != nil {
-							//TODO: Resend
+							//TODO: Resend?
 							logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not send KEYGENSend : %s", err)
 						}
 					}
@@ -297,9 +297,8 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 				ki.Nonce++
 				// Here we retry in the case of synchrony issues
 				go func() {
-					// TODO: rename to send DKG Complete
 					time.Sleep(retryDelay * time.Second)
-					if ki.State.Is(SIWaitingKEYGENShareComplete) {
+					if ki.State.Is(SIWaitingDKGComplete) {
 						err := ki.State.Event(EIAllSubsharesDone)
 						if err != nil {
 							logging.Error(err.Error())

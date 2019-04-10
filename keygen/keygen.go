@@ -550,7 +550,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 							biprimexPoints := make([]common.Point, ki.Threshold)
 
 							for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedEchoes {
-								if count <= ki.Threshold {
+								if count < ki.Threshold {
 									fromNodeInt := big.Int{}
 									fromNodeInt.SetString(k, 16)
 									aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}

@@ -596,12 +596,12 @@ func (transport *mockTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][
 	return nil
 }
 
-func (transport *mockTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
+func (transport *mockTransport) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
 			err := ins.OnKEYGENShareComplete(cm, tns)
 			if err != nil {
-				fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
+				fmt.Println("ERRROR BroadcastKEYGENDKGComplete: ", err)
 			}
 		}(instance, keygenShareCompletes, transport.nodeIndex)
 	}
@@ -627,7 +627,7 @@ func (transport *mockDeadTransport) BroadcastInitiateKeygen(commitmentMatrixes [
 	return nil
 }
 
-func (transport *mockDeadTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
+func (transport *mockDeadTransport) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	return nil
 }
 
@@ -661,7 +661,7 @@ func (transport *mockDeadTransportTwo) BroadcastInitiateKeygen(commitmentMatrixe
 	return nil
 }
 
-func (transport *mockDeadTransportTwo) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
+func (transport *mockDeadTransportTwo) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	return nil
 }
 
@@ -721,12 +721,12 @@ func (transport *mockEvilTransport) BroadcastInitiateKeygen(commitmentMatrixes [
 	return nil
 }
 
-func (transport *mockEvilTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
+func (transport *mockEvilTransport) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
 			err := ins.OnKEYGENShareComplete(cm, tns)
 			if err != nil {
-				fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
+				fmt.Println("ERRROR BroadcastKEYGENDKGComplete: ", err)
 			}
 		}(instance, keygenShareCompletes, transport.nodeIndex)
 	}
@@ -782,13 +782,13 @@ func (transport *mockLaggingTransport) BroadcastInitiateKeygen(commitmentMatrixe
 	return nil
 }
 
-func (transport *mockLaggingTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
+func (transport *mockLaggingTransport) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	if keygenShareCompletes.Nonce != 0 && keygenShareCompletes.Nonce != 1 {
 		for _, instance := range *transport.nodeKegenInstances {
 			go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
 				err := ins.OnKEYGENShareComplete(cm, tns)
 				if err != nil {
-					fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
+					fmt.Println("ERRROR BroadcastKEYGENDKGComplete: ", err)
 				}
 			}(instance, keygenShareCompletes, transport.nodeIndex)
 		}

@@ -106,7 +106,7 @@ type AVSSKeygenTransport interface {
 	SendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
 	SendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
 	SendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
-	BroadcastKEYGENShareComplete(msg KEYGENDKGComplete) error
+	BroadcastKEYGENDKGComplete(msg KEYGENDKGComplete) error
 }
 
 // To store necessary shares and secrets
@@ -290,9 +290,9 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					}
 				}
 				//broadcast keygen
-				err := ki.Transport.BroadcastKEYGENShareComplete(KEYGENDKGComplete{Nonce: ki.Nonce, NodeSet: nodeSet, Proofs: keygenShareCompletes})
+				err := ki.Transport.BroadcastKEYGENDKGComplete(KEYGENDKGComplete{Nonce: ki.Nonce, NodeSet: nodeSet, Proofs: keygenShareCompletes})
 				if err != nil {
-					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENShareComplete: %s", err)
+					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENDKGComplete: %s", err)
 				}
 				ki.Nonce++
 				// Here we retry in the case of synchrony issues

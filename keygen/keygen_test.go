@@ -446,15 +446,102 @@ func TestEchoReconstruction(t *testing.T) {
 				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
 				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
 				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
-				// 	t.Log("Ready:")
-				// 	for _, ready := range nodeLog.ReceivedReadys {
-				// 		t.Log(ready)
-				// 	}
 			}
 		}
 		instance.Unlock()
 	}
-	// assert.True(t, count == len(nodeList))
+	assert.True(t, !done)
+}
+
+func TestDKGCompleteSync(t *testing.T) {
+
+	f, err := os.Create("profile_dkg_complete_sync")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	runtime.GOMAXPROCS(10)
+	logging.SetLevelString(XXXTestLogging)
+	comsChannel := make(chan string)
+	numOfNodes := 9
+	threshold := 5
+	malNodes := 2
+	numKeys := 1
+	nodeList := make([]big.Int, numOfNodes)
+	nodeKegenInstances := make(map[string]*KeygenInstance)
+	for i := range nodeList {
+		nodeList[i] = *big.NewInt(int64(i + 1))
+		nodeKegenInstances[nodeList[i].Text(16)] = &KeygenInstance{}
+	}
+
+	done := false
+	// build timer function to kill of exceeds time
+	go func(d *bool) {
+		time.Sleep(10 * time.Second)
+		comsChannel <- "timeout"
+	}(&done)
+
+	//edit transport functions
+	for k, v := range nodeKegenInstances {
+		var nodeIndex big.Int
+		nodeIndex.SetString(k, 16)
+		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 || nodeIndex.Cmp(big.NewInt(int64(1))) == 1 || nodeIndex.Cmp(big.NewInt(int64(1))) == 2 {
+			v.Transport = &mockLaggingTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		} else {
+			v.Transport = &transport
+		}
+		//set up store
+		v.Store = &mockKeygenStore{}
+	}
+
+	//start!
+	for _, nodeIndex := range nodeList {
+		t.Log("Initiating Nodes. Index: ", nodeIndex.Text(16))
+		go func(nIndex big.Int) {
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nIndex, comsChannel)
+			defer func() {
+				if err != nil {
+					t.Logf("Initiate Keygen error: %s", err)
+				}
+			}()
+		}(nodeIndex)
+	}
+
+	// wait till nodes are done (w/o malicious node)
+	count := 0
+	for {
+		select {
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+			if msg == "timeout" {
+				done = true
+			}
+		}
+		if count >= len(nodeList) || done { // accounted for here
+			break
+		}
+	}
+
+	for _, nodeIndex := range nodeList {
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		for _, ni := range nodeList {
+			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+			if instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
+				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
+				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
+				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
+			}
+		}
+		instance.Unlock()
+	}
+	assert.True(t, !done)
 }
 
 type mockTransport struct {
@@ -642,6 +729,69 @@ func (transport *mockEvilTransport) BroadcastKEYGENShareComplete(keygenShareComp
 				fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
 			}
 		}(instance, keygenShareCompletes, transport.nodeIndex)
+	}
+	return nil
+}
+
+type mockLaggingTransport struct {
+	nodeIndex          big.Int
+	nodeKegenInstances *map[string]*KeygenInstance
+}
+
+func (transport *mockLaggingTransport) SendKEYGENSend(msg KEYGENSend, to big.Int) error {
+	go func(ins map[string]*KeygenInstance) {
+		err := ins[to.Text(16)].OnKEYGENSend(msg, transport.nodeIndex)
+		if err != nil {
+			fmt.Println("ERRROR SendKEYGENSend: ", err)
+		}
+	}((*transport.nodeKegenInstances))
+	return nil
+}
+
+func (transport *mockLaggingTransport) SendKEYGENEcho(msg KEYGENEcho, to big.Int) error {
+	go func(ins map[string]*KeygenInstance) {
+		err := ins[to.Text(16)].OnKEYGENEcho(msg, transport.nodeIndex)
+		if err != nil {
+			fmt.Println("ERRROR OnKEYGENEcho: ", err)
+		}
+	}((*transport.nodeKegenInstances))
+	return nil
+}
+
+func (transport *mockLaggingTransport) SendKEYGENReady(msg KEYGENReady, to big.Int) error {
+	go func(ins map[string]*KeygenInstance) {
+		err := ins[to.Text(16)].OnKEYGENReady(msg, transport.nodeIndex)
+		if err != nil {
+			fmt.Println("ERRROR OnKEYGENReady: ", err)
+		}
+	}((*transport.nodeKegenInstances))
+	return nil
+}
+
+func (transport *mockLaggingTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+	// logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
+	for _, instance := range *transport.nodeKegenInstances {
+		// logging.Debugf("index: %s", k)
+		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
+			err := ins.OnInitiateKeygen(cm, tns)
+			if err != nil {
+				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
+			}
+		}(instance, commitmentMatrixes, transport.nodeIndex)
+	}
+	return nil
+}
+
+func (transport *mockLaggingTransport) BroadcastKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete) error {
+	if keygenShareCompletes.Nonce != 0 && keygenShareCompletes.Nonce != 1 {
+		for _, instance := range *transport.nodeKegenInstances {
+			go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
+				err := ins.OnKEYGENShareComplete(cm, tns)
+				if err != nil {
+					fmt.Println("ERRROR BroadcastKEYGENShareComplete: ", err)
+				}
+			}(instance, keygenShareCompletes, transport.nodeIndex)
+		}
 	}
 	return nil
 }

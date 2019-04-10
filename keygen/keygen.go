@@ -361,10 +361,10 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					}
 					if counter >= ki.Threshold+ki.NumMalNodes {
 						go func() {
-							err := ki.State.Event(EIAllKeygenCompleted)
-							if err != nil {
-								logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not %s. Err: %s", EIAllKeygenCompleted, err)
-							}
+							ki.State.Event(EIAllKeygenCompleted)
+							// if err != nil {
+							// 	logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not %s. Err: %s", EIAllKeygenCompleted, err)
+							// }
 						}()
 					}
 				},

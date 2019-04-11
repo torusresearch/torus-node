@@ -697,22 +697,22 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 
 			// we etiher send ready
 			if keyLog.SubshareState.Is(SKWaitingForEchos) {
-				go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
-					err := innerKeyLog.SubshareState.Event(EKSendReady, keyIndex, dealer)
+				go func(innerKeyLog *KEYGENLog) {
+					err := innerKeyLog.SubshareState.Event(EKSendReady)
 					if err != nil {
 						logging.Error(err.Error())
 					}
-				}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+				}(keyLog)
 			}
 			// Or here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
 			if keyLog.SubshareState.Is(SKWaitingForSend) {
-				go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
+				go func(innerKeyLog *KEYGENLog) {
 					logging.Debug("Echo Reconstruct is called 1")
-					err := innerKeyLog.SubshareState.Event(EKEchoReconstruct, keyIndex, dealer)
+					err := innerKeyLog.SubshareState.Event(EKEchoReconstruct)
 					if err != nil {
 						logging.Error(err.Error())
 					}
-				}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+				}(keyLog)
 			}
 		}
 	} else {

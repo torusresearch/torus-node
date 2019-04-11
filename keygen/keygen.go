@@ -351,7 +351,6 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					ki.Lock()
 					defer ki.Unlock()
 					// See if all SharesCompleted are in
-					logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"Valid ShareCompleted in %s", ki.NodeIndex.Text(16))
 					counter := 0
 					for _, v := range ki.NodeLog {
 						if v.Is(SNSyncedShareComplete) {
@@ -361,9 +360,6 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					if counter >= ki.Threshold+ki.NumMalNodes {
 						go func() {
 							ki.State.Event(EIAllKeygenCompleted)
-							// if err != nil {
-							// 	logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not %s. Err: %s", EIAllKeygenCompleted, err)
-							// }
 						}()
 					}
 				},
@@ -825,7 +821,7 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComp
 	// at this point arrays should already be sorted
 	// we get here if everything passes
 	if len(completes) >= ki.Threshold+ki.NumMalNodes {
-		// compare by lengths
+		// hash sort here
 		hashCount := make(map[string]int)
 		for _, dkgComplete := range completes {
 			_, ok := hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)]
@@ -839,11 +835,11 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComp
 		var nodeSet []string
 		for str, count := range hashCount {
 			if count >= ki.Threshold+ki.NumMalNodes {
-
 				for _, dkgComplete := range completes {
-					if thresholdHit == false && fmt.Sprintf("%v", dkgComplete.NodeSet) == str {
+					if fmt.Sprintf("%v", dkgComplete.NodeSet) == str {
 						thresholdHit = true
 						nodeSet = dkgComplete.NodeSet
+						break
 					}
 				}
 			}

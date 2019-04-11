@@ -448,15 +448,11 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 							defer ki.Unlock()
 							for k := range ki.NodeLog {
 								nodeToSendIndex := big.Int{}
-								keyIndex := big.Int{}
-								dealer := big.Int{}
 								nodeToSendIndex.SetString(k, 16)
-								keyIndex.SetString(e.Args[0].(string), 16)
-								dealer.SetString(e.Args[1].(string), 16)
-								msg := ki.KeyLog[e.Args[0].(string)][e.Args[1].(string)].ReceivedSend
+								msg := ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend
 								keygenEcho := KEYGENEcho{
-									KeyIndex: keyIndex,
-									Dealer:   dealer,
+									KeyIndex: *index,
+									Dealer:   nodeIndex,
 									Aij:      *pvss.PolyEval(msg.AIY, nodeToSendIndex),
 									Aprimeij: *pvss.PolyEval(msg.AIprimeY, nodeToSendIndex),
 									Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
@@ -653,12 +649,12 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		keyLog = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 
 		// and send echo
-		go func(innerKeyLog *KEYGENLog, keyIndex string, from string) {
-			err := innerKeyLog.SubshareState.Event(EKSendEcho, keyIndex, from)
+		go func(innerKeyLog *KEYGENLog) {
+			err := innerKeyLog.SubshareState.Event(EKSendEcho)
 			if err != nil {
 				logging.Error(err.Error())
 			}
-		}(keyLog, msg.KeyIndex.Text(16), fromNodeIndex.Text(16))
+		}(keyLog)
 
 	} else {
 		ki.MsgBuffer.StoreKEYGENSend(msg, fromNodeIndex)

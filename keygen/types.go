@@ -13,101 +13,121 @@ import (
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
-// Dont try to cast, use the exported structs to get the types you need
-type pssPhase string
-type pssDealer bool
-type pssPlayer bool
-type pssReceivedSend bool
-type pssReceivedEcho bool
-type pssReceivedReady bool
+// Dont try to cast strings or bools, use the exported structs to get the types you need
+type phaseState string
+type dealerState bool
+type playerState bool
+type receivedSendState bool
+type receivedEchoState bool
+type receivedReadyState bool
+type recoverState string
 
-type pssPhases struct {
-	Initial   pssPhase
-	Started   pssPhase
-	Proposing pssPhase
-	Ended     pssPhase
+type phaseStates struct {
+	Initial   phaseState
+	Started   phaseState
+	Proposing phaseState
+	Ended     phaseState
 }
 
-type pssDealers struct {
-	IsDealer  pssDealer
-	NotDealer pssDealer
+type recoverStates struct {
+	Initial                            recoverState
+	WaitingForRecovers                 recoverState
+	WaitingForThresholdSharing         recoverState
+	WaitingForVBA                      recoverState
+	WaitingForSelectedSharingsComplete recoverState
+	Ended                              recoverState
 }
 
-type pssPlayers struct {
-	IsPlayer  pssPlayer
-	NotPlayer pssPlayer
+type dealerStates struct {
+	IsDealer  dealerState
+	NotDealer dealerState
 }
 
-type pssReceivedSends struct {
-	True  pssReceivedSend
-	False pssReceivedSend
+type playerStates struct {
+	IsPlayer  playerState
+	NotPlayer playerState
 }
 
-type pssReceivedEchos struct {
-	True  pssReceivedEcho
-	False pssReceivedEcho
+type receivedSendStates struct {
+	True  receivedSendState
+	False receivedSendState
 }
 
-type pssReceivedReadys struct {
-	True  pssReceivedReady
-	False pssReceivedReady
+type receivedEchoStates struct {
+	True  receivedEchoState
+	False receivedEchoState
+}
+
+type receivedReadyStates struct {
+	True  receivedReadyState
+	False receivedReadyState
 }
 
 type PSSState struct {
-	Phase         pssPhase
-	Dealer        pssDealer
-	Player        pssPlayer
-	ReceivedSend  pssReceivedSend
-	ReceivedEcho  map[NodeDetailsID]pssReceivedEcho
-	ReceivedReady map[NodeDetailsID]pssReceivedReady
+	Phase         phaseState
+	Dealer        dealerState
+	Player        playerState
+	Recover       recoverState
+	ReceivedSend  receivedSendState
+	ReceivedEcho  map[NodeDetailsID]receivedEchoState
+	ReceivedReady map[NodeDetailsID]receivedReadyState
 }
 
-var PSSTypes = struct {
-	Phases           pssPhases
-	Dealer           pssDealers
-	Player           pssPlayers
-	ReceivedSend     pssReceivedSends
-	ReceivedEcho     pssReceivedEchos
-	ReceivedEchoMap  func() map[NodeDetailsID]pssReceivedEcho
-	ReceivedReady    pssReceivedReadys
-	ReceivedReadyMap func() map[NodeDetailsID]pssReceivedReady
+var States = struct {
+	Phases           phaseStates
+	Dealer           dealerStates
+	Player           playerStates
+	ReceivedSend     receivedSendStates
+	ReceivedEcho     receivedEchoStates
+	ReceivedEchoMap  func() map[NodeDetailsID]receivedEchoState
+	ReceivedReady    receivedReadyStates
+	ReceivedReadyMap func() map[NodeDetailsID]receivedReadyState
+	Recover          recoverStates
 }{
-	pssPhases{
-		Initial:   pssPhase("initial"),
-		Started:   pssPhase("started"),
-		Proposing: pssPhase("proposing"),
-		Ended:     pssPhase("ended"),
+	phaseStates{
+		Initial:   phaseState("initial"),
+		Started:   phaseState("started"),
+		Proposing: phaseState("proposing"),
+		Ended:     phaseState("ended"),
 	},
-	pssDealers{
-		IsDealer:  pssDealer(true),
-		NotDealer: pssDealer(false),
+	dealerStates{
+		IsDealer:  dealerState(true),
+		NotDealer: dealerState(false),
 	},
-	pssPlayers{
-		IsPlayer:  pssPlayer(true),
-		NotPlayer: pssPlayer(false),
+	playerStates{
+		IsPlayer:  playerState(true),
+		NotPlayer: playerState(false),
 	},
-	pssReceivedSends{
-		True:  pssReceivedSend(true),
-		False: pssReceivedSend(false),
+	receivedSendStates{
+		True:  receivedSendState(true),
+		False: receivedSendState(false),
 	},
-	pssReceivedEchos{
-		True:  pssReceivedEcho(true),
-		False: pssReceivedEcho(false),
+	receivedEchoStates{
+		True:  receivedEchoState(true),
+		False: receivedEchoState(false),
 	},
 	CreateReceivedEchoMap,
-	pssReceivedReadys{
-		True:  pssReceivedReady(true),
-		False: pssReceivedReady(false),
+	receivedReadyStates{
+		True:  receivedReadyState(true),
+		False: receivedReadyState(false),
 	},
 	CreateReceivedReadyMap,
+	recoverStates{
+		Initial:                            recoverState("initial"),
+		WaitingForRecovers:                 recoverState("waitingforrecovers"),
+		WaitingForThresholdSharing:         recoverState("waitingforthresholdsharing"),
+		WaitingForVBA:                      recoverState("waitingforvba"),
+		WaitingForSelectedSharingsComplete: recoverState("waitingforselectedsharingscomplete"),
+		Ended:                              recoverState("ended"),
+	},
 }
 
-func CreateReceivedEchoMap() map[NodeDetailsID]pssReceivedEcho {
-	return make(map[NodeDetailsID]pssReceivedEcho)
+func CreateReceivedEchoMap() map[NodeDetailsID]receivedEchoState {
+	return make(map[NodeDetailsID]receivedEchoState)
 }
 
-func CreateReceivedReadyMap() map[NodeDetailsID]pssReceivedReady {
-	return make(map[NodeDetailsID]pssReceivedReady)
+func CreateReceivedReadyMap() map[NodeDetailsID]receivedReadyState {
+	return make(map[NodeDetailsID]receivedReadyState)
 }
 
 type PSSMsgShare struct {
@@ -125,15 +145,42 @@ func (pssMsgShare *PSSMsgShare) ToBytes() []byte {
 
 type PSSMsgRecover struct {
 	SharingID SharingID
+	V         []common.Point
 }
 
-func (pssMsgRecover *PSSMsgRecover) FromBytes(byt []byte) error {
-	return fastjson.Unmarshal(byt, &pssMsgRecover)
+type pssMsgRecoverBase struct {
+	SharingID string
+	V         [][2]string
 }
 
 func (pssMsgRecover *PSSMsgRecover) ToBytes() []byte {
-	byt, _ := fastjson.Marshal(pssMsgRecover)
+	p := pssMsgRecoverBase{
+		SharingID: string(pssMsgRecover.SharingID),
+		V:         BaseParser.MarshalPA(pssMsgRecover.V),
+	}
+	byt, _ := fastjson.Marshal(p)
 	return byt
+}
+
+func (pssMsgRecover *PSSMsgRecover) FromBytes(data []byte) error {
+	var p pssMsgRecoverBase
+	err := fastjson.Unmarshal(data, &p)
+	if err != nil {
+		return err
+	}
+	pssMsgRecover.SharingID = SharingID(p.SharingID)
+	pssMsgRecover.V = BaseParser.UnmarshalPA(p.V)
+	return nil
+}
+
+func GetVIDFromPointArray(ptArr []common.Point) VID {
+	var bytes []byte
+	for _, pt := range ptArr {
+		bytes = append(bytes, pt.X.Bytes()...)
+		bytes = append(bytes, pt.Y.Bytes()...)
+	}
+	vhash := secp256k1.Keccak256(bytes)
+	return VID(hex.EncodeToString(vhash))
 }
 
 type Parser interface {
@@ -356,6 +403,57 @@ func (pssMsgReady *PSSMsgReady) FromBytes(data []byte) error {
 	return nil
 }
 
+type PSSMsgComplete struct {
+	PSSID PSSID
+	C00   common.Point
+}
+
+type pssMsgCompleteBase struct {
+	PSSID string
+	C00   [2]string
+}
+
+func (pssMsgComplete *PSSMsgComplete) ToBytes() []byte {
+	var p pssMsgCompleteBase
+	p.PSSID = string(pssMsgComplete.PSSID)
+	p.C00 = BaseParser.MarshalP(pssMsgComplete.C00)
+	byt, _ := fastjson.Marshal(p)
+	return byt
+}
+
+func (pssMsgComplete *PSSMsgComplete) FromBytes(data []byte) error {
+	var p pssMsgCompleteBase
+	err := fastjson.Unmarshal(data, &p)
+	if err != nil {
+		return err
+	}
+	pssMsgComplete.PSSID = PSSID(p.PSSID)
+	var x, y big.Int
+	x.SetString(p.C00[0], 16)
+	y.SetString(p.C00[1], 16)
+	pssMsgComplete.C00 = common.Point{
+		X: x,
+		Y: y,
+	}
+	return nil
+}
+
+type PSSMsgPropose struct {
+	NodeDetailsID NodeDetailsID
+	PSSs          []PSSID
+}
+
+func (p *PSSMsgPropose) ToBytes() []byte {
+	byt, _ := fastjson.Marshal(p)
+	return byt
+}
+
+func (p *PSSMsgPropose) FromBytes(data []byte) error {
+	return fastjson.Unmarshal(data, &p)
+}
+
+type VID string
+
 type SharingID string
 type Sharing struct {
 	sync.Mutex
@@ -366,6 +464,13 @@ type Sharing struct {
 	Si        big.Int
 	Siprime   big.Int
 	C         []common.Point
+}
+
+type Recover struct {
+	SharingID        SharingID
+	D                *[]common.Point
+	DCount           map[VID]map[NodeDetailsID]bool
+	PSSCompleteCount map[PSSID]bool
 }
 
 type PSS struct {
@@ -436,6 +541,8 @@ func (pssMessage *PSSMessage) JSON() *fastjson.RawMessage {
 // PSSID is the identifying string for PSSMessage
 type PSSID string
 
+const NullPSSID = PSSID("")
+
 type PSSIDDetails struct {
 	SharingID SharingID
 	Index     int
@@ -493,17 +600,21 @@ type PSSTransport interface {
 	SetPSSNode(*PSSNode) error
 	Send(NodeDetails, PSSMessage) error
 	Receive(NodeDetails, PSSMessage) error
-	Broadcast(NodeNetwork, PSSMessage) error
+	Broadcast(PSSMessage) error
+	ReceiveBroadcast(PSSMessage) error
 	Output(string)
 }
 
 var LocalNodeDirectory map[string]*LocalTransport
 
+type Middleware func(PSSMessage) (modifiedMessage PSSMessage, end bool, err error)
 type LocalTransport struct {
-	PSSNode       *PSSNode
-	NodeDirectory *map[NodeDetailsID]*LocalTransport
-	OutputChannel *chan string
-	// TODO: implement middleware feature
+	PSSNode           *PSSNode
+	NodeDirectory     *map[NodeDetailsID]*LocalTransport
+	OutputChannel     *chan string
+	SendMiddleware    []Middleware
+	ReceiveMiddleware []Middleware
+	MockTMEngine      *func(NodeDetails, PSSMessage) error
 }
 
 func (l *LocalTransport) SetPSSNode(ref *PSSNode) error {
@@ -511,21 +622,33 @@ func (l *LocalTransport) SetPSSNode(ref *PSSNode) error {
 	return nil
 }
 
+func (l *LocalTransport) SetTMEngine(ref *func(NodeDetails, PSSMessage) error) error {
+	l.MockTMEngine = ref
+	return nil
+}
+
 func (l *LocalTransport) Send(nodeDetails NodeDetails, pssMessage PSSMessage) error {
-	return (*l.NodeDirectory)[nodeDetails.ToNodeDetailsID()].Receive(l.PSSNode.NodeDetails, pssMessage)
+	modifiedMessage, err := l.runSendMiddleware(pssMessage)
+	if err != nil {
+		return err
+	}
+	return (*l.NodeDirectory)[nodeDetails.ToNodeDetailsID()].Receive(l.PSSNode.NodeDetails, modifiedMessage)
 }
 
 func (l *LocalTransport) Receive(senderDetails NodeDetails, pssMessage PSSMessage) error {
-	return l.PSSNode.ProcessMessage(senderDetails, pssMessage)
+	modifiedMessage, err := l.runReceiveMiddleware(pssMessage)
+	if err != nil {
+		return err
+	}
+	return l.PSSNode.ProcessMessage(senderDetails, modifiedMessage)
 }
 
-func (l *LocalTransport) Broadcast(nodeNetwork NodeNetwork, pssMessage PSSMessage) error {
-	for _, newNode := range nodeNetwork.Nodes {
-		err := l.Send(NodeDetails(newNode), pssMessage)
-		if err != nil {
-			return err
-		}
-	}
+func (l *LocalTransport) Broadcast(pssMessage PSSMessage) error {
+	(*l.MockTMEngine)(l.PSSNode.NodeDetails, pssMessage)
+	return nil
+}
+
+func (l *LocalTransport) ReceiveBroadcast(pssMessage PSSMessage) error {
 	return nil
 }
 
@@ -535,6 +658,38 @@ func (l *LocalTransport) Output(s string) {
 			*l.OutputChannel <- "Output: " + s
 		}()
 	}
+}
+
+func (l *LocalTransport) runSendMiddleware(pssMessage PSSMessage) (PSSMessage, error) {
+	modifiedMessage := pssMessage
+	for _, middleware := range l.SendMiddleware {
+		var end bool
+		var err error
+		modifiedMessage, end, err = middleware(modifiedMessage)
+		if end {
+			break
+		}
+		if err != nil {
+			return pssMessage, err
+		}
+	}
+	return modifiedMessage, nil
+}
+
+func (l *LocalTransport) runReceiveMiddleware(pssMessage PSSMessage) (PSSMessage, error) {
+	modifiedMessage := pssMessage
+	for _, middleware := range l.ReceiveMiddleware {
+		var end bool
+		var err error
+		modifiedMessage, end, err = middleware(modifiedMessage)
+		if end {
+			break
+		}
+		if err != nil {
+			return pssMessage, err
+		}
+	}
+	return modifiedMessage, nil
 }
 
 type NodeNetwork struct {
@@ -547,11 +702,12 @@ type NodeNetwork struct {
 
 type PSSNode struct {
 	sync.Mutex
-	NodeDetails NodeDetails
-	OldNodes    NodeNetwork
-	NewNodes    NodeNetwork
-	NodeIndex   big.Int
-	ShareStore  map[SharingID]*Sharing
-	Transport   PSSTransport
-	PSSStore    map[PSSID]*PSS
+	NodeDetails  NodeDetails
+	OldNodes     NodeNetwork
+	NewNodes     NodeNetwork
+	NodeIndex    big.Int
+	ShareStore   map[SharingID]*Sharing
+	RecoverStore map[SharingID]*Recover
+	Transport    PSSTransport
+	PSSStore     map[PSSID]*PSS
 }

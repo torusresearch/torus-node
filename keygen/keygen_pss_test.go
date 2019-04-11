@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/torusresearch/torus-public/logging"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/torusresearch/torus-public/secp256k1"
@@ -32,6 +34,15 @@ func TestPMMarshal(test *testing.T) {
 }
 
 func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
+	engineState := make(map[string]interface{})
+
+	runEngine := func(nodeDetails NodeDetails, pssMessage PSSMessage) error {
+		if _, found := engineState["test"]; found {
+			fmt.Println("test found")
+		}
+		fmt.Println("MockTMEngine - Node:", nodeDetails.Index, " pssMessage:", pssMessage)
+		return nil
+	}
 	// setup
 	commCh := make(chan string)
 	var nodePrivKeys []big.Int
@@ -59,6 +70,7 @@ func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 		localTransport := LocalTransport{
 			NodeDirectory: &localTransportNodeDirectory,
 			OutputChannel: &commCh,
+			MockTMEngine:  &runEngine,
 		}
 		newPssNode := NewPSSNode(
 			node,
@@ -80,8 +92,9 @@ func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 }
 
 func TestKeygenSharing(test *testing.T) {
+	logging.SetLevelString("error")
 	runtime.GOMAXPROCS(10)
-	keys := 5
+	keys := 1
 	n := 9
 	k := 5
 	t := 2
@@ -95,6 +108,9 @@ func TestKeygenSharing(test *testing.T) {
 		mask := pvss.RandomBigInt()
 		randPoly := pvss.RandomPoly(*secret, k)
 		randPolyprime := pvss.RandomPoly(*mask, k)
+		commit := pvss.GetCommit(*randPoly)
+		commitH := pvss.GetCommitH(*randPolyprime)
+		sumCommitments := pvss.AddCommitments(commit, commitH)
 		sharingID := SharingID("SHARING" + strconv.Itoa(h))
 		sharingIDs = append(sharingIDs, sharingID)
 		for _, node := range nodes {
@@ -108,6 +124,7 @@ func TestKeygenSharing(test *testing.T) {
 				I:         index,
 				Si:        Si,
 				Siprime:   Siprime,
+				C:         sumCommitments,
 			}
 		}
 	}

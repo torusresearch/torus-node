@@ -60,7 +60,7 @@ func getShares(polynomial common.PrimaryPolynomial, nodes []common.Node) []commo
 
 // Commit creates a public commitment polynomial for the given base point b or
 // the standard base if b == nil.
-func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
+func GetCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	commits := make([]common.Point, polynomial.Threshold)
 	for i := range commits {
 		commits[i] = common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
@@ -70,8 +70,16 @@ func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	return commits
 }
 
+func AddCommitments(commit1 []common.Point, commit2 []common.Point) (sumCommit []common.Point) {
+	for i, pt := range commit1 {
+		pt2 := commit2[i]
+		sumCommit = append(sumCommit, common.BigIntToPoint(secp256k1.Curve.Add(&pt.X, &pt.Y, &pt2.X, &pt2.Y)))
+	}
+	return
+}
+
 // add two polynomials (modulo generator order Q)
-func addPolynomials(poly1 common.PrimaryPolynomial, poly2 common.PrimaryPolynomial) *common.PrimaryPolynomial {
+func AddPolynomials(poly1 common.PrimaryPolynomial, poly2 common.PrimaryPolynomial) *common.PrimaryPolynomial {
 	var sumPoly []big.Int
 	if poly1.Threshold != poly2.Threshold {
 		logging.Error("thresholds of two polynomials are not equal")
@@ -214,7 +222,7 @@ func CreateShares(nodes []common.Node, secret big.Int, threshold int) (*[]common
 	shares := getShares(polynomial, nodes)
 
 	// committing to polynomial
-	pubPoly := getCommit(polynomial)
+	pubPoly := GetCommit(polynomial)
 
 	return &shares, &pubPoly, nil
 }
@@ -228,7 +236,7 @@ func CreateAndPrepareShares(nodes []common.Node, secret big.Int, threshold int, 
 	shares := getShares(polynomial, nodes)
 
 	// committing to polynomial
-	pubPoly := getCommit(polynomial)
+	pubPoly := GetCommit(polynomial)
 
 	// signcrypt shares
 	signcryptedShares, err := batchSigncryptShare(nodes, shares, privKey)

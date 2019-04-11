@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/torusresearch/torus-public/logging"
+
 	"github.com/torusresearch/torus-public/pvss"
 
 	"github.com/torusresearch/torus-public/common"
@@ -20,45 +22,55 @@ func ecThreshold(n, k, t int) (res int) {
 	return k
 }
 
+// ProcessMessage is called when the transport for the node receives a message via direct send.
+// It works similar to a router, processing different messages differently based on their associated method.
+// Each method handler's code path consists of parsing the message -> state checks -> logic -> state updates.
+// Defer state changes until the end of the function call to ensure that the state is consistent in the handler.
+// When sending messages to other nodes, it's important to use a goroutine to ensure that it isnt synchronous
 func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
 	pssNode.Lock()
 	defer pssNode.Unlock()
-	if _, found := pssNode.PSSStore[pssMessage.PSSID]; !found {
+	if _, found := pssNode.PSSStore[pssMessage.PSSID]; !found && pssMessage.PSSID != NullPSSID {
 		pssNode.PSSStore[pssMessage.PSSID] = &PSS{
 			PSSID: pssMessage.PSSID,
 			State: PSSState{
-				PSSTypes.Phases.Initial,
-				PSSTypes.Dealer.IsDealer,
-				PSSTypes.Player.IsPlayer,
-				PSSTypes.ReceivedSend.False,
-				PSSTypes.ReceivedEchoMap(),
-				PSSTypes.ReceivedReadyMap(),
+				States.Phases.Initial,
+				States.Dealer.IsDealer,
+				States.Player.IsPlayer,
+				States.Recover.Initial,
+				States.ReceivedSend.False,
+				States.ReceivedEchoMap(),
+				States.ReceivedReadyMap(),
 			},
 			CStore: make(map[CID]*C),
 		}
 	}
-	pss := pssNode.PSSStore[pssMessage.PSSID]
-	pss.Lock()
-	defer pss.Unlock()
-
-	pss.Messages = append(pss.Messages, pssMessage)
+	pss, found := pssNode.PSSStore[pssMessage.PSSID]
+	if found {
+		pss.Lock()
+		defer pss.Unlock()
+		pss.Messages = append(pss.Messages, pssMessage)
+	}
 
 	// handle different messages here
 	if pssMessage.Method == "share" {
+		// parse message
+		var pssMsgShare PSSMsgShare
+		err := pssMsgShare.FromBytes(pssMessage.Data)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+
 		// state checks
-		if pss.State.Phase == PSSTypes.Phases.Ended {
+		if pss.State.Phase == States.Phases.Ended {
 			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
-		if pss.State.Dealer != PSSTypes.Dealer.IsDealer {
+		if pss.State.Dealer != States.Dealer.IsDealer {
 			return errors.New("PSS could not be started since the node is not a dealer")
 		}
 
 		// logic
-		var pssMsgShare PSSMsgShare
-		err := pssMsgShare.FromBytes(pssMessage.Data)
-		if err != nil {
-			return errors.New("Could not unmarshal data for pssMsgShare")
-		}
 		sharing, found := pssNode.ShareStore[pssMsgShare.SharingID]
 		if !found {
 			return errors.New("Could not find sharing for sharingID " + string(pssMsgShare.SharingID))
@@ -90,50 +102,102 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			go func(newN NodeDetails, msg PSSMessage) {
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
-					pssNode.Transport.Output(err.Error())
+					logging.Error(err.Error())
 				}
 			}(newNode, nextPSSMessage)
 
-			// TODO: uncomment below for PSS
-
-			// nextNextPSSMessage := PSSMessage{
-			// 	PSSID:  PSSID(""),
-			// 	Method: "recover",
-			// 	Data:   (&PSSMsgRecover{SharingID: pssMsgShare.SharingID}).ToBytes(),
-			// }
-
-			// go func(newN NodeDetails, msg PSSMessage) {
-			// 	pssNode.Transport.Send(newN, msg)
-			// }(newNode, nextNextPSSMessage)
+			nextNextPSSMessage := PSSMessage{
+				PSSID:  NullPSSID,
+				Method: "recover",
+				Data: (&PSSMsgRecover{
+					SharingID: pssMsgShare.SharingID,
+					V:         sharing.C,
+				}).ToBytes(),
+			}
+			go func(newN NodeDetails, msg PSSMessage) {
+				err := pssNode.Transport.Send(newN, msg)
+				if err != nil {
+					logging.Error(err.Error())
+				}
+			}(newNode, nextNextPSSMessage)
 		}
+		defer func() { pss.State.Phase = States.Phases.Started }()
 	} else if pssMessage.Method == "recover" {
-		panic("RECOVER NOT IMPLEMENTED")
-	} else if pssMessage.Method == "send" {
+		// parse message
+		var pssMsgRecover PSSMsgRecover
+		err := pssMsgRecover.FromBytes(pssMessage.Data)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+
 		// state checks
-		if pss.State.Phase == PSSTypes.Phases.Ended {
+		// if pss.State.Phase == States.Phases.Ended {
+		// 	return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
+		// }
+		// if pss.State.Player != States.Player.IsPlayer {
+		// 	return errors.New("Could not receive send message because node is not a player")
+		// }
+		// if pss.State.Recover != States.Recover.Initial || pss.State.Recover != States.Recover.WaitingForRecovers {
+		// 	logging.Info("Already have enough recover messages")
+		// 	return nil
+		// }
+
+		// logic
+		if len(pssMsgRecover.V) == 0 {
+			err := errors.New("Recover message commitment poly is of length 0")
+			logging.Error(err.Error())
+			return err
+		}
+
+		_, found := pssNode.RecoverStore[pssMsgRecover.SharingID]
+		if !found {
+			pssNode.RecoverStore[pssMsgRecover.SharingID] = &Recover{
+				SharingID:        pssMsgRecover.SharingID,
+				DCount:           make(map[VID]map[NodeDetailsID]bool),
+				PSSCompleteCount: make(map[PSSID]bool),
+			}
+		}
+		recover := pssNode.RecoverStore[pssMsgRecover.SharingID]
+		vID := GetVIDFromPointArray(pssMsgRecover.V)
+		if recover.DCount[vID] == nil {
+			recover.DCount[vID] = make(map[NodeDetailsID]bool)
+		}
+		dCount := recover.DCount[vID]
+		dCount[senderDetails.ToNodeDetailsID()] = true
+		if len(dCount) == pssNode.NewNodes.T+1 {
+			recover.D = &pssMsgRecover.V
+			// defer func() { pss.State.Recover = States.Recover.WaitingForSelectedSharingsComplete }()
+		}
+	} else if pssMessage.Method == "send" {
+		// parse message
+		var pssMsgSend PSSMsgSend
+		err := pssMsgSend.FromBytes(pssMessage.Data)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+		// state checks
+		if pss.State.Phase == States.Phases.Ended {
 			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
-		if pss.State.Player != PSSTypes.Player.IsPlayer {
+		if pss.State.Player != States.Player.IsPlayer {
 			return errors.New("Could not receive send message because node is not a player")
 		}
-		if pss.State.ReceivedSend == PSSTypes.ReceivedSend.True {
+		if pss.State.ReceivedSend == States.ReceivedSend.True {
 			return errors.New("Already received a send message for PSSID " + string(pss.PSSID))
 		}
 
 		// logic
-		var pssMsgSend PSSMsgSend
-		err := pssMsgSend.FromBytes(pssMessage.Data)
-		if err != nil {
-			return err
-		}
 		var pssIDDetails PSSIDDetails
 		err = pssIDDetails.FromPSSID(pssMessage.PSSID)
 		if err != nil {
+			logging.Error(err.Error())
 			return err
 		}
 		senderID := pssNode.NewNodes.Nodes[senderDetails.ToNodeDetailsID()].Index
 		if senderID == pssIDDetails.Index {
-			pss.State.ReceivedSend = PSSTypes.ReceivedSend.True
+			defer func() { pss.State.ReceivedSend = States.ReceivedSend.True }()
 		} else {
 			return errors.New("'Send' message contains index of " + strconv.Itoa(pssIDDetails.Index) + " was not sent by node " + strconv.Itoa(senderID))
 		}
@@ -177,28 +241,33 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			go func(newN NodeDetails, msg PSSMessage) {
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
-					pssNode.Transport.Output(err.Error())
+					logging.Info(err.Error())
 				}
 			}(newNode, nextPSSMessage)
 		}
 	} else if pssMessage.Method == "echo" {
+		// parse message
+		defer func() { pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()] = States.ReceivedEcho.True }()
+		var pssMsgEcho PSSMsgEcho
+		err := pssMsgEcho.FromBytes(pssMessage.Data)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+
 		// state checks
-		if pss.State.Phase == PSSTypes.Phases.Ended {
+		if pss.State.Phase == States.Phases.Ended {
 			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
+		if pss.State.Player != States.Player.IsPlayer {
+			return errors.New("Could not receive send message because node is not a player")
+		}
 		receivedEcho, found := pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()]
-		if found && receivedEcho == PSSTypes.ReceivedEcho.True {
+		if found && receivedEcho == States.ReceivedEcho.True {
 			return errors.New("Already received a echo message for PSSID " + string(pss.PSSID) + "from sender " + string(senderDetails.ToNodeDetailsID()))
 		}
 
 		// logic
-		pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()] = PSSTypes.ReceivedEcho.True
-		var pssMsgEcho PSSMsgEcho
-		err := pssMsgEcho.FromBytes(pssMessage.Data)
-		if err != nil {
-			return err
-		}
-
 		verified := pvss.AVSSVerifyPoint(
 			pssMsgEcho.C,
 			*big.NewInt(int64(senderDetails.Index)),
@@ -213,7 +282,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		}
 
 		cID := GetCIDFromPointMatrix(pssMsgEcho.C)
-		c, found := pss.CStore[cID]
+		_, found = pss.CStore[cID]
 		if !found {
 			pss.CStore[cID] = &C{
 				CID:     cID,
@@ -224,7 +293,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				BCprime: make(map[int]common.Point),
 			}
 		}
-		c = pss.CStore[cID]
+		c := pss.CStore[cID]
 		c.AC[senderDetails.Index] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgEcho.Alpha,
@@ -278,28 +347,40 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				go func(newN NodeDetails, msg PSSMessage) {
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
-						pssNode.Transport.Output(err.Error())
+						logging.Info(err.Error())
 					}
 				}(newNode, nextPSSMessage)
 			}
 		}
 	} else if pssMessage.Method == "ready" {
+		// parse message
+		defer func() { pss.State.ReceivedReady[senderDetails.ToNodeDetailsID()] = States.ReceivedReady.True }()
+		var pssMsgReady PSSMsgReady
+		err := pssMsgReady.FromBytes(pssMessage.Data)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+		var pssIDDetails PSSIDDetails
+		err = pssIDDetails.FromPSSID(pssMsgReady.PSSID)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+
 		// state checks
-		if pss.State.Phase == PSSTypes.Phases.Ended {
+		if pss.State.Phase == States.Phases.Ended {
 			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
+		if pss.State.Player != States.Player.IsPlayer {
+			return errors.New("Could not receive send message because node is not a player")
+		}
 		receivedReady, found := pss.State.ReceivedReady[senderDetails.ToNodeDetailsID()]
-		if found && receivedReady == PSSTypes.ReceivedReady.True {
+		if found && receivedReady == States.ReceivedReady.True {
 			return errors.New("Already received a ready message for PSSID " + string(pss.PSSID))
 		}
 
 		// logic
-		pss.State.ReceivedReady[senderDetails.ToNodeDetailsID()] = PSSTypes.ReceivedReady.True
-		var pssMsgReady PSSMsgReady
-		err := pssMsgReady.FromBytes(pssMessage.Data)
-		if err != nil {
-			return err
-		}
 		verified := pvss.AVSSVerifyPoint(
 			pssMsgReady.C,
 			*big.NewInt(int64(senderDetails.Index)),
@@ -314,7 +395,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		}
 
 		cID := GetCIDFromPointMatrix(pssMsgReady.C)
-		c, found := pss.CStore[cID]
+		_, found = pss.CStore[cID]
 		if !found {
 			pss.CStore[cID] = &C{
 				CID:     cID,
@@ -325,7 +406,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				BCprime: make(map[int]common.Point),
 			}
 		}
-		c = pss.CStore[cID]
+		c := pss.CStore[cID]
 		c.AC[senderDetails.Index] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgReady.Alpha,
@@ -378,7 +459,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				go func(newN NodeDetails, msg PSSMessage) {
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
-						pssNode.Transport.Output(err.Error())
+						logging.Error(err.Error())
 					}
 				}(newNode, nextPSSMessage)
 			}
@@ -386,7 +467,86 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			pss.Cbar = c.C
 			pss.Si = c.Abar[0]
 			pss.Siprime = c.Abarprime[0]
-			pssNode.Transport.Output(string(pss.PSSID) + " shared.")
+			go func(msg string) {
+				pssNode.Transport.Output(msg + " shared.")
+			}(string(pss.PSSID))
+			nextPSSMessage := PSSMessage{
+				PSSID:  NullPSSID,
+				Method: "complete",
+				Data: (&PSSMsgComplete{
+					PSSID: pss.PSSID,
+					C00:   pss.Cbar[0][0],
+				}).ToBytes(),
+			}
+			go func(ownNode NodeDetails, ownMsg PSSMessage) {
+				err := pssNode.Transport.Send(ownNode, ownMsg)
+				if err != nil {
+					logging.Error(err.Error())
+				}
+			}(pssNode.NodeDetails, nextPSSMessage)
+			defer func() { pss.State.Phase = States.Phases.Ended }()
+		}
+	} else if pssMessage.Method == "complete" {
+		// parse message
+		var pssMsgComplete PSSMsgComplete
+		err := pssMsgComplete.FromBytes(pssMessage.Data)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+
+		// state checks
+		if senderDetails.ToNodeDetailsID() != pssNode.NodeDetails.ToNodeDetailsID() {
+			return errors.New("This message can only be accepted if its sent to ourselves")
+		}
+		// if pss.State.Phase != States.Phases.Ended {
+		// 	return errors.New("This pss should have ended for us to receive the complete message")
+		// }
+
+		// logic
+		var pssIDDetails PSSIDDetails
+		pssIDDetails.FromPSSID(pssMsgComplete.PSSID)
+		sharingID := pssIDDetails.SharingID
+		if _, found := pssNode.RecoverStore[sharingID]; !found {
+			// no recover messages received
+			return nil
+		}
+		recover := pssNode.RecoverStore[sharingID]
+
+		// check if t+1 identical recover messages on same ID and same V received
+		if recover.D == nil {
+			logging.Info("Not enough recovers received")
+			return nil
+		}
+
+		// add to psscompletecount if C00 is valid
+		verified := pvss.VerifyShareCommitment(pssMsgComplete.C00, *recover.D, *big.NewInt(int64(pssIDDetails.Index)))
+		if !verified {
+			return errors.New("Could not verify share commitment in complete message for a threshold-agreed secret commitment")
+		}
+		recover.PSSCompleteCount[pssMsgComplete.PSSID] = true
+		// check if t+1 sharings have completed
+		if len(recover.PSSCompleteCount) == pssNode.NewNodes.T+1 {
+			// propose Li via validated byzantine agreement
+			var psss []PSSID
+			for pssid := range recover.PSSCompleteCount {
+				psss = append(psss, pssid) // make it deterministic
+			}
+			pssMsgPropose := PSSMsgPropose{
+				NodeDetailsID: pssNode.NodeDetails.ToNodeDetailsID(),
+				PSSs:          psss,
+			}
+			nextPSSMessage := PSSMessage{
+				PSSID:  NullPSSID,
+				Method: "propose",
+				Data:   pssMsgPropose.ToBytes(),
+			}
+			go func(pssMessage PSSMessage) {
+				err := pssNode.Transport.Broadcast(pssMessage)
+				if err != nil {
+					logging.Error(err.Error())
+				}
+			}(nextPSSMessage)
 		}
 	} else {
 		return errors.New("PssMessage method not found")
@@ -394,6 +554,12 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 	return nil
 }
 
+// ProcessBroadcastMessage is called when the node receives a message via broadcast (eg. Tendermint)
+func (pssNode *PSSNode) ProcessBroadcastMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
+	return nil
+}
+
+// NewPSSNode creates a new pss node instance
 func NewPSSNode(
 	nodeDetails common.Node,
 	oldNodeList []common.Node,
@@ -425,9 +591,10 @@ func NewPSSNode(
 			T:     newNodesT,
 			K:     newNodesK,
 		},
-		NodeIndex:  nodeIndex,
-		ShareStore: make(map[SharingID]*Sharing),
-		PSSStore:   make(map[PSSID]*PSS),
+		NodeIndex:    nodeIndex,
+		ShareStore:   make(map[SharingID]*Sharing),
+		RecoverStore: make(map[SharingID]*Recover),
+		PSSStore:     make(map[PSSID]*PSS),
 	}
 	transport.SetPSSNode(newPssNode)
 	newPssNode.Transport = transport

@@ -156,7 +156,7 @@ const (
 	SNUnqualifiedNode          = "unqualified_node"
 
 	// State - KeyLog
-	SKWaitingForSends    = "waiting_for_sends"
+	SKWaitingForSend     = "waiting_for_sends"
 	SKWaitingForEchos    = "waiting_for_echos"
 	SKWaitingForReadys   = "waiting_for_readys"
 	SKValidSubshare      = "valid_subshare"
@@ -431,13 +431,13 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 				ReceivedReadys:         make(map[string]KEYGENReady),         // From(M) big.Int (in hex) to Ready
 				ReceivedShareCompletes: make(map[string]KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
 				SubshareState: fsm.NewFSM(
-					SKWaitingForSends,
+					SKWaitingForSend,
 					fsm.Events{
-						{Name: EKSendEcho, Src: []string{SKWaitingForSends}, Dst: SKWaitingForEchos},
+						{Name: EKSendEcho, Src: []string{SKWaitingForSend}, Dst: SKWaitingForEchos},
 						{Name: EKSendReady, Src: []string{SKWaitingForEchos, SKEchoReconstructing}, Dst: SKWaitingForReadys},
 						{Name: EKTReachedSubshare, Src: []string{SKWaitingForReadys}, Dst: SKValidSubshare},
 						{Name: EKAllReachedSubshare, Src: []string{SKValidSubshare}, Dst: SKPerfectSubshare},
-						{Name: EKEchoReconstruct, Src: []string{SKWaitingForSends}, Dst: SKEchoReconstructing},
+						{Name: EKEchoReconstruct, Src: []string{SKWaitingForSend}, Dst: SKEchoReconstructing},
 					},
 					fsm.Callbacks{
 						"enter_state": func(e *fsm.Event) {
@@ -594,7 +594,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 						},
 						// Below functions are for the state machines to catch up on previously sent messages using
 						// MsgBuffer We dont need to lock as msg buffer should do so
-						"enter_" + SKWaitingForSends: func(e *fsm.Event) {
+						"enter_" + SKWaitingForSend: func(e *fsm.Event) {
 							send := ki.MsgBuffer.RetrieveKEYGENSends(*index, nodeIndex)
 							if send != nil {
 								go ki.OnKEYGENSend(*send, nodeIndex)
@@ -635,7 +635,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	ki.Lock()
 	defer ki.Unlock()
 	keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
-	if keyLog.SubshareState.Current() == SKWaitingForSends {
+	if keyLog.SubshareState.Current() == SKWaitingForSend {
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
 			keyLog.C,
@@ -707,7 +707,7 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 				}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
 			}
 			// Or here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
-			if keyLog.SubshareState.Is(SKWaitingForSends) {
+			if keyLog.SubshareState.Is(SKWaitingForSend) {
 				go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
 					logging.Debug("Echo Reconstruct is called 1")
 					err := innerKeyLog.SubshareState.Event(EKEchoReconstruct, keyIndex, dealer)

@@ -333,7 +333,7 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 					// See if all Initiate Keygens are in
 					counter := 0
 					for _, v := range ki.NodeLog {
-						if v.Current() == SNKeygening {
+						if v.Is(SNKeygening) {
 							counter++
 						}
 					}
@@ -413,7 +413,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 	ki.Lock()
 	defer ki.Unlock()
 	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
-	if ki.NodeLog[nodeIndex.Text(16)].Current() == SNStandby {
+	if ki.NodeLog[nodeIndex.Text(16)].Is(SNStandby) {
 		// check length of commitment matrix is right
 		if len(commitmentMatrixes) != ki.NumOfKeys {
 			return errors.New("length of  commitment matrix is not correct")
@@ -512,7 +512,6 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 							// Add to counts
 							ki.SubsharesComplete++
 							ki.NodeLog[nodeIndex.Text(16)].PerfectShareCount++
-							logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"Count of Perfect: %v", ki.SubsharesComplete)
 							// Check if Node subshares are complete
 							if ki.NodeLog[nodeIndex.Text(16)].PerfectShareCount == ki.NumOfKeys {
 								go func(state *NodeLog) {
@@ -634,7 +633,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	if !ok {
 		return errors.New("Keylog not found")
 	}
-	if keyLog.SubshareState.Current() == SKWaitingForSend {
+	if keyLog.SubshareState.Is(SKWaitingForSend) {
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
 			keyLog.C,
@@ -668,7 +667,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	if ki.State.Current() == SIRunningKeygen {
+	if ki.State.Is(SIRunningKeygen) {
 		keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 		if !ok {
 			return errors.New("Keylog not found")
@@ -696,24 +695,23 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 			// since threshoold and above
 
 			// we etiher send ready
-			if keyLog.SubshareState.Is(SKWaitingForEchos) {
-				go func(innerKeyLog *KEYGENLog) {
-					err := innerKeyLog.SubshareState.Event(EKSendReady)
-					if err != nil {
-						logging.Error(err.Error())
-					}
-				}(keyLog)
-			}
+			// if keyLog.SubshareState.Is(SKWaitingForEchos) {
+			go func(innerKeyLog *KEYGENLog) {
+				err := innerKeyLog.SubshareState.Event(EKSendReady)
+				if err != nil {
+					logging.Error(err.Error())
+				}
+			}(keyLog)
+			// }
 			// Or here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
-			if keyLog.SubshareState.Is(SKWaitingForSend) {
-				go func(innerKeyLog *KEYGENLog) {
-					logging.Debug("Echo Reconstruct is called 1")
-					err := innerKeyLog.SubshareState.Event(EKEchoReconstruct)
-					if err != nil {
-						logging.Error(err.Error())
-					}
-				}(keyLog)
-			}
+			// if keyLog.SubshareState.Is(SKWaitingForSend) {
+			go func(innerKeyLog *KEYGENLog) {
+				err := innerKeyLog.SubshareState.Event(EKEchoReconstruct)
+				if err != nil {
+					logging.Error(err.Error())
+				}
+			}(keyLog)
+			// }
 		}
 	} else {
 		ki.MsgBuffer.StoreKEYGENEcho(msg, fromNodeIndex)
@@ -724,7 +722,7 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	if ki.State.Current() == SIRunningKeygen {
+	if ki.State.Is(SIRunningKeygen) {
 		keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 		if !ok {
 			return errors.New("Keylog not found")

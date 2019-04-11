@@ -630,7 +630,10 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
+	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
+	if !ok {
+		return errors.New("Keylog not found")
+	}
 	if keyLog.SubshareState.Current() == SKWaitingForSend {
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
@@ -665,9 +668,11 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
-
 	if ki.State.Current() == SIRunningKeygen {
+		keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
+		if !ok {
+			return errors.New("Keylog not found")
+		}
 		// verify echo, if correct log echo. If there are more then threshold Echos we send ready
 		if !pvss.AVSSVerifyPoint(
 			keyLog.C,
@@ -720,7 +725,10 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	ki.Lock()
 	defer ki.Unlock()
 	if ki.State.Current() == SIRunningKeygen {
-		keyLog := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
+		keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
+		if !ok {
+			return errors.New("Keylog not found")
+		}
 		// we verify ready, if right we log and check if we have enough readys to validate shares
 		if !pvss.AVSSVerifyPoint(
 			keyLog.C,

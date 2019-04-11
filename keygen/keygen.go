@@ -776,6 +776,9 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 func (ki *KeygenInstance) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
+	if len(keygenShareCompletes.Proofs) != ki.NumOfKeys {
+		return errors.New("length of proofs is not correct")
+	}
 	// verify shareCompletes
 	for i, keygenShareCom := range keygenShareCompletes.Proofs {
 		// ensure valid keyindex

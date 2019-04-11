@@ -94,7 +94,7 @@ type AVSSKeygen interface {
 	OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error
 	OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error
 	OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error
-	OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error
+	OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error
 
 	// Storage for Secrets/Shares/etc... go here
 }
@@ -747,7 +747,6 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 
 		// if we've reached the required number of readys
 		if ki.Threshold <= len(keyLog.ReceivedReadys) {
-			logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" We're in threshold %v", len(keyLog.ReceivedReadys))
 			// if keyLog.SubshareState.Is(SKWaitingForReadys) {
 			go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
 				err := innerKeyLog.SubshareState.Event(EKTReachedSubshare, keyIndex, dealer)
@@ -775,7 +774,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	return nil
 }
 
-func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
 	//verify shareCompletes
@@ -786,11 +785,11 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGCo
 
 		if expectedKeyIndex.Cmp(&keygenShareCom.KeyIndex) != 0 {
 			logging.Debugf("NODE "+ki.NodeIndex.Text(16)+" KeyIndex %s, Expected %s", keygenShareCom.KeyIndex.Text(16), expectedKeyIndex.Text(16))
-			return errors.New("Faulty key index on OnKEYGENShareComplete")
+			return errors.New("Faulty key index on OnKEYGENDKGComplete")
 		}
 		// by first verifying NIZKPK Proof
 		if !pvss.VerifyNIZKPK(keygenShareCom.c, keygenShareCom.u1, keygenShareCom.u2, keygenShareCom.gsi, keygenShareCom.gsihr) {
-			return errors.New("Faulty NIZKPK Proof on OnKEYGENShareComplete")
+			return errors.New("Faulty NIZKPK Proof on OnKEYGENDKGComplete")
 		}
 
 		// add up all commitments
@@ -812,7 +811,7 @@ func (ki *KeygenInstance) OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGCo
 
 		//test commmitment
 		if !pvss.AVSSVerifyShareCommitment(sumCommitments, fromNodeIndex, keygenShareCom.gsihr) {
-			return errors.New("Faulty Share Commitment OnKEYGENShareComplete")
+			return errors.New("Faulty Share Commitment OnKEYGENDKGComplete")
 		}
 	}
 

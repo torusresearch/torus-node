@@ -599,7 +599,7 @@ func (transport *mockTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][
 func (transport *mockTransport) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
-			err := ins.OnKEYGENShareComplete(cm, tns)
+			err := ins.OnKEYGENDKGComplete(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastKEYGENDKGComplete: ", err)
 			}
@@ -724,7 +724,7 @@ func (transport *mockEvilTransport) BroadcastInitiateKeygen(commitmentMatrixes [
 func (transport *mockEvilTransport) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
 	for _, instance := range *transport.nodeKegenInstances {
 		go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
-			err := ins.OnKEYGENShareComplete(cm, tns)
+			err := ins.OnKEYGENDKGComplete(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastKEYGENDKGComplete: ", err)
 			}
@@ -786,7 +786,7 @@ func (transport *mockLaggingTransport) BroadcastKEYGENDKGComplete(keygenShareCom
 	if keygenShareCompletes.Nonce != 0 && keygenShareCompletes.Nonce != 1 {
 		for _, instance := range *transport.nodeKegenInstances {
 			go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
-				err := ins.OnKEYGENShareComplete(cm, tns)
+				err := ins.OnKEYGENDKGComplete(cm, tns)
 				if err != nil {
 					fmt.Println("ERRROR BroadcastKEYGENDKGComplete: ", err)
 				}
@@ -825,6 +825,6 @@ func (mn *mockDeadNode) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) erro
 func (mn *mockDeadNode) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
 	return nil
 }
-func (mn *mockDeadNode) OnKEYGENShareComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
+func (mn *mockDeadNode) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	return nil
 }

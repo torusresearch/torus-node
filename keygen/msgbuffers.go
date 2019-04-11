@@ -123,6 +123,6 @@ func (buf *KEYGENBuffer) CheckLengthOfReady(keyIndex big.Int, dealer big.Int) in
 // 	buf.Lock()
 // 	defer buf.Unlock()
 // 	for _, wrappedSend := range buf.ReceivedShareCompletes[keyIndex.Text(16)] {
-// 		go (*ki).OnKEYGENShareComplete(wrappedSend.Msg.(KEYGENShareComplete), wrappedSend.From)
+// 		go (*ki).OnKEYGENDKGComplete(wrappedSend.Msg.(KEYGENShareComplete), wrappedSend.From)
 // 	}
 // }

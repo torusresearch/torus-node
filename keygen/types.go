@@ -489,10 +489,13 @@ type PSS struct {
 
 func GetCIDFromPointMatrix(pm [][]common.Point) CID {
 	var bytes []byte
+	delimiter := []byte("|")
 	for _, arr := range pm {
 		for _, pt := range arr {
 			bytes = append(bytes, pt.X.Bytes()...)
+			bytes = append(bytes, delimiter...)
 			bytes = append(bytes, pt.Y.Bytes()...)
+			bytes = append(bytes, delimiter...)
 		}
 	}
 	return CID(hex.EncodeToString(secp256k1.Keccak256(bytes)))

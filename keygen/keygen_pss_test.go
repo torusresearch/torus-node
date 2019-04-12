@@ -35,7 +35,6 @@ func TestPMMarshal(test *testing.T) {
 
 func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 	engineState := make(map[string]interface{})
-
 	runEngine := func(nodeDetails NodeDetails, pssMessage PSSMessage) error {
 		if _, found := engineState["test"]; found {
 			fmt.Println("test found")

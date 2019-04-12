@@ -165,7 +165,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		}
 		dCount := recover.DCount[vID]
 		dCount[senderDetails.ToNodeDetailsID()] = true
-		if len(dCount) == pssNode.NewNodes.T+1 {
+		if len(dCount) == pssNode.OldNodes.T+1 {
 			recover.D = &pssMsgRecover.V
 			// defer func() { pss.State.Recover = States.Recover.WaitingForSelectedSharingsComplete }()
 		}

@@ -4,11 +4,14 @@ package pvss
 // Scheme and its Application to Electronic Voting
 
 import (
+	"crypto/ecdsa"
 	"crypto/rand"
 	"errors"
+	"log"
 	"math/big"
 	"sort"
 
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
@@ -138,6 +141,58 @@ func Signcrypt(recipientPubKey common.Point, data []byte, privKey big.Int) (*com
 	szecret.Mod(szecret, secp256k1.GeneratorOrder)
 
 	return &common.Signcryption{*ciphertext, rG, *szecret}, nil
+}
+
+func bytes32(bytes []byte) [32]byte {
+	tmp := [32]byte{}
+	copy(tmp[:], bytes)
+	return tmp
+}
+
+func ECDSASign(s string, privKey *big.Int) []byte {
+	pubKey := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKey.Bytes()))
+	ecdsaPrivKey := &ecdsa.PrivateKey{
+		PublicKey: ecdsa.PublicKey{
+			Curve: secp256k1.Curve,
+			X:     &pubKey.X,
+			Y:     &pubKey.Y,
+		},
+		D: privKey,
+	}
+	hashRaw := secp256k1.Keccak256([]byte(s))
+	signature, err := ethCrypto.Sign(hashRaw, ecdsaPrivKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return signature
+}
+
+// func ECDSAValidateRaw(ecdsaPubBytes []byte, messageHash []byte, signature []byte) bool {
+// 	return ethCrypto.VerifySignature(ecdsaPubBytes, messageHash, signature)
+// }
+
+func ECDSAVerify(str string, pubKey *common.Point, signature []byte) bool {
+	r := new(big.Int)
+	s := new(big.Int)
+	r.SetBytes(signature[:32])
+	s.SetBytes(signature[32:64])
+
+	ecdsaPubKey := &ecdsa.PublicKey{
+		Curve: secp256k1.Curve,
+		X:     &(*pubKey).X,
+		Y:     &(*pubKey).Y,
+	}
+
+	return ecdsa.Verify(
+		ecdsaPubKey,
+		secp256k1.Keccak256([]byte(str)),
+		r,
+		s,
+	)
+}
+
+func VerifyString(s string, pubKey common.Point, signature []byte) {
+
 }
 
 func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey common.Point) (*[]byte, error) {

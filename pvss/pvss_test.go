@@ -76,7 +76,7 @@ func TestCommit(test *testing.T) {
 
 	secret := *RandomBigInt()
 	polynomial := *generateRandomZeroPolynomial(secret, 11)
-	polyCommit := getCommit(polynomial)
+	polyCommit := GetCommit(polynomial)
 
 	sum := common.Point{X: polyCommit[0].X, Y: polyCommit[0].Y}
 	var tmp common.Point
@@ -259,6 +259,14 @@ func TestLagrangeInterpolation(test *testing.T) {
 	lagrange = LagrangeScalar(decryptedShares[2:15], 0)
 	assert.True(test, secret.Cmp(lagrange) == 0)
 	assert.False(test, errorsExist)
+}
+
+func TestECDSA(test *testing.T) {
+	testStr := "test-string"
+	privKey := big.NewInt(int64(1234))
+	sig := ECDSASign(testStr, privKey)
+	pubKey := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKey.Bytes()))
+	assert.True(test, ECDSAVerify(testStr, &pubKey, sig))
 }
 
 func TestPedersons(test *testing.T) {

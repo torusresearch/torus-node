@@ -24,30 +24,24 @@ type TorusDB interface {
 	GetSecretMapping() error
 }
 
+// CacheSuite - handles caching
 type CacheSuite struct {
 	CacheInstance *cache.Cache
-	// TODO(TEAM) - Not used, shouldn't it be removed?
-	// OAuthCacheInstance *cache.Cache
+	TokenCaches   map[string]*cache.Cache
 }
 
+// SetupCache - set up caching for handling tokens and secrets
 func SetupCache(suite *Suite) {
 	// Create a cache with a default expiration time of no expiration time, and which
 	// purges expired items every 10 minutes
 	secretCache := cache.New(cache.NoExpiration, 10*time.Minute)
-
+	tokenCache := make(map[string]*cache.Cache)
 	// TODO: UNUSED!
 	// oauthCache := cache.New(60*time.Second, 1*time.Minute)
 
 	suite.CacheSuite = &CacheSuite{
 		secretCache,
-		// TODO: UNUSED!
-		// oauthCache,
+		tokenCache,
 	}
-
-	// TODO(TEAM) - these are literally unused anywhere, should they still be here??
-	// secretAssignment := make(map[string]SecretAssignment)
-	//
-	// suite.CacheSuite.CacheInstance.Set("Secret_ASSIGNMENT", secretAssignment, -1)
-	// suite.CacheSuite.CacheInstance.Set("LAST_ASSIGNED", 0, -1)
 
 }

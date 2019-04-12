@@ -29,7 +29,6 @@ services:
       - "1080"
       - "26659-26660:26656-26657"
       - "7002:8080"
-      - "1080"
     volumes:
       - ./config/config.local.2.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl

@@ -67,6 +67,45 @@ func bytes32(bytes []byte) [32]byte {
 	return tmp
 }
 
+func ECDSASigToHex(ecdsaSig ECDSASignature) string {
+	return hex.EncodeToString(ecdsaSig.R[:]) + hex.EncodeToString(ecdsaSig.S[:]) + hex.EncodeToString(big.NewInt(int64(ecdsaSig.V)).Bytes())
+}
+
+// ECDSASig contains R S V and raw format of ecdsa signature. Does not contain the hashed message
+type ECDSASig struct {
+	Raw []byte
+	R   [32]byte
+	S   [32]byte
+	V   uint8
+}
+
+func HexToECDSASig(hexString string) ECDSASig {
+	hexR := hexString[:64]
+	hexS := hexString[64:128]
+	hexV := hexString[128:130]
+	R, _ := hex.DecodeString(hexR)
+	S, _ := hex.DecodeString(hexS)
+	Vbytes, _ := hex.DecodeString(hexV)
+	V := new(big.Int).SetBytes(Vbytes)
+	Vuint8 := uint8(V.Int64())
+	var signature []byte
+	signature = append(signature, R...)
+	signature = append(signature, S...)
+	signature = append(signature, V.Bytes()...)
+	var (
+		R32byte [32]byte
+		S32byte [32]byte
+	)
+	copy(R32byte[:], R[:32])
+	copy(S32byte[:], S[:32])
+	return ECDSASig{
+		signature,
+		R32byte,
+		S32byte,
+		Vuint8,
+	}
+}
+
 func ECDSASign(data []byte, ecdsaKey *ecdsa.PrivateKey) ECDSASignature {
 	// to get data []byte from string, do secp256k1.Keccak256([]byte(messageString))
 	hashRaw := secp256k1.Keccak256(data)

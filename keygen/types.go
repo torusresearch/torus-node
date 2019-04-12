@@ -133,44 +133,9 @@ func CreateReceivedReadyMap() map[NodeDetailsID]receivedReadyState {
 type PSSMsgShare struct {
 	SharingID SharingID
 }
-
-func (pssMsgShare *PSSMsgShare) FromBytes(byt []byte) error {
-	return fastjson.Unmarshal(byt, &pssMsgShare)
-}
-
-func (pssMsgShare *PSSMsgShare) ToBytes() []byte {
-	byt, _ := fastjson.Marshal(pssMsgShare)
-	return byt
-}
-
 type PSSMsgRecover struct {
 	SharingID SharingID
 	V         []common.Point
-}
-
-type pssMsgRecoverBase struct {
-	SharingID string
-	V         [][2]string
-}
-
-func (pssMsgRecover *PSSMsgRecover) ToBytes() []byte {
-	p := pssMsgRecoverBase{
-		SharingID: string(pssMsgRecover.SharingID),
-		V:         BaseParser.MarshalPA(pssMsgRecover.V),
-	}
-	byt, _ := fastjson.Marshal(p)
-	return byt
-}
-
-func (pssMsgRecover *PSSMsgRecover) FromBytes(data []byte) error {
-	var p pssMsgRecoverBase
-	err := fastjson.Unmarshal(data, &p)
-	if err != nil {
-		return err
-	}
-	pssMsgRecover.SharingID = SharingID(p.SharingID)
-	pssMsgRecover.V = BaseParser.UnmarshalPA(p.V)
-	return nil
 }
 
 func GetVIDFromPointArray(ptArr []common.Point) VID {
@@ -183,91 +148,6 @@ func GetVIDFromPointArray(ptArr []common.Point) VID {
 	return VID(hex.EncodeToString(vhash))
 }
 
-type Parser interface {
-	MarshalI(big.Int) string
-	MarshalIA([]big.Int) []string
-	MarshalIM([][]big.Int) [][]string
-	UnmarshalI(string) big.Int
-	UnmarshalIA([]string) []big.Int
-	UnmarshalIM([][]string) [][]big.Int
-	MarshalP(common.Point) [2]string
-	MarshalPA([]common.Point) [][2]string
-	MarshalPM([][]common.Point) [][][2]string
-	UnmarshalP([2]string) common.Point
-	UnmarshalPA([][2]string) []common.Point
-	UnmarshalPM([][][2]string) [][]common.Point
-}
-
-var BaseParser = &parser{}
-
-type parser struct {
-}
-
-func (p *parser) MarshalI(arg big.Int) string {
-	return arg.Text(16)
-}
-func (p *parser) UnmarshalI(arg string) (res big.Int) {
-	res.SetString(arg, 16)
-	return
-}
-func (p *parser) MarshalIA(args []big.Int) (res []string) {
-	for _, i := range args {
-		res = append(res, p.MarshalI(i))
-	}
-	return
-}
-func (p *parser) UnmarshalIA(args []string) (res []big.Int) {
-	for _, i := range args {
-		res = append(res, p.UnmarshalI(i))
-	}
-	return
-}
-func (p *parser) MarshalIM(args [][]big.Int) (res [][]string) {
-	for _, i := range args {
-		res = append(res, p.MarshalIA(i))
-	}
-	return
-}
-func (p *parser) UnmarshalIM(args [][]string) (res [][]big.Int) {
-	for _, i := range args {
-		res = append(res, p.UnmarshalIA(i))
-	}
-	return
-}
-func (p *parser) MarshalP(arg common.Point) [2]string {
-	return [2]string{arg.X.Text(16), arg.Y.Text(16)}
-}
-func (p *parser) UnmarshalP(arg [2]string) common.Point {
-	var x, y big.Int
-	x.SetString(arg[0], 16)
-	y.SetString(arg[1], 16)
-	return common.Point{X: x, Y: y}
-}
-func (p *parser) MarshalPA(args []common.Point) (res [][2]string) {
-	for _, i := range args {
-		res = append(res, p.MarshalP(i))
-	}
-	return
-}
-func (p *parser) UnmarshalPA(args [][2]string) (res []common.Point) {
-	for _, i := range args {
-		res = append(res, p.UnmarshalP(i))
-	}
-	return
-}
-func (p *parser) MarshalPM(args [][]common.Point) (res [][][2]string) {
-	for _, i := range args {
-		res = append(res, p.MarshalPA(i))
-	}
-	return
-}
-func (p *parser) UnmarshalPM(args [][][2]string) (res [][]common.Point) {
-	for _, i := range args {
-		res = append(res, p.UnmarshalPA(i))
-	}
-	return
-}
-
 type PSSMsgSend struct {
 	PSSID  PSSID
 	C      [][]common.Point
@@ -275,42 +155,6 @@ type PSSMsgSend struct {
 	Aprime []big.Int
 	B      []big.Int
 	Bprime []big.Int
-}
-
-type pssMsgSendBase struct {
-	PSSID  string        `json:"pssid"`
-	C      [][][2]string `json:"c"`
-	A      []string      `json:"a"`
-	Aprime []string      `json:"aprime"`
-	B      []string      `json:"b"`
-	Bprime []string      `json:"bprime"`
-}
-
-func (pssMsgSend *PSSMsgSend) ToBytes() []byte {
-	byt, _ := fastjson.Marshal(pssMsgSendBase{
-		string(pssMsgSend.PSSID),
-		BaseParser.MarshalPM(pssMsgSend.C),
-		BaseParser.MarshalIA(pssMsgSend.A),
-		BaseParser.MarshalIA(pssMsgSend.Aprime),
-		BaseParser.MarshalIA(pssMsgSend.B),
-		BaseParser.MarshalIA(pssMsgSend.Bprime),
-	})
-	return byt
-}
-
-func (pssMsgSend *PSSMsgSend) FromBytes(data []byte) error {
-	var p pssMsgSendBase
-	err := fastjson.Unmarshal(data, &p)
-	if err != nil {
-		return err
-	}
-	pssMsgSend.PSSID = PSSID(p.PSSID)
-	pssMsgSend.C = BaseParser.UnmarshalPM(p.C)
-	pssMsgSend.A = BaseParser.UnmarshalIA(p.A)
-	pssMsgSend.Aprime = BaseParser.UnmarshalIA(p.Aprime)
-	pssMsgSend.B = BaseParser.UnmarshalIA(p.B)
-	pssMsgSend.Bprime = BaseParser.UnmarshalIA(p.Bprime)
-	return nil
 }
 
 type PSSMsgEcho struct {
@@ -322,42 +166,6 @@ type PSSMsgEcho struct {
 	Betaprime  big.Int
 }
 
-type pssMsgEchoBase struct {
-	PSSID      string        `json:"pssid"`
-	C          [][][2]string `json:"c"`
-	Alpha      string        `json:"alpha"`
-	Alphaprime string        `json:"alphaprime"`
-	Beta       string        `json:"beta"`
-	Betaprime  string        `json:"betaprime"`
-}
-
-func (pssMsgEcho *PSSMsgEcho) ToBytes() []byte {
-	byt, _ := fastjson.Marshal(pssMsgEchoBase{
-		PSSID:      string(pssMsgEcho.PSSID),
-		C:          BaseParser.MarshalPM(pssMsgEcho.C),
-		Alpha:      BaseParser.MarshalI(pssMsgEcho.Alpha),
-		Alphaprime: BaseParser.MarshalI(pssMsgEcho.Alphaprime),
-		Beta:       BaseParser.MarshalI(pssMsgEcho.Beta),
-		Betaprime:  BaseParser.MarshalI(pssMsgEcho.Betaprime),
-	})
-	return byt
-}
-
-func (pssMsgEcho *PSSMsgEcho) FromBytes(data []byte) error {
-	var p pssMsgEchoBase
-	err := fastjson.Unmarshal(data, &p)
-	if err != nil {
-		return err
-	}
-	pssMsgEcho.PSSID = PSSID(p.PSSID)
-	pssMsgEcho.C = BaseParser.UnmarshalPM(p.C)
-	pssMsgEcho.Alpha = BaseParser.UnmarshalI(p.Alpha)
-	pssMsgEcho.Alphaprime = BaseParser.UnmarshalI(p.Alphaprime)
-	pssMsgEcho.Beta = BaseParser.UnmarshalI(p.Beta)
-	pssMsgEcho.Betaprime = BaseParser.UnmarshalI(p.Betaprime)
-	return nil
-}
-
 type PSSMsgReady struct {
 	PSSID      PSSID
 	C          [][]common.Point
@@ -367,89 +175,14 @@ type PSSMsgReady struct {
 	Betaprime  big.Int
 }
 
-type pssMsgReadyBase struct {
-	PSSID      string        `json:"pssid"`
-	C          [][][2]string `json:"c"`
-	Alpha      string        `json:"alpha"`
-	Alphaprime string        `json:"alphaprime"`
-	Beta       string        `json:"beta"`
-	Betaprime  string        `json:betaprime`
-}
-
-func (pssMsgReady *PSSMsgReady) ToBytes() []byte {
-	byt, _ := fastjson.Marshal(pssMsgReadyBase{
-		PSSID:      string(pssMsgReady.PSSID),
-		C:          BaseParser.MarshalPM(pssMsgReady.C),
-		Alpha:      BaseParser.MarshalI(pssMsgReady.Alpha),
-		Alphaprime: BaseParser.MarshalI(pssMsgReady.Alphaprime),
-		Beta:       BaseParser.MarshalI(pssMsgReady.Beta),
-		Betaprime:  BaseParser.MarshalI(pssMsgReady.Betaprime),
-	})
-	return byt
-}
-
-func (pssMsgReady *PSSMsgReady) FromBytes(data []byte) error {
-	var p pssMsgReadyBase
-	err := fastjson.Unmarshal(data, &p)
-	if err != nil {
-		return err
-	}
-	pssMsgReady.PSSID = PSSID(p.PSSID)
-	pssMsgReady.C = BaseParser.UnmarshalPM(p.C)
-	pssMsgReady.Alpha = BaseParser.UnmarshalI(p.Alpha)
-	pssMsgReady.Alphaprime = BaseParser.UnmarshalI(p.Alphaprime)
-	pssMsgReady.Beta = BaseParser.UnmarshalI(p.Beta)
-	pssMsgReady.Betaprime = BaseParser.UnmarshalI(p.Betaprime)
-	return nil
-}
-
 type PSSMsgComplete struct {
 	PSSID PSSID
 	C00   common.Point
 }
 
-type pssMsgCompleteBase struct {
-	PSSID string
-	C00   [2]string
-}
-
-func (pssMsgComplete *PSSMsgComplete) ToBytes() []byte {
-	var p pssMsgCompleteBase
-	p.PSSID = string(pssMsgComplete.PSSID)
-	p.C00 = BaseParser.MarshalP(pssMsgComplete.C00)
-	byt, _ := fastjson.Marshal(p)
-	return byt
-}
-
-func (pssMsgComplete *PSSMsgComplete) FromBytes(data []byte) error {
-	var p pssMsgCompleteBase
-	err := fastjson.Unmarshal(data, &p)
-	if err != nil {
-		return err
-	}
-	pssMsgComplete.PSSID = PSSID(p.PSSID)
-	var x, y big.Int
-	x.SetString(p.C00[0], 16)
-	y.SetString(p.C00[1], 16)
-	pssMsgComplete.C00 = common.Point{
-		X: x,
-		Y: y,
-	}
-	return nil
-}
-
 type PSSMsgPropose struct {
 	NodeDetailsID NodeDetailsID
 	PSSs          []PSSID
-}
-
-func (p *PSSMsgPropose) ToBytes() []byte {
-	byt, _ := fastjson.Marshal(p)
-	return byt
-}
-
-func (p *PSSMsgPropose) FromBytes(data []byte) error {
-	return fastjson.Unmarshal(data, &p)
 }
 
 type VID string

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/logging"
 
 	"github.com/stretchr/testify/assert"
@@ -17,21 +18,6 @@ import (
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/pvss"
 )
-
-func TestPMMarshal(test *testing.T) {
-	secret := pvss.RandomBigInt()
-	mask := pvss.RandomBigInt()
-	f := pvss.GenerateRandomBivariatePolynomial(*secret, 13)
-	fprime := pvss.GenerateRandomBivariatePolynomial(*mask, 13)
-	C := pvss.GetCommitmentMatrix(f, fprime)
-	data := BaseParser.MarshalPM(C)
-	Creconstructed := BaseParser.UnmarshalPM(data)
-	for i := 0; i < 13; i++ {
-		for j := 0; j < 13; j++ {
-			assert.Equal(test, C[i][j].X.Text(16), Creconstructed[i][j].X.Text(16))
-		}
-	}
-}
 
 func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 	engineState := make(map[string]interface{})
@@ -136,10 +122,14 @@ func TestKeygenSharing(test *testing.T) {
 				SharingID: sharingID,
 				Index:     node.NodeDetails.Index,
 			}).ToPSSID()
-			err := node.Transport.Send(node.NodeDetails, PSSMessage{
+			data, err := bijson.Marshal(pssMsgShare)
+			if err != nil {
+				test.Fatal(err)
+			}
+			err = node.Transport.Send(node.NodeDetails, PSSMessage{
 				PSSID:  pssID,
 				Method: "share",
-				Data:   pssMsgShare.ToBytes(),
+				Data:   data,
 			})
 			assert.NoError(test, err)
 		}

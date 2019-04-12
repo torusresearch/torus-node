@@ -5,11 +5,11 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/torusresearch/torus-public/logging"
-
-	"github.com/torusresearch/torus-public/pvss"
+	"github.com/torusresearch/bijson"
 
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/logging"
+	"github.com/torusresearch/torus-public/pvss"
 )
 
 // max(roundUp((n+t+1)/2), k)
@@ -56,7 +56,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 	if pssMessage.Method == "share" {
 		// parse message
 		var pssMsgShare PSSMsgShare
-		err := pssMsgShare.FromBytes(pssMessage.Data)
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgShare)
 		if err != nil {
 			logging.Error(err.Error())
 			return err
@@ -94,10 +94,14 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				B:      pvss.EvaluateBivarPolyAtY(pss.F, *big.NewInt(int64(newNode.Index))).Coeff,
 				Bprime: pvss.EvaluateBivarPolyAtY(pss.Fprime, *big.NewInt(int64(newNode.Index))).Coeff,
 			}
+			data, err := bijson.Marshal(pssMsgSend)
+			if err != nil {
+				return err
+			}
 			nextPSSMessage := PSSMessage{
 				PSSID:  pssID,
 				Method: "send",
-				Data:   pssMsgSend.ToBytes(),
+				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
 				err := pssNode.Transport.Send(newN, msg)
@@ -106,13 +110,17 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}
 			}(newNode, nextPSSMessage)
 
+			data, err = bijson.Marshal(PSSMsgRecover{
+				SharingID: pssMsgShare.SharingID,
+				V:         sharing.C,
+			})
+			if err != nil {
+				return err
+			}
 			nextNextPSSMessage := PSSMessage{
 				PSSID:  NullPSSID,
 				Method: "recover",
-				Data: (&PSSMsgRecover{
-					SharingID: pssMsgShare.SharingID,
-					V:         sharing.C,
-				}).ToBytes(),
+				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
 				err := pssNode.Transport.Send(newN, msg)
@@ -125,7 +133,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 	} else if pssMessage.Method == "recover" {
 		// parse message
 		var pssMsgRecover PSSMsgRecover
-		err := pssMsgRecover.FromBytes(pssMessage.Data)
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgRecover)
 		if err != nil {
 			logging.Error(err.Error())
 			return err
@@ -172,7 +180,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 	} else if pssMessage.Method == "send" {
 		// parse message
 		var pssMsgSend PSSMsgSend
-		err := pssMsgSend.FromBytes(pssMessage.Data)
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgSend)
 		if err != nil {
 			logging.Error(err.Error())
 			return err
@@ -233,10 +241,14 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 					*big.NewInt(int64(newNode.Index)),
 				),
 			}
+			data, err := bijson.Marshal(pssMsgEcho)
+			if err != nil {
+				return err
+			}
 			nextPSSMessage := PSSMessage{
 				PSSID:  pss.PSSID,
 				Method: "echo",
-				Data:   pssMsgEcho.ToBytes(),
+				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
 				err := pssNode.Transport.Send(newN, msg)
@@ -249,7 +261,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		// parse message
 		defer func() { pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()] = States.ReceivedEcho.True }()
 		var pssMsgEcho PSSMsgEcho
-		err := pssMsgEcho.FromBytes(pssMessage.Data)
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgEcho)
 		if err != nil {
 			logging.Error(err.Error())
 			return err
@@ -339,10 +351,14 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 						*big.NewInt(int64(newNode.Index)),
 					),
 				}
+				data, err := bijson.Marshal(pssMsgReady)
+				if err != nil {
+					return err
+				}
 				nextPSSMessage := PSSMessage{
 					PSSID:  pss.PSSID,
 					Method: "ready",
-					Data:   pssMsgReady.ToBytes(),
+					Data:   data,
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
 					err := pssNode.Transport.Send(newN, msg)
@@ -356,7 +372,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		// parse message
 		defer func() { pss.State.ReceivedReady[senderDetails.ToNodeDetailsID()] = States.ReceivedReady.True }()
 		var pssMsgReady PSSMsgReady
-		err := pssMsgReady.FromBytes(pssMessage.Data)
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgReady)
 		if err != nil {
 			logging.Error(err.Error())
 			return err
@@ -451,10 +467,14 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 						*big.NewInt(int64(newNode.Index)),
 					),
 				}
+				data, err := bijson.Marshal(pssMsgReady)
+				if err != nil {
+					return err
+				}
 				nextPSSMessage := PSSMessage{
 					PSSID:  pss.PSSID,
 					Method: "ready",
-					Data:   pssMsgReady.ToBytes(),
+					Data:   data,
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
 					err := pssNode.Transport.Send(newN, msg)
@@ -470,13 +490,17 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			go func(msg string) {
 				pssNode.Transport.Output(msg + " shared.")
 			}(string(pss.PSSID))
+			data, err := bijson.Marshal(PSSMsgComplete{
+				PSSID: pss.PSSID,
+				C00:   pss.Cbar[0][0],
+			})
+			if err != nil {
+				return err
+			}
 			nextPSSMessage := PSSMessage{
 				PSSID:  NullPSSID,
 				Method: "complete",
-				Data: (&PSSMsgComplete{
-					PSSID: pss.PSSID,
-					C00:   pss.Cbar[0][0],
-				}).ToBytes(),
+				Data:   data,
 			}
 			go func(ownNode NodeDetails, ownMsg PSSMessage) {
 				err := pssNode.Transport.Send(ownNode, ownMsg)
@@ -489,7 +513,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 	} else if pssMessage.Method == "complete" {
 		// parse message
 		var pssMsgComplete PSSMsgComplete
-		err := pssMsgComplete.FromBytes(pssMessage.Data)
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgComplete)
 		if err != nil {
 			logging.Error(err.Error())
 			return err
@@ -536,10 +560,14 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				NodeDetailsID: pssNode.NodeDetails.ToNodeDetailsID(),
 				PSSs:          psss,
 			}
+			data, err := bijson.Marshal(pssMsgPropose)
+			if err != nil {
+				return err
+			}
 			nextPSSMessage := PSSMessage{
 				PSSID:  NullPSSID,
 				Method: "propose",
-				Data:   pssMsgPropose.ToBytes(),
+				Data:   data,
 			}
 			go func(pssMessage PSSMessage) {
 				err := pssNode.Transport.Broadcast(pssMessage)

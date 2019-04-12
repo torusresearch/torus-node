@@ -548,8 +548,12 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}
 			}(nextPSSMessage)
 		}
+	} else if pssMessage.Method == "decided" {
+		// if untrusted, request for a proof that the decided message was included in a block
+
+		// wait for all sharings to complete
 	} else {
-		return errors.New("PssMessage method not found")
+		return errors.New("PssMessage method '" + pssMessage.Method + "' not found")
 	}
 	return nil
 }

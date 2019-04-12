@@ -98,7 +98,7 @@ func TestHerzbergPSS(t *testing.T) {
 	QiRikPolys := new([12][12]*common.PrimaryPolynomial)
 	for i, _ := range QiRikPolys {
 		for j, _ := range QiRikPolys[i] {
-			QiRikPolys[i][j] = addPolynomials(*QiPolys[i], *RikPolys[i][j])
+			QiRikPolys[i][j] = AddPolynomials(*QiPolys[i], *RikPolys[i][j])
 		}
 	}
 

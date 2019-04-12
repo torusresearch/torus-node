@@ -170,13 +170,96 @@ func TestKeygenSharing(test *testing.T) {
 					})
 				}
 			}
-			reconstructedSi := pvss.LagrangeScalar(subshares, 0)
+			reconstructedSi := pvss.LagrangeScalar(subshares[1:6], 0)
 			shares = append(shares, common.PrimaryShare{
 				Index: node.NodeDetails.Index,
 				Value: *reconstructedSi,
 			})
 		}
-		reconstructedSecret := pvss.LagrangeScalar(shares, 0)
+		reconstructedSecret := pvss.LagrangeScalar(shares[2:7], 0)
 		assert.Equal(test, reconstructedSecret.Text(16), secrets[g].Text(16))
 	}
+}
+
+var LocalNodeDirectory map[string]*LocalTransport
+
+type Middleware func(PSSMessage) (modifiedMessage PSSMessage, end bool, err error)
+type LocalTransport struct {
+	PSSNode           *PSSNode
+	NodeDirectory     *map[NodeDetailsID]*LocalTransport
+	OutputChannel     *chan string
+	SendMiddleware    []Middleware
+	ReceiveMiddleware []Middleware
+	MockTMEngine      *func(NodeDetails, PSSMessage) error
+}
+
+func (l *LocalTransport) SetPSSNode(ref *PSSNode) error {
+	l.PSSNode = ref
+	return nil
+}
+
+func (l *LocalTransport) SetTMEngine(ref *func(NodeDetails, PSSMessage) error) error {
+	l.MockTMEngine = ref
+	return nil
+}
+
+func (l *LocalTransport) Send(nodeDetails NodeDetails, pssMessage PSSMessage) error {
+	modifiedMessage, err := l.runSendMiddleware(pssMessage)
+	if err != nil {
+		return err
+	}
+	return (*l.NodeDirectory)[nodeDetails.ToNodeDetailsID()].Receive(l.PSSNode.NodeDetails, modifiedMessage)
+}
+
+func (l *LocalTransport) Receive(senderDetails NodeDetails, pssMessage PSSMessage) error {
+	modifiedMessage, err := l.runReceiveMiddleware(pssMessage)
+	if err != nil {
+		return err
+	}
+	return l.PSSNode.ProcessMessage(senderDetails, modifiedMessage)
+}
+
+func (l *LocalTransport) Broadcast(pssMessage PSSMessage) error {
+	(*l.MockTMEngine)(l.PSSNode.NodeDetails, pssMessage)
+	return nil
+}
+
+func (l *LocalTransport) Output(s string) {
+	if l.OutputChannel != nil {
+		go func() {
+			*l.OutputChannel <- "Output: " + s
+		}()
+	}
+}
+
+func (l *LocalTransport) runSendMiddleware(pssMessage PSSMessage) (PSSMessage, error) {
+	modifiedMessage := pssMessage
+	for _, middleware := range l.SendMiddleware {
+		var end bool
+		var err error
+		modifiedMessage, end, err = middleware(modifiedMessage)
+		if end {
+			break
+		}
+		if err != nil {
+			return pssMessage, err
+		}
+	}
+	return modifiedMessage, nil
+}
+
+func (l *LocalTransport) runReceiveMiddleware(pssMessage PSSMessage) (PSSMessage, error) {
+	modifiedMessage := pssMessage
+	for _, middleware := range l.ReceiveMiddleware {
+		var end bool
+		var err error
+		modifiedMessage, end, err = middleware(modifiedMessage)
+		if end {
+			break
+		}
+		if err != nil {
+			return pssMessage, err
+		}
+	}
+	return modifiedMessage, nil
 }

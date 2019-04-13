@@ -3,7 +3,10 @@ package keygen
 import (
 	"errors"
 	"math/big"
+	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/torusresearch/bijson"
 
@@ -130,6 +133,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			}(newNode, nextNextPSSMessage)
 		}
 		defer func() { pss.State.Phase = States.Phases.Started }()
+		return nil
 	} else if pssMessage.Method == "recover" {
 		// parse message
 		var pssMsgRecover PSSMsgRecover
@@ -138,18 +142,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			logging.Error(err.Error())
 			return err
 		}
-
 		// state checks
-		// if pss.State.Phase == States.Phases.Ended {
-		// 	return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
-		// }
-		// if pss.State.Player != States.Player.IsPlayer {
-		// 	return errors.New("Could not receive send message because node is not a player")
-		// }
-		// if pss.State.Recover != States.Recover.Initial || pss.State.Recover != States.Recover.WaitingForRecovers {
-		// 	logging.Info("Already have enough recover messages")
-		// 	return nil
-		// }
 
 		// logic
 		if len(pssMsgRecover.V) == 0 {
@@ -177,6 +170,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			recover.D = &pssMsgRecover.V
 			// defer func() { pss.State.Recover = States.Recover.WaitingForSelectedSharingsComplete }()
 		}
+		return nil
 	} else if pssMessage.Method == "send" {
 		// parse message
 		var pssMsgSend PSSMsgSend
@@ -257,6 +251,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}
 			}(newNode, nextPSSMessage)
 		}
+		return nil
 	} else if pssMessage.Method == "echo" {
 		// parse message
 		defer func() { pss.State.ReceivedEcho[senderDetails.ToNodeDetailsID()] = States.ReceivedEcho.True }()
@@ -297,31 +292,33 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		_, found = pss.CStore[cID]
 		if !found {
 			pss.CStore[cID] = &C{
-				CID:     cID,
-				C:       pssMsgEcho.C,
-				AC:      make(map[int]common.Point),
-				ACprime: make(map[int]common.Point),
-				BC:      make(map[int]common.Point),
-				BCprime: make(map[int]common.Point),
+				CID:             cID,
+				C:               pssMsgEcho.C,
+				AC:              make(map[NodeDetailsID]common.Point),
+				ACprime:         make(map[NodeDetailsID]common.Point),
+				BC:              make(map[NodeDetailsID]common.Point),
+				BCprime:         make(map[NodeDetailsID]common.Point),
+				SignedTextStore: make(map[NodeDetailsID]SignedText),
 			}
 		}
 		c := pss.CStore[cID]
-		c.AC[senderDetails.Index] = common.Point{
+		c.AC[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgEcho.Alpha,
 		}
-		c.ACprime[senderDetails.Index] = common.Point{
+		c.ACprime[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgEcho.Alphaprime,
 		}
-		c.BC[senderDetails.Index] = common.Point{
+		c.BC[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgEcho.Beta,
 		}
-		c.BCprime[senderDetails.Index] = common.Point{
+		c.BCprime[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgEcho.Betaprime,
 		}
+
 		c.EC = c.EC + 1
 		if c.EC == ecThreshold(pssNode.NewNodes.N, pssNode.NewNodes.K, pssNode.NewNodes.T) &&
 			c.RC < pssNode.NewNodes.K {
@@ -331,6 +328,11 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			c.Bbar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.AC))
 			c.Bbarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.ACprime))
 			for _, newNode := range pssNode.NewNodes.Nodes {
+				sigBytes, err := pssNode.Transport.Sign(string(pss.PSSID) + "|" + "ready")
+				if err != nil {
+					return err
+				}
+				signedText := SignedText(sigBytes)
 				pssMsgReady := PSSMsgReady{
 					PSSID: pss.PSSID,
 					C:     c.C,
@@ -350,6 +352,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 						common.PrimaryPolynomial{Coeff: c.Bbarprime, Threshold: pssNode.NewNodes.K},
 						*big.NewInt(int64(newNode.Index)),
 					),
+					SignedText: signedText,
 				}
 				data, err := bijson.Marshal(pssMsgReady)
 				if err != nil {
@@ -368,6 +371,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}(newNode, nextPSSMessage)
 			}
 		}
+		return nil
 	} else if pssMessage.Method == "ready" {
 		// parse message
 		defer func() { pss.State.ReceivedReady[senderDetails.ToNodeDetailsID()] = States.ReceivedReady.True }()
@@ -409,36 +413,42 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if !verified {
 			return errors.New("Could not verify point against commitments for ready message")
 		}
+		sigValid := pvss.ECDSAVerify(string(pss.PSSID)+"|"+"ready", &senderDetails.PubKey, pssMsgReady.SignedText)
+		if !sigValid {
+			return errors.New("Could not verify signature on message: " + string(pss.PSSID) + "|" + "ready")
+		}
 
 		cID := GetCIDFromPointMatrix(pssMsgReady.C)
 		_, found = pss.CStore[cID]
 		if !found {
 			pss.CStore[cID] = &C{
-				CID:     cID,
-				C:       pssMsgReady.C,
-				AC:      make(map[int]common.Point),
-				ACprime: make(map[int]common.Point),
-				BC:      make(map[int]common.Point),
-				BCprime: make(map[int]common.Point),
+				CID:             cID,
+				C:               pssMsgReady.C,
+				AC:              make(map[NodeDetailsID]common.Point),
+				ACprime:         make(map[NodeDetailsID]common.Point),
+				BC:              make(map[NodeDetailsID]common.Point),
+				BCprime:         make(map[NodeDetailsID]common.Point),
+				SignedTextStore: make(map[NodeDetailsID]SignedText),
 			}
 		}
 		c := pss.CStore[cID]
-		c.AC[senderDetails.Index] = common.Point{
+		c.AC[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgReady.Alpha,
 		}
-		c.ACprime[senderDetails.Index] = common.Point{
+		c.ACprime[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgReady.Alphaprime,
 		}
-		c.BC[senderDetails.Index] = common.Point{
+		c.BC[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgReady.Beta,
 		}
-		c.BCprime[senderDetails.Index] = common.Point{
+		c.BCprime[senderDetails.ToNodeDetailsID()] = common.Point{
 			X: *big.NewInt(int64(senderDetails.Index)),
 			Y: pssMsgReady.Betaprime,
 		}
+		c.SignedTextStore[senderDetails.ToNodeDetailsID()] = pssMsgReady.SignedText
 		c.RC = c.RC + 1
 		if c.RC == pssNode.NewNodes.K &&
 			c.EC < ecThreshold(pssNode.NewNodes.N, pssNode.NewNodes.K, pssNode.NewNodes.T) {
@@ -447,6 +457,11 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			c.Bbar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BC))
 			c.Bbarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BCprime))
 			for _, newNode := range pssNode.NewNodes.Nodes {
+				sigBytes, err := pssNode.Transport.Sign(string(pss.PSSID) + "|" + "ready")
+				if err != nil {
+					return err
+				}
+				signedText := SignedText(sigBytes)
 				pssMsgReady := PSSMsgReady{
 					PSSID: pss.PSSID,
 					C:     c.C,
@@ -466,6 +481,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 						common.PrimaryPolynomial{Coeff: c.Bbarprime, Threshold: pssNode.NewNodes.K},
 						*big.NewInt(int64(newNode.Index)),
 					),
+					SignedText: signedText,
 				}
 				data, err := bijson.Marshal(pssMsgReady)
 				if err != nil {
@@ -510,6 +526,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			}(pssNode.NodeDetails, nextPSSMessage)
 			defer func() { pss.State.Phase = States.Phases.Ended }()
 		}
+		return nil
 	} else if pssMessage.Method == "complete" {
 		// parse message
 		var pssMsgComplete PSSMsgComplete
@@ -523,9 +540,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if senderDetails.ToNodeDetailsID() != pssNode.NodeDetails.ToNodeDetailsID() {
 			return errors.New("This message can only be accepted if its sent to ourselves")
 		}
-		// if pss.State.Phase != States.Phases.Ended {
-		// 	return errors.New("This pss should have ended for us to receive the complete message")
-		// }
 
 		// logic
 		var pssIDDetails PSSIDDetails
@@ -549,16 +563,40 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			return errors.New("Could not verify share commitment in complete message for a threshold-agreed secret commitment")
 		}
 		recover.PSSCompleteCount[pssMsgComplete.PSSID] = true
-		// check if t+1 sharings have completed
-		if len(recover.PSSCompleteCount) == pssNode.NewNodes.T+1 {
+		// check if k sharings have completed
+		if len(recover.PSSCompleteCount) == pssNode.NewNodes.K {
 			// propose Li via validated byzantine agreement
 			var psss []PSSID
+			var signedTexts []map[NodeDetailsID]SignedText
 			for pssid := range recover.PSSCompleteCount {
-				psss = append(psss, pssid) // make it deterministic
+				psss = append(psss, pssid)
 			}
+			sort.Slice(psss, func(i, j int) bool {
+				return strings.Compare(string(psss[i]), string(psss[j])) < 0
+			})
+
+			for _, pssid := range psss {
+				pss := pssNode.PSSStore[pssid]
+				if pss == nil {
+					return errors.New("Could not get completed pss")
+				}
+				cbar := pss.Cbar
+				if len(cbar) == 0 {
+					return errors.New("Could not get completed cbar")
+				}
+				cid := GetCIDFromPointMatrix(cbar)
+				c := pss.CStore[cid]
+				if c == nil {
+					return errors.New("Could not get completed c")
+				}
+				signedTexts = append(signedTexts, c.SignedTextStore)
+			}
+
 			pssMsgPropose := PSSMsgPropose{
 				NodeDetailsID: pssNode.NodeDetails.ToNodeDetailsID(),
+				SharingID:     sharingID,
 				PSSs:          psss,
+				SignedTexts:   signedTexts,
 			}
 			data, err := bijson.Marshal(pssMsgPropose)
 			if err != nil {
@@ -570,25 +608,88 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(pssMessage PSSMessage) {
-				err := pssNode.Transport.Broadcast(pssMessage)
+				err := pssNode.Transport.SendBroadcast(pssMessage)
 				if err != nil {
 					logging.Error(err.Error())
 				}
 			}(nextPSSMessage)
 		}
-	} else if pssMessage.Method == "decided" {
-		// if untrusted, request for a proof that the decided message was included in a block
-
-		// wait for all sharings to complete
-	} else {
-		return errors.New("PssMessage method '" + pssMessage.Method + "' not found")
+		return nil
 	}
-	return nil
+	return errors.New("PssMessage method '" + pssMessage.Method + "' not found")
 }
 
 // ProcessBroadcastMessage is called when the node receives a message via broadcast (eg. Tendermint)
-func (pssNode *PSSNode) ProcessBroadcastMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
-	return nil
+func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
+	pssNode.Lock()
+	defer pssNode.Unlock()
+	if pssMessage.Method == "decide" {
+		// if untrusted, request for a proof that the decided message was included in a block
+
+		// parse message
+		var pssMsgDecide PSSMsgDecide
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgDecide)
+		if err != nil {
+			return err
+		}
+
+		// wait for all sharings in decided set to complete
+		firstEntry := true
+		for {
+			if !firstEntry {
+				pssNode.Unlock()
+				time.Sleep(1 * time.Second)
+				pssNode.Lock()
+			} else {
+				firstEntry = false
+			}
+			for _, pssid := range pssMsgDecide.PSSs {
+				if pssNode.PSSStore[pssid] == nil {
+					logging.Info("Waiting for pssid " + string(pssid) + " to complete. Still uninitialized.")
+					continue
+				}
+				pss := pssNode.PSSStore[pssid]
+				if pss.State.Phase != States.Phases.Ended {
+					logging.Info("Waiting for pssid " + string(pssid) + " to complete. Still at " + string(pss.State.Phase))
+					continue
+				}
+			}
+			break
+		}
+
+		if _, found := pssNode.RecoverStore[pssMsgDecide.SharingID]; !found {
+			return errors.New("Sharings for sharingID " + string(pssMsgDecide.SharingID) + " have not completed yet.")
+		}
+		recover := pssNode.RecoverStore[pssMsgDecide.SharingID]
+		var abarArray []common.Point
+		var abarprimeArray []common.Point
+		for _, pssid := range pssMsgDecide.PSSs {
+			pss := pssNode.PSSStore[pssid]
+			if pss == nil {
+				return errors.New("Could not get pss reference")
+			}
+			var pssIDDetails PSSIDDetails
+			err := pssIDDetails.FromPSSID(pssid)
+			if err != nil {
+				return err
+			}
+			abarArray = append(abarArray, common.Point{
+				X: *big.NewInt(int64(pssIDDetails.Index)),
+				Y: pss.Si,
+			})
+			abarprimeArray = append(abarprimeArray, common.Point{
+				X: *big.NewInt(int64(pssIDDetails.Index)),
+				Y: pss.Siprime,
+			})
+		}
+		abar := pvss.LagrangeScalarPoint(abarArray, 0)
+		abarprime := pvss.LagrangeScalarPoint(abarprimeArray, 0)
+		recover.Si = *abar
+		recover.Siprime = *abarprime
+
+		return nil
+	}
+	return errors.New("PssMessage method '" + pssMessage.Method + "' not found")
 }
 
 // NewPSSNode creates a new pss node instance

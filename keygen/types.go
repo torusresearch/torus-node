@@ -166,6 +166,7 @@ type PSSMsgEcho struct {
 	Betaprime  big.Int
 }
 
+type SignedText []byte
 type PSSMsgReady struct {
 	PSSID      PSSID
 	C          [][]common.Point
@@ -173,6 +174,7 @@ type PSSMsgReady struct {
 	Alphaprime big.Int
 	Beta       big.Int
 	Betaprime  big.Int
+	SignedText SignedText
 }
 
 type PSSMsgComplete struct {
@@ -182,7 +184,14 @@ type PSSMsgComplete struct {
 
 type PSSMsgPropose struct {
 	NodeDetailsID NodeDetailsID
+	SharingID     SharingID
 	PSSs          []PSSID
+	SignedTexts   []map[NodeDetailsID]SignedText
+}
+
+type PSSMsgDecide struct {
+	SharingID SharingID
+	PSSs      []PSSID
 }
 
 type VID string
@@ -204,11 +213,15 @@ type Recover struct {
 	D                *[]common.Point
 	DCount           map[VID]map[NodeDetailsID]bool
 	PSSCompleteCount map[PSSID]bool
+	Si               big.Int
+	Siprime          big.Int
+	Vbar             []common.Point
 }
 
 type PSS struct {
 	sync.Mutex
 	PSSID    PSSID
+	Epoch    int
 	Si       big.Int
 	Siprime  big.Int
 	F        [][]big.Int
@@ -237,23 +250,31 @@ func GetCIDFromPointMatrix(pm [][]common.Point) CID {
 type CID string
 
 type C struct {
-	CID       CID
-	C         [][]common.Point
-	EC        int
-	RC        int
-	AC        map[int]common.Point
-	ACprime   map[int]common.Point
-	BC        map[int]common.Point
-	BCprime   map[int]common.Point
-	Abar      []big.Int
-	Abarprime []big.Int
-	Bbar      []big.Int
-	Bbarprime []big.Int
+	CID             CID
+	C               [][]common.Point
+	EC              int
+	RC              int
+	AC              map[NodeDetailsID]common.Point
+	ACprime         map[NodeDetailsID]common.Point
+	BC              map[NodeDetailsID]common.Point
+	BCprime         map[NodeDetailsID]common.Point
+	Abar            []big.Int
+	Abarprime       []big.Int
+	Bbar            []big.Int
+	Bbarprime       []big.Int
+	SignedTextStore map[NodeDetailsID]SignedText
 }
 
-func GetPointArrayFromMap(m map[int]common.Point) (res []common.Point) {
+func GetPointArrayFromMap(m map[NodeDetailsID]common.Point) (res []common.Point) {
 	for _, pt := range m {
 		res = append(res, pt)
+	}
+	return
+}
+
+func GetSignedTextArrayFromMap(sts map[NodeDetailsID]SignedText) (res []SignedText) {
+	for _, signedText := range sts {
+		res = append(res, signedText)
 	}
 	return
 }
@@ -334,9 +355,11 @@ func (n *NodeDetails) FromNodeDetailsID(nodeDetailsID NodeDetailsID) {
 
 type PSSTransport interface {
 	SetPSSNode(*PSSNode) error
+	Sign(string) ([]byte, error)
 	Send(NodeDetails, PSSMessage) error
 	Receive(NodeDetails, PSSMessage) error
-	Broadcast(PSSMessage) error
+	SendBroadcast(PSSMessage) error
+	ReceiveBroadcast(PSSMessage) error
 	Output(string)
 }
 

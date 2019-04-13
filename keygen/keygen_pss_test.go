@@ -1,11 +1,13 @@
 package keygen
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/torusresearch/bijson"
@@ -19,17 +21,15 @@ import (
 	"github.com/torusresearch/torus-public/pvss"
 )
 
-func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
-	engineState := make(map[string]interface{})
-	runEngine := func(nodeDetails NodeDetails, pssMessage PSSMessage) error {
-		if _, found := engineState["test"]; found {
-			fmt.Println("test found")
-		}
-		fmt.Println("MockTMEngine - Node:", nodeDetails.Index, " pssMessage:", pssMessage)
-		return nil
-	}
+type MockEngineState struct {
+	sync.Mutex
+	PSSDecision map[SharingID]bool
+}
+
+func SetupTestNodes(n, k, t int) (chan string, chan string, []*PSSNode, []common.Node) {
 	// setup
-	commCh := make(chan string)
+	sharedCh := make(chan string)
+	refreshedCh := make(chan string)
 	var nodePrivKeys []big.Int
 	var nodePubKeys []common.Point
 	var nodeIndexes []int
@@ -45,7 +45,83 @@ func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 			PubKey: nodePubKeys[i],
 		})
 	}
+	engineState := MockEngineState{
+		PSSDecision: make(map[SharingID]bool),
+	}
 	localTransportNodeDirectory := make(map[NodeDetailsID]*LocalTransport)
+	runEngine := func(senderDetails NodeDetails, pssMessage PSSMessage) error {
+		// fmt.Println("MockTMEngine - Node:", nodeDetails.Index, " pssMessage:", pssMessage)
+		if pssMessage.Method != "propose" {
+			return errors.New("MockTMEngine received pssMessage with unimplemented method:" + pssMessage.Method)
+		}
+
+		// parse message
+		var pssMsgPropose PSSMsgPropose
+		err := bijson.Unmarshal(pssMessage.Data, &pssMsgPropose)
+		if err != nil {
+			return errors.New("Could not unmarshal propose pssMessage")
+		}
+
+		if len(pssMsgPropose.PSSs) < k {
+			fmt.Println(len(pssMsgPropose.PSSs))
+			return errors.New("Propose message did not have enough pssids")
+		}
+
+		if len(pssMsgPropose.PSSs) != len(pssMsgPropose.SignedTexts) {
+			return errors.New("Propose message had different lengths for pssids and signedTexts")
+		}
+
+		for i, pssid := range pssMsgPropose.PSSs {
+			var pssIDDetails PSSIDDetails
+			err := pssIDDetails.FromPSSID(pssid)
+			if err != nil {
+				return err
+			}
+			if pssIDDetails.SharingID != pssMsgPropose.SharingID {
+				return errors.New("SharingID for pssMsgPropose did not match pssids")
+			}
+			for nodeDetailsID, signedText := range pssMsgPropose.SignedTexts[i] {
+				var nodeDetails NodeDetails
+				nodeDetails.FromNodeDetailsID(nodeDetailsID)
+				verified := pvss.ECDSAVerify(string(pssid)+"|"+"ready", &nodeDetails.PubKey, signedText)
+				if !verified {
+					return errors.New("Could not verify signed text")
+				}
+			}
+		}
+		engineState.Lock()
+		defer engineState.Unlock()
+		if engineState.PSSDecision[pssMsgPropose.SharingID] == false {
+			engineState.PSSDecision[pssMsgPropose.SharingID] = true
+			logging.Info("Verified proposed message with pssids:" + fmt.Sprint(pssMsgPropose.PSSs))
+			if len(localTransportNodeDirectory) == 0 {
+				return errors.New("localTransportNodeDirectory is empty, it may not have been initialized")
+			}
+			for _, l := range localTransportNodeDirectory {
+				if l == nil {
+					return errors.New("Node directory contains empty transport pointer")
+				}
+				pssMsgDecide := PSSMsgDecide{
+					SharingID: pssMsgPropose.SharingID,
+					PSSs:      pssMsgPropose.PSSs,
+				}
+				data, err := bijson.Marshal(pssMsgDecide)
+				if err != nil {
+					return err
+				}
+				go func(l *LocalTransport, data []byte) {
+					l.ReceiveBroadcast(PSSMessage{
+						PSSID:  NullPSSID,
+						Method: "decide",
+						Data:   data,
+					})
+				}(l, data)
+			}
+		} else {
+			logging.Info("Already decided")
+		}
+		return nil
+	}
 	var nodes []*PSSNode
 	for i := 0; i < n; i++ {
 		node := common.Node{
@@ -53,9 +129,11 @@ func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 			PubKey: nodePubKeys[i],
 		}
 		localTransport := LocalTransport{
-			NodeDirectory: &localTransportNodeDirectory,
-			OutputChannel: &commCh,
-			MockTMEngine:  &runEngine,
+			NodeDirectory:          &localTransportNodeDirectory,
+			OutputSharedChannel:    &sharedCh,
+			OutputRefreshedChannel: &refreshedCh,
+			MockTMEngine:           &runEngine,
+			PrivateKey:             &nodePrivKeys[i],
 		}
 		newPssNode := NewPSSNode(
 			node,
@@ -73,7 +151,7 @@ func SetupTestNodes(n, k, t int) (chan string, []*PSSNode, []common.Node) {
 		nodeDetails := NodeDetails(node)
 		localTransportNodeDirectory[nodeDetails.ToNodeDetailsID()] = &localTransport
 	}
-	return commCh, nodes, nodeList
+	return sharedCh, refreshedCh, nodes, nodeList
 }
 
 func TestKeygenSharing(test *testing.T) {
@@ -83,7 +161,7 @@ func TestKeygenSharing(test *testing.T) {
 	n := 9
 	k := 5
 	t := 2
-	commCh, nodes, nodeList := SetupTestNodes(n, k, t)
+	sharedCh, _, nodes, nodeList := SetupTestNodes(n, k, t)
 	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(keys) + " keys, " + strconv.Itoa(n) + " nodes with reconstruction " + strconv.Itoa(k) + " and threshold " + strconv.Itoa(t))
 	var secrets []big.Int
 	var sharingIDs []SharingID
@@ -136,7 +214,7 @@ func TestKeygenSharing(test *testing.T) {
 	}
 	completeMessages := 0
 	for completeMessages < n*n*keys {
-		msg := <-commCh
+		msg := <-sharedCh
 		if strings.Contains(msg, "shared") {
 			completeMessages++
 		} else {
@@ -175,12 +253,14 @@ var LocalNodeDirectory map[string]*LocalTransport
 
 type Middleware func(PSSMessage) (modifiedMessage PSSMessage, end bool, err error)
 type LocalTransport struct {
-	PSSNode           *PSSNode
-	NodeDirectory     *map[NodeDetailsID]*LocalTransport
-	OutputChannel     *chan string
-	SendMiddleware    []Middleware
-	ReceiveMiddleware []Middleware
-	MockTMEngine      *func(NodeDetails, PSSMessage) error
+	PSSNode                *PSSNode
+	PrivateKey             *big.Int
+	NodeDirectory          *map[NodeDetailsID]*LocalTransport
+	OutputSharedChannel    *chan string
+	OutputRefreshedChannel *chan string
+	SendMiddleware         []Middleware
+	ReceiveMiddleware      []Middleware
+	MockTMEngine           *func(NodeDetails, PSSMessage) error
 }
 
 func (l *LocalTransport) SetPSSNode(ref *PSSNode) error {
@@ -209,17 +289,28 @@ func (l *LocalTransport) Receive(senderDetails NodeDetails, pssMessage PSSMessag
 	return l.PSSNode.ProcessMessage(senderDetails, modifiedMessage)
 }
 
-func (l *LocalTransport) Broadcast(pssMessage PSSMessage) error {
-	(*l.MockTMEngine)(l.PSSNode.NodeDetails, pssMessage)
-	return nil
+func (l *LocalTransport) SendBroadcast(pssMessage PSSMessage) error {
+	return (*l.MockTMEngine)(l.PSSNode.NodeDetails, pssMessage)
+}
+
+func (l *LocalTransport) ReceiveBroadcast(pssMessage PSSMessage) error {
+	return l.PSSNode.ProcessBroadcastMessage(pssMessage)
 }
 
 func (l *LocalTransport) Output(s string) {
-	if l.OutputChannel != nil {
+	if strings.Contains(s, "shared") {
 		go func() {
-			*l.OutputChannel <- "Output: " + s
+			*l.OutputSharedChannel <- "Output: " + s
+		}()
+	} else if strings.Contains(s, "refreshed") {
+		go func() {
+			*l.OutputRefreshedChannel <- "Output: " + s
 		}()
 	}
+}
+
+func (l *LocalTransport) Sign(s string) ([]byte, error) {
+	return pvss.ECDSASign(s, l.PrivateKey), nil
 }
 
 func (l *LocalTransport) runSendMiddleware(pssMessage PSSMessage) (PSSMessage, error) {

@@ -423,6 +423,17 @@ func LagrangeInterpolatePolynomial(points []common.Point) []big.Int {
 	return lagrange(points)
 }
 
+func LagrangeScalarPoint(pts []common.Point, target int) *big.Int {
+	var shares []common.PrimaryShare
+	for _, pt := range pts {
+		shares = append(shares, common.PrimaryShare{
+			Index: int(pt.X.Int64()),
+			Value: pt.Y,
+		})
+	}
+	return LagrangeScalar(shares, target)
+}
+
 func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {

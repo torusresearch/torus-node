@@ -1,6 +1,7 @@
 package keygen
 
 import (
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -35,4 +36,13 @@ func TestTypeSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.True(t, reflect.DeepEqual(p1, p2))
+}
+
+func TestTypeMap(t *testing.T) {
+	m := make(map[NodeDetailsID]big.Int)
+
+	m[NodeDetailsID("ASDF")] = *big.NewInt(int64(999))
+
+	byt, _ := bijson.Marshal(m)
+	fmt.Println(string(byt))
 }

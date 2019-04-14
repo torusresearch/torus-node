@@ -6,12 +6,15 @@ platform:
     arch: amd64
 
 steps:
-- name: test
-  image: overmorrow/torus-builder:1.12
-  volumes:
-  - name: deps
-    path: /go
-  commands:
-  - go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci
-  - cd ./dkgnode
-  - go build
+- name: test-build-n-publish  
+  image: plugins/ecr
+  settings:
+    access_key:
+      from_secret: aws_access_key_id
+    secret_key:
+      from_secret: aws_secret_access_key
+    repo: torus/torus-public
+    registry: 703476792259.dkr.ecr.ap-southeast-1.amazonaws.com
+    region: ap-southeast-1
+    tags:
+      - latest

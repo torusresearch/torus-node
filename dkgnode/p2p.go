@@ -8,20 +8,41 @@ import (
 	"time"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/gogo/protobuf/proto"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	"github.com/torusresearch/torus-public/logging"
 
-	ggio "github.com/gogo/protobuf/io"
 	libp2p "github.com/libp2p/go-libp2p"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
+
 	ma "github.com/multiformats/go-multiaddr"
-	p2p "github.com/torusresearch/torus-public/dkgnode/pb"
+	"github.com/torusresearch/bijson"
 )
+
+type P2PMessage interface {
+	GetTimestamp() int64
+	GetId() string
+	GetGossip() bool
+	GetNodeId() string
+	GetNodePubKey() []byte
+	GetSign() []byte
+	GetMsgType() string
+}
+
+type P2PBasicMsg struct {
+	// shared between all requests
+	Timestamp  int64  `json:"timestamp,omitempty"`
+	Id         string `json:"id,omitempty"`
+	Gossip     bool   `json:"gossip,omitempty"`
+	NodeId     string `json:"nodeId,omitempty"`
+	NodePubKey []byte `json:"nodePubKey,omitempty"`
+	Sign       []byte `json:"sign,omitempty"`
+	MsgType    string `json:"msgtype,omitempty"`
+	Payload    interface{}
+}
 
 type NodeReference struct {
 	Address         *ethCommon.Address
@@ -35,6 +56,28 @@ type P2PSuite struct {
 	host.Host
 	HostAddress ma.Multiaddr
 	PingProto   *PingProtocol
+}
+
+func (msg *P2PBasicMsg) GetTimestamp() int64 {
+	return msg.Timestamp
+}
+func (msg *P2PBasicMsg) GetId() string {
+	return msg.Id
+}
+func (msg *P2PBasicMsg) GetGossip() bool {
+	return msg.Gossip
+}
+func (msg *P2PBasicMsg) GetNodeId() string {
+	return msg.NodeId
+}
+func (msg *P2PBasicMsg) GetNodePubKey() []byte {
+	return msg.NodePubKey
+}
+func (msg *P2PBasicMsg) GetSign() []byte {
+	return msg.Sign
+}
+func (msg *P2PBasicMsg) GetMsgType() string {
+	return msg.MsgType
 }
 
 // SetupP2PHost creates a LibP2P host with an ID being the supplied private key and initiates
@@ -82,14 +125,14 @@ func SetupP2PHost(suite *Suite) (host.Host, error) {
 // Authenticate incoming p2p message
 // message: a protobufs go data object
 // data: common p2p message data
-func (localHost *P2PSuite) authenticateMessage(message proto.Message, data *p2p.MessageData) bool {
+func (localHost *P2PSuite) authenticateMessage(data P2PBasicMsg) bool {
 	// store a temp ref to signature and remove it from message data
 	// sign is a string to allow easy reset to zero-value (empty string)
 	sign := data.Sign
 	data.Sign = nil
 
-	// marshall data without the signature to protobufs3 binary format
-	bin, err := proto.Marshal(message)
+	// marshall data without the signature to bytes format
+	bin, err := bijson.Marshal(data)
 	if err != nil {
 		logging.Errorf("failed to marshal pb message", err)
 		return false
@@ -111,8 +154,8 @@ func (localHost *P2PSuite) authenticateMessage(message proto.Message, data *p2p.
 }
 
 // sign an outgoing p2p message payload
-func (localHost *P2PSuite) signProtoMessage(message proto.Message) ([]byte, error) {
-	data, err := proto.Marshal(message)
+func (localHost *P2PSuite) signP2PMessage(message P2PMessage) ([]byte, error) {
+	data, err := bijson.Marshal(message)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +206,7 @@ func (localHost *P2PSuite) verifyData(data []byte, signature []byte, peerId peer
 
 // helper method - generate message data shared between all node's p2p protocols
 // messageId: unique for requests, copied from request for responses
-func (localHost *P2PSuite) NewMessageData(messageId string, gossip bool) *p2p.MessageData {
+func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload interface{}) *P2PBasicMsg {
 	// Add protobufs bin data for message author public key
 	// this is useful for authenticating  messages forwarded by a node authored by another node
 	nodePubKey, err := localHost.Peerstore().PubKey(localHost.ID()).Bytes()
@@ -172,24 +215,30 @@ func (localHost *P2PSuite) NewMessageData(messageId string, gossip bool) *p2p.Me
 		panic("Failed to get public key for sender from local peer store.")
 	}
 
-	return &p2p.MessageData{
+	return &P2PBasicMsg{
 		NodeId:     peer.IDB58Encode(localHost.ID()),
 		NodePubKey: nodePubKey,
 		Timestamp:  time.Now().Unix(),
 		Id:         messageId,
-		Gossip:     gossip}
+		Gossip:     gossip,
+		Payload:    payload,
+	}
 }
 
 // helper method - writes a protobuf go data object to a network stream
 // data: reference of protobuf go data object to send (not the object itself)
 // s: network stream to write the data to
-func (localHost *P2PSuite) sendProtoMessage(id peer.ID, p protocol.ID, data proto.Message) error {
+func (localHost *P2PSuite) sendProtoMessage(id peer.ID, p protocol.ID, msg P2PMessage) error {
+	data, err := bijson.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
 	s, err := localHost.NewStream(context.Background(), id, p)
 	if err != nil {
 		return err
 	}
-	writer := ggio.NewFullWriter(s)
-	err = writer.WriteMsg(data)
+	_, err = s.Write(data)
 	if err != nil {
 		s.Reset()
 		return err

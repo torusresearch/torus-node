@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/logging"
@@ -162,7 +161,7 @@ func TestKeygenSharing(test *testing.T) {
 	n := 9
 	k := 5
 	t := 2
-	sharedCh, _, nodes, nodeList := SetupTestNodes(n, k, t)
+	sharedCh, refreshedCh, nodes, nodeList := SetupTestNodes(n, k, t)
 	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(keys) + " keys, " + strconv.Itoa(n) + " nodes with reconstruction " + strconv.Itoa(k) + " and threshold " + strconv.Itoa(t))
 	var secrets []big.Int
 	var sharingIDs []SharingID
@@ -219,7 +218,7 @@ func TestKeygenSharing(test *testing.T) {
 		if strings.Contains(msg, "shared") {
 			completeMessages++
 		} else {
-			assert.Fail(test, "did not get the required number of share complete messages")
+			assert.Fail(test, "did not get shared message")
 		}
 	}
 	assert.Equal(test, completeMessages, n*n*keys)
@@ -249,17 +248,26 @@ func TestKeygenSharing(test *testing.T) {
 		assert.Equal(test, reconstructedSecret.Text(16), secrets[g].Text(16))
 	}
 
-	time.Sleep(5 * time.Second)
-	sharingID := sharingIDs[0]
-	var pts []common.Point
-	for _, node := range nodes {
-		pts = append(pts, common.Point{
-			X: *big.NewInt(int64(node.NodeDetails.Index)),
-			Y: node.RecoverStore[sharingID].Si,
-		})
+	refreshedMessages := 0
+	for completeMessages < n*keys {
+		msg := <-refreshedCh
+		if strings.Contains(msg, "shared") {
+			refreshedMessages++
+		} else {
+			assert.Fail(test, "did not get refreshed message")
+		}
 	}
-	fmt.Println(pvss.LagrangeScalarCP(pts, 0).Text(16))
-	fmt.Println(secrets[0].Text(16))
+
+	for i, sharingID := range sharingIDs {
+		var pts []common.Point
+		for _, node := range nodes {
+			pts = append(pts, common.Point{
+				X: *big.NewInt(int64(node.NodeDetails.Index)),
+				Y: node.RecoverStore[sharingID].Si,
+			})
+		}
+		assert.Equal(test, pvss.LagrangeScalarCP(pts, 0).Text(16), secrets[i].Text(16))
+	}
 }
 
 var LocalNodeDirectory map[string]*LocalTransport

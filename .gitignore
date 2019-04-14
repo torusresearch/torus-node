@@ -12,3 +12,4 @@ log*.txt
 .build
 *.org
 /keygen/profile*
+*.profile

@@ -20,7 +20,7 @@ const XXXTestLogging = "debug"
 
 func TestOptimisticKeygen(t *testing.T) {
 
-	f, err := os.Create("profile_optimistic")
+	f, err := os.Create("profile_optimistic.prof")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestOptimisticKeygen(t *testing.T) {
 
 func TestTimeboundOne(t *testing.T) {
 
-	f, err := os.Create("profile_timebound_one")
+	f, err := os.Create("profile_timebound_one.prof")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestTimeboundOne(t *testing.T) {
 
 func TestTimeboundTwo(t *testing.T) {
 
-	f, err := os.Create("profile_timebound_two")
+	f, err := os.Create("profile_timebound_two.prof")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -364,7 +364,7 @@ func TestTimeboundTwo(t *testing.T) {
 
 func TestEchoReconstruction(t *testing.T) {
 
-	f, err := os.Create("profile_echo_reconstruction")
+	f, err := os.Create("profile_echo_reconstruction.prof")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -455,7 +455,7 @@ func TestEchoReconstruction(t *testing.T) {
 
 func TestDKGCompleteSync(t *testing.T) {
 
-	f, err := os.Create("profile_dkg_complete_sync")
+	f, err := os.Create("profile_dkg_complete_sync.prof")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -2,6 +2,7 @@ package keygen
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -33,6 +34,7 @@ func ecThreshold(n, k, t int) (res int) {
 // Defer state changes until the end of the function call to ensure that the state is consistent in the handler.
 // When sending messages to other nodes, it's important to use a goroutine to ensure that it isnt synchronous
 func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
+	logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + " processing message from " + string(senderDetails.ToNodeDetailsID()) + " for pssMessage " + pssMessage.Method)
 	pssNode.Lock()
 	defer pssNode.Unlock()
 	if _, found := pssNode.PSSStore[pssMessage.PSSID]; !found && pssMessage.PSSID != NullPSSID {
@@ -69,7 +71,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 
 		// state checks
 		if pss.State.Phase == States.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + pssMessage.Method + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 		if pss.State.Dealer != States.Dealer.IsDealer {
 			return errors.New("PSS could not be started since the node is not a dealer")
@@ -109,7 +111,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
-				// lock when send message through transport?
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -129,7 +130,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
-				// lock when send message through transport?
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -172,7 +172,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		dCount[senderDetails.ToNodeDetailsID()] = true
 		if len(dCount) == pssNode.OldNodes.T+1 {
 			recover.D = &pssMsgRecover.V
-			// defer func() { pss.State.Recover = States.Recover.WaitingForSelectedSharingsComplete }()
+			logging.Debug("Received t+1 recover messages with the same commitment " + fmt.Sprint(pssMsgRecover.V))
 		}
 		return nil
 	} else if pssMessage.Method == "send" {
@@ -185,7 +185,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		}
 		// state checks
 		if pss.State.Phase == States.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + pssMessage.Method + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 		if pss.State.Player != States.Player.IsPlayer {
 			return errors.New("Could not receive send message because node is not a player")
@@ -218,6 +218,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if !verified {
 			return errors.New("Could not verify polys against commitment")
 		}
+		logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "verified send message from " + string(senderDetails.ToNodeDetailsID()) + ", sending echo message")
 		for _, newNode := range pssNode.NewNodes.Nodes {
 			pssMsgEcho := PSSMsgEcho{
 				PSSID: pssMsgSend.PSSID,
@@ -249,7 +250,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
-				// lock when send message through transport?
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Info(err.Error())
@@ -269,7 +269,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 
 		// state checks
 		if pss.State.Phase == States.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + pssMessage.Method + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 		if pss.State.Player != States.Player.IsPlayer {
 			return errors.New("Could not receive send message because node is not a player")
@@ -292,7 +292,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if !verified {
 			return errors.New("Could not verify point against commitments for echo message")
 		}
-
+		logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "verified echo message from " + string(senderDetails.ToNodeDetailsID()))
 		cID := GetCIDFromPointMatrix(pssMsgEcho.C)
 		_, found = pss.CStore[cID]
 		if !found {
@@ -327,6 +327,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		c.EC = c.EC + 1
 		if c.EC == ecThreshold(pssNode.NewNodes.N, pssNode.NewNodes.K, pssNode.NewNodes.T) &&
 			c.RC < pssNode.NewNodes.K {
+			logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "verified echo message from " + string(senderDetails.ToNodeDetailsID()) + " and sending ready message")
 			// Note: Despite the name mismatch below, this is correct, and the AVSS spec is wrong.
 			c.Abar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BC))
 			c.Abarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BCprime))
@@ -369,7 +370,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 					Data:   data,
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
-					// lock when send message through transport?
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
 						logging.Info(err.Error())
@@ -396,7 +396,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 
 		// state checks
 		if pss.State.Phase == States.Phases.Ended {
-			return errors.New("PSS has ended, ignored message " + string(*pssMessage.JSON()) + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
+			return errors.New("PSS has ended, ignored message " + pssMessage.Method + " from " + string(senderDetails.ToNodeDetailsID()) + " ")
 		}
 		if pss.State.Player != States.Player.IsPlayer {
 			return errors.New("Could not receive send message because node is not a player")
@@ -423,6 +423,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		if !sigValid {
 			return errors.New("Could not verify signature on message: " + string(pss.PSSID) + "|" + "ready")
 		}
+		logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "verified ready message from " + string(senderDetails.ToNodeDetailsID()))
 
 		cID := GetCIDFromPointMatrix(pssMsgReady.C)
 		_, found = pss.CStore[cID]
@@ -458,6 +459,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		c.RC = c.RC + 1
 		if c.RC == pssNode.NewNodes.K &&
 			c.EC < ecThreshold(pssNode.NewNodes.N, pssNode.NewNodes.K, pssNode.NewNodes.T) {
+			logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "verified ready message from " + string(senderDetails.ToNodeDetailsID()) + " and sending ready message")
 			c.Abar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.AC))
 			c.Abarprime = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.ACprime))
 			c.Bbar = pvss.LagrangeInterpolatePolynomial(GetPointArrayFromMap(c.BC))
@@ -499,7 +501,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 					Data:   data,
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
-					// lock when send message through transport?
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
 						logging.Error(err.Error())
@@ -507,11 +508,11 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}(newNode, nextPSSMessage)
 			}
 		} else if c.RC == pssNode.NewNodes.K+pssNode.NewNodes.T {
+			logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "verified ready message from " + string(senderDetails.ToNodeDetailsID()) + " and sending complete message")
 			pss.Cbar = c.C
 			pss.Si = c.Abar[0]
 			pss.Siprime = c.Abarprime[0]
 			go func(msg string) {
-				// lock when send message through transport?
 				pssNode.Transport.Output(msg + " shared.")
 			}(string(pss.PSSID))
 			data, err := bijson.Marshal(PSSMsgComplete{
@@ -527,7 +528,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(ownNode NodeDetails, ownMsg PSSMessage) {
-				// lock when send message through transport?
 				err := pssNode.Transport.Send(ownNode, ownMsg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -574,6 +574,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		recover.PSSCompleteCount[pssMsgComplete.PSSID] = true
 		// check if k sharings have completed
 		if len(recover.PSSCompleteCount) == pssNode.NewNodes.K {
+			logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + " reached k complete sharings, proposing a set...")
 			// propose Li via validated byzantine agreement
 			var psss []PSSID
 			var signedTexts []map[NodeDetailsID]SignedText
@@ -617,7 +618,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(pssMessage PSSMessage) {
-				// lock when send message through transport?
 				err := pssNode.Transport.SendBroadcast(pssMessage)
 				if err != nil {
 					logging.Error(err.Error())
@@ -631,6 +631,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 
 // ProcessBroadcastMessage is called when the node receives a message via broadcast (eg. Tendermint)
 func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
+	logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + " processing broadcast message for pssMessage " + pssMessage.Method)
 	pssNode.Lock()
 	defer pssNode.Unlock()
 	if pssMessage.Method == "decide" {
@@ -648,6 +649,7 @@ func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
 		for {
 			if !firstEntry {
 				pssNode.Unlock()
+				logging.Debug("Waiting for all sharings in decided set (" + fmt.Sprint(pssMsgDecide.PSSs) + ") to complete")
 				time.Sleep(1 * time.Second)
 				pssNode.Lock()
 			} else {
@@ -716,8 +718,11 @@ func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
 		if !verified {
 			return errors.New("Could not verify shares against interpolated commitments")
 		}
+		logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + " verified shares against newly generated commitments.")
+		logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "- Si: " + recover.Si.Text(16) + ", Siprime: " + recover.Siprime.Text(16))
+		byt, _ := bijson.Marshal(recover.Vbar)
+		logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID()) + "- Vbar: " + string(byt))
 		go func(msg string) {
-			// lock when send message through transport?
 			pssNode.Transport.Output(msg + " refreshed")
 		}(string(pssMsgDecide.SharingID))
 		return nil

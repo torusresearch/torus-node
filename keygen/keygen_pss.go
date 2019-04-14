@@ -2,6 +2,7 @@ package keygen
 
 import (
 	"errors"
+	"math"
 	"math/big"
 	"sort"
 	"strconv"
@@ -19,8 +20,7 @@ import (
 
 // max(roundUp((n+t+1)/2), k)
 func ecThreshold(n, k, t int) (res int) {
-	nkt1half := n + t + 1
-	nkt1half = (nkt1half + 1) / 2
+	nkt1half := int(math.Ceil((float64(n) + float64(t) + 1.0) / 2.0))
 	if nkt1half >= k {
 		return nkt1half
 	}

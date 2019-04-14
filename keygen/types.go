@@ -381,4 +381,6 @@ type PSSNode struct {
 	RecoverStore map[SharingID]*Recover
 	Transport    PSSTransport
 	PSSStore     map[PSSID]*PSS
+	IsDealer     bool
+	IsPlayer     bool
 }

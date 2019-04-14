@@ -2,12 +2,13 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/torusresearch/torus-public/secp256k1"
 
 	"github.com/torusresearch/bijson"
 
@@ -108,6 +109,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
+				// lock when send message through transport?
+				pssNode.Lock()
+				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -127,6 +131,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
+				// lock when send message through transport?
+				pssNode.Lock()
+				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -246,6 +253,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
+				// lock when send message through transport?
+				pssNode.Lock()
+				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Info(err.Error())
@@ -365,6 +375,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 					Data:   data,
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
+					// lock when send message through transport?
+					pssNode.Lock()
+					defer pssNode.Unlock()
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
 						logging.Info(err.Error())
@@ -494,6 +507,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 					Data:   data,
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
+					// lock when send message through transport?
+					pssNode.Lock()
+					defer pssNode.Unlock()
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
 						logging.Error(err.Error())
@@ -505,6 +521,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			pss.Si = c.Abar[0]
 			pss.Siprime = c.Abarprime[0]
 			go func(msg string) {
+				// lock when send message through transport?
+				pssNode.Lock()
+				defer pssNode.Unlock()
 				pssNode.Transport.Output(msg + " shared.")
 			}(string(pss.PSSID))
 			data, err := bijson.Marshal(PSSMsgComplete{
@@ -520,6 +539,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(ownNode NodeDetails, ownMsg PSSMessage) {
+				// lock when send message through transport?
+				pssNode.Lock()
+				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(ownNode, ownMsg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -609,6 +631,9 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				Data:   data,
 			}
 			go func(pssMessage PSSMessage) {
+				// lock when send message through transport?
+				pssNode.Lock()
+				defer pssNode.Unlock()
 				err := pssNode.Transport.SendBroadcast(pssMessage)
 				if err != nil {
 					logging.Error(err.Error())
@@ -687,18 +712,32 @@ func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
 		abarprime := pvss.LagrangeScalarCP(abarprimeArray, 0)
 		recover.Si = *abar
 		recover.Siprime = *abarprime
-		var vbar []common.Point
-		for l := 0; l < len(pssMsgDecide.PSSs); l++ {
-			var vbarInputPts []common.Point
-			for j, pssid := range pssMsgDecide.PSSs {
-				pss := pssNode.PSSStore[pssid]
-				vbarInputPts = append(vbarInputPts, pss.Cbar[l][0])
-				fmt.Println(vbar, j, pssid)
+		var vbarInputPts [][]common.Point
+		var vbarInputIndexes []int
+		for _, pssid := range pssMsgDecide.PSSs {
+			pss := pssNode.PSSStore[pssid]
+			var pssIDDetails PSSIDDetails
+			err := pssIDDetails.FromPSSID(pssid)
+			if err != nil {
+				return err
 			}
-			// vbar = append(vbar, pvss.LagrangePoint(vbarInputPts))
-			// TODO: HERE
+			vbarInputIndexes = append(vbarInputIndexes, pssIDDetails.Index)
+			vbarInputPts = append(vbarInputPts, common.GetColumnPoint(pss.Cbar, 0))
 		}
-
+		recover.Vbar = pvss.LagrangePolys(vbarInputIndexes, vbarInputPts)
+		gsi := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(recover.Si.Bytes()))
+		hsiprime := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, recover.Siprime.Bytes()))
+		gsihsiprime := common.BigIntToPoint(secp256k1.Curve.Add(&gsi.X, &gsi.Y, &hsiprime.X, &hsiprime.Y))
+		verified := pvss.VerifyShareCommitment(gsihsiprime, recover.Vbar, *big.NewInt(int64(pssNode.NodeDetails.Index)))
+		if !verified {
+			return errors.New("Could not verify shares against interpolated commitments")
+		}
+		go func(msg string) {
+			// lock when send message through transport?
+			pssNode.Lock()
+			defer pssNode.Unlock()
+			pssNode.Transport.Output(msg + " refreshed")
+		}(string(pssMsgDecide.SharingID))
 		return nil
 	}
 

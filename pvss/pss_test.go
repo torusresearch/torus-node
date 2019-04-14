@@ -345,7 +345,7 @@ func TestLagrangePoly(t *testing.T) {
 	for i := 0; i < n; i++ {
 		interpolatedShares = append(interpolatedShares, common.PrimaryShare{
 			Index: i + 1,
-			Value: *LagrangeScalar(getColumn(subshares[0:k], i), 0),
+			Value: *LagrangeScalar(common.GetColumnPrimaryShare(subshares[0:k], i), 0),
 		})
 	}
 	reconstructedSecret := *LagrangeScalar(interpolatedShares[0:k], 0)
@@ -359,15 +359,4 @@ func TestLagrangePoly(t *testing.T) {
 	for _, interpolatedShare := range interpolatedShares {
 		assert.True(t, VerifyShare(interpolatedShare, newCommitments, *big.NewInt(int64(interpolatedShare.Index))))
 	}
-}
-
-func getColumn(matrix [][]common.PrimaryShare, index int) (res []common.PrimaryShare) {
-	for _, arr := range matrix {
-		for j, priShare := range arr {
-			if j == index {
-				res = append(res, priShare)
-			}
-		}
-	}
-	return
 }

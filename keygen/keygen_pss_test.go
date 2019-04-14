@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/logging"
@@ -247,6 +248,18 @@ func TestKeygenSharing(test *testing.T) {
 		reconstructedSecret := pvss.LagrangeScalar(shares[2:7], 0)
 		assert.Equal(test, reconstructedSecret.Text(16), secrets[g].Text(16))
 	}
+
+	time.Sleep(5 * time.Second)
+	sharingID := sharingIDs[0]
+	var pts []common.Point
+	for _, node := range nodes {
+		pts = append(pts, common.Point{
+			X: *big.NewInt(int64(node.NodeDetails.Index)),
+			Y: node.RecoverStore[sharingID].Si,
+		})
+	}
+	fmt.Println(pvss.LagrangeScalarCP(pts, 0).Text(16))
+	fmt.Println(secrets[0].Text(16))
 }
 
 var LocalNodeDirectory map[string]*LocalTransport

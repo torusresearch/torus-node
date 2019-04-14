@@ -61,15 +61,12 @@ func getShares(polynomial common.PrimaryPolynomial, nodes []common.Node) []commo
 	return shares
 }
 
-// Commit creates a public commitment polynomial for the given base point b or
-// the standard base if b == nil.
+// Commit creates a public commitment polynomial
 func GetCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	commits := make([]common.Point, polynomial.Threshold)
 	for i := range commits {
 		commits[i] = common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
 	}
-	// fmt.Println(commits[0].X.Text(16), commits[0].Y.Text(16), "commit0")
-	// fmt.Println(commits[1].X.Text(16), commits[1].Y.Text(16), "commit1")
 	return commits
 }
 
@@ -81,7 +78,7 @@ func AddCommitments(commit1 []common.Point, commit2 []common.Point) (sumCommit [
 	return
 }
 
-// add two polynomials (modulo generator order Q)
+// AddPolynomials add two polynomials (modulo generator order Q)
 func AddPolynomials(poly1 common.PrimaryPolynomial, poly2 common.PrimaryPolynomial) *common.PrimaryPolynomial {
 	var sumPoly []big.Int
 	if poly1.Threshold != poly2.Threshold {
@@ -423,7 +420,7 @@ func LagrangeInterpolatePolynomial(points []common.Point) []big.Int {
 	return lagrange(points)
 }
 
-func LagrangeScalarPoint(pts []common.Point, target int) *big.Int {
+func LagrangeScalarCP(pts []common.Point, target int) *big.Int {
 	var shares []common.PrimaryShare
 	for _, pt := range pts {
 		shares = append(shares, common.PrimaryShare{
@@ -437,7 +434,6 @@ func LagrangeScalarPoint(pts []common.Point, target int) *big.Int {
 func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {
-		// when x = 0
 		delta := new(big.Int).SetInt64(int64(1))
 		upper := new(big.Int).SetInt64(int64(1))
 		lower := new(big.Int).SetInt64(int64(1))
@@ -456,7 +452,7 @@ func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 				lower.Mod(lower, secp256k1.GeneratorOrder)
 			}
 		}
-		// elliptic division
+		// finite field division
 		inv := new(big.Int)
 		inv.ModInverse(lower, secp256k1.GeneratorOrder)
 		delta.Mul(upper, inv)
@@ -468,6 +464,5 @@ func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 		secret.Add(secret, delta)
 	}
 	secret.Mod(secret, secp256k1.GeneratorOrder)
-	// secret.Mod(secret, secp256k1.GeneratorOrder)
 	return secret
 }

@@ -238,7 +238,7 @@ func TestKeygenSharing(test *testing.T) {
 					})
 				}
 			}
-			reconstructedSi := pvss.LagrangeScalar(subshares[1:6], 0)
+			reconstructedSi := pvss.LagrangeScalar(subshares[0:5], 0)
 			shares = append(shares, common.PrimaryShare{
 				Index: node.NodeDetails.Index,
 				Value: *reconstructedSi,

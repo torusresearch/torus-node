@@ -2,6 +2,7 @@ package keygen
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"strconv"
@@ -682,13 +683,25 @@ func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
 				Y: pss.Siprime,
 			})
 		}
-		abar := pvss.LagrangeScalarPoint(abarArray, 0)
-		abarprime := pvss.LagrangeScalarPoint(abarprimeArray, 0)
+		abar := pvss.LagrangeScalarCP(abarArray, 0)
+		abarprime := pvss.LagrangeScalarCP(abarprimeArray, 0)
 		recover.Si = *abar
 		recover.Siprime = *abarprime
+		var vbar []common.Point
+		for l := 0; l < len(pssMsgDecide.PSSs); l++ {
+			var vbarInputPts []common.Point
+			for j, pssid := range pssMsgDecide.PSSs {
+				pss := pssNode.PSSStore[pssid]
+				vbarInputPts = append(vbarInputPts, pss.Cbar[l][0])
+				fmt.Println(vbar, j, pssid)
+			}
+			// vbar = append(vbar, pvss.LagrangePoint(vbarInputPts))
+			// TODO: HERE
+		}
 
 		return nil
 	}
+
 	return errors.New("PssMessage method '" + pssMessage.Method + "' not found")
 }
 

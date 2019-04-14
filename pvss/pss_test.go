@@ -98,7 +98,7 @@ func TestHerzbergPSS(t *testing.T) {
 	QiRikPolys := new([12][12]*common.PrimaryPolynomial)
 	for i, _ := range QiRikPolys {
 		for j, _ := range QiRikPolys[i] {
-			QiRikPolys[i][j] = addPolynomials(*QiPolys[i], *RikPolys[i][j])
+			QiRikPolys[i][j] = AddPolynomials(*QiPolys[i], *RikPolys[i][j])
 		}
 	}
 
@@ -309,4 +309,54 @@ func TestJajodiaPSS(t *testing.T) {
 	}
 	assert.True(t, LagrangeScalar(newAllShares[:newThreshold], 0).Cmp(testr) == 0)
 	assert.True(t, LagrangeScalar(newAllShares[1:newThreshold+1], 0).Cmp(testr) == 0)
+}
+
+func TestLagrangePoly(t *testing.T) {
+	k := 5
+	n := 9
+	// generate shares
+	origSecret := RandomBigInt()
+	origCommitments := generateRandomZeroPolynomial(*origSecret, k)
+	var shares []big.Int
+	for i := 0; i < n; i++ {
+		shares = append(shares, *polyEval(*origCommitments, i+1))
+	}
+
+	// generate subshares
+	var subshareCommitments [][]common.Point
+	var subshares [][]common.PrimaryShare
+	for i, share := range shares {
+		var sShares []common.PrimaryShare
+		sharePoly := generateRandomZeroPolynomial(share, k)
+		subshareCommitments = append(subshareCommitments, GetCommit(*sharePoly))
+		for j := 0; j < n; j++ {
+			sh := common.PrimaryShare{
+				Index: i + 1,
+				Value: *polyEval(*sharePoly, j+1),
+			}
+			assert.True(t, VerifyShare(sh, GetCommit(*sharePoly), *big.NewInt(int64(j + 1))))
+			sShares = append(sShares, sh)
+		}
+		subshares = append(subshares, sShares)
+	}
+
+	// check subshares
+	var interpolatedShares []common.PrimaryShare
+	for i := 0; i < n; i++ {
+		interpolatedShares = append(interpolatedShares, common.PrimaryShare{
+			Index: i + 1,
+			Value: *LagrangeScalar(common.GetColumnPrimaryShare(subshares[0:k], i), 0),
+		})
+	}
+	reconstructedSecret := *LagrangeScalar(interpolatedShares[0:k], 0)
+	assert.Equal(t, reconstructedSecret.Text(16), origSecret.Text(16))
+
+	// interpolate new commitments
+	newCommitments := LagrangePolys([]int{1, 2, 3, 4, 5}, subshareCommitments[0:k])
+	if len(newCommitments) == 0 {
+		t.Fatal("No commitments")
+	}
+	for _, interpolatedShare := range interpolatedShares {
+		assert.True(t, VerifyShare(interpolatedShare, newCommitments, *big.NewInt(int64(interpolatedShare.Index))))
+	}
 }

@@ -110,8 +110,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
 				// lock when send message through transport?
-				pssNode.Lock()
-				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -132,8 +130,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
 				// lock when send message through transport?
-				pssNode.Lock()
-				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -254,8 +250,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			}
 			go func(newN NodeDetails, msg PSSMessage) {
 				// lock when send message through transport?
-				pssNode.Lock()
-				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(newN, msg)
 				if err != nil {
 					logging.Info(err.Error())
@@ -376,8 +370,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
 					// lock when send message through transport?
-					pssNode.Lock()
-					defer pssNode.Unlock()
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
 						logging.Info(err.Error())
@@ -508,8 +500,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				}
 				go func(newN NodeDetails, msg PSSMessage) {
 					// lock when send message through transport?
-					pssNode.Lock()
-					defer pssNode.Unlock()
 					err := pssNode.Transport.Send(newN, msg)
 					if err != nil {
 						logging.Error(err.Error())
@@ -522,8 +512,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			pss.Siprime = c.Abarprime[0]
 			go func(msg string) {
 				// lock when send message through transport?
-				pssNode.Lock()
-				defer pssNode.Unlock()
 				pssNode.Transport.Output(msg + " shared.")
 			}(string(pss.PSSID))
 			data, err := bijson.Marshal(PSSMsgComplete{
@@ -540,8 +528,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			}
 			go func(ownNode NodeDetails, ownMsg PSSMessage) {
 				// lock when send message through transport?
-				pssNode.Lock()
-				defer pssNode.Unlock()
 				err := pssNode.Transport.Send(ownNode, ownMsg)
 				if err != nil {
 					logging.Error(err.Error())
@@ -632,8 +618,6 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			}
 			go func(pssMessage PSSMessage) {
 				// lock when send message through transport?
-				pssNode.Lock()
-				defer pssNode.Unlock()
 				err := pssNode.Transport.SendBroadcast(pssMessage)
 				if err != nil {
 					logging.Error(err.Error())
@@ -734,8 +718,6 @@ func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
 		}
 		go func(msg string) {
 			// lock when send message through transport?
-			pssNode.Lock()
-			defer pssNode.Unlock()
 			pssNode.Transport.Output(msg + " refreshed")
 		}(string(pssMsgDecide.SharingID))
 		return nil

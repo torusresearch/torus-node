@@ -23,133 +23,6 @@ import (
 	"github.com/torusresearch/torus-public/pvss"
 )
 
-type MockEngineState struct {
-	sync.Mutex
-	PSSDecision map[SharingID]bool
-}
-
-func SetupTestNodes(nOld int, kOld int, tOld int, nNew int, kNew int, tNew int, sameNodes bool) (chan string, chan string, []*PSSNode, []common.Node, []*PSSNode, []common.Node) {
-	// setup
-	sharedCh := make(chan string)
-	refreshedCh := make(chan string)
-	var oldNodePrivKeys []big.Int
-	var newNodePrivKeys []big.Int
-	var oldNodePubKeys []common.Point
-	var newNodePubKeys []common.Point
-	for i := 0; i < nOld; i++ {
-		oldNodePrivKeys = append(oldNodePrivKeys, *pvss.RandomBigInt())
-		oldNodePubKeys = append(oldNodePubKeys, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(oldNodePrivKeys[i].Bytes())))
-	}
-	oldNodeIndexes := randIndexes(1, 50, nOld)
-	for i := 0; i < nNew; i++ {
-		newNodePrivKeys = append(newNodePrivKeys, *pvss.RandomBigInt())
-		newNodePubKeys = append(newNodePubKeys, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(newNodePrivKeys[i].Bytes())))
-	}
-	newNodeIndexes := randIndexes(51, 100, nNew)
-	var oldNodeList []common.Node
-	for i := 0; i < nOld; i++ {
-		oldNodeList = append(oldNodeList, common.Node{
-			Index:  oldNodeIndexes[i],
-			PubKey: oldNodePubKeys[i],
-		})
-	}
-	var newNodeList []common.Node
-	for i := 0; i < nNew; i++ {
-		newNodeList = append(newNodeList, common.Node{
-			Index:  newNodeIndexes[i],
-			PubKey: newNodePubKeys[i],
-		})
-	}
-	localTransportNodeDirectory := make(map[NodeDetailsID]*LocalTransport)
-	oldEngineState := MockEngineState{
-		PSSDecision: make(map[SharingID]bool),
-	}
-	oldRunEngine := MockEngine(&oldEngineState, &localTransportNodeDirectory, kOld)
-	var oldNodes []*PSSNode
-	for i := 0; i < nOld; i++ {
-		node := common.Node{
-			Index:  oldNodeIndexes[i],
-			PubKey: oldNodePubKeys[i],
-		}
-		localTransport := LocalTransport{
-			NodeDirectory:          &localTransportNodeDirectory,
-			PrivateKey:             &oldNodePrivKeys[i],
-			OutputSharedChannel:    &sharedCh,
-			OutputRefreshedChannel: &refreshedCh,
-			MockTMEngine:           &oldRunEngine,
-		}
-		newNodeL := newNodeList
-		tN := tNew
-		kN := kNew
-		newNodeI := newNodeIndexes
-		isP := false
-		if sameNodes == true {
-			newNodeL = oldNodeList
-			tN = tOld
-			kN = kOld
-			newNodeI = oldNodeIndexes
-			isP = true
-		}
-		newPssNode := NewPSSNode(
-			node,
-			oldNodeList,
-			tOld,
-			kOld,
-			newNodeL,
-			tN,
-			kN,
-			*big.NewInt(int64(newNodeI[i])),
-			&localTransport,
-			true,
-			isP,
-		)
-		oldNodes = append(oldNodes, newPssNode)
-		localTransport.SetPSSNode(newPssNode)
-		nodeDetails := NodeDetails(node)
-		localTransportNodeDirectory[nodeDetails.ToNodeDetailsID()] = &localTransport
-	}
-
-	newEngineState := MockEngineState{
-		PSSDecision: make(map[SharingID]bool),
-	}
-	newRunEngine := MockEngine(&newEngineState, &localTransportNodeDirectory, kNew)
-	var newNodes []*PSSNode
-	if sameNodes != true {
-		for i := 0; i < nNew; i++ {
-			node := common.Node{
-				Index:  newNodeIndexes[i],
-				PubKey: newNodePubKeys[i],
-			}
-			localTransport := LocalTransport{
-				NodeDirectory:          &localTransportNodeDirectory,
-				PrivateKey:             &newNodePrivKeys[i],
-				OutputSharedChannel:    &sharedCh,
-				OutputRefreshedChannel: &refreshedCh,
-				MockTMEngine:           &newRunEngine,
-			}
-			newPssNode := NewPSSNode(
-				node,
-				oldNodeList,
-				tOld,
-				kOld,
-				newNodeList,
-				tNew,
-				kNew,
-				*big.NewInt(int64(newNodeIndexes[i])),
-				&localTransport,
-				false,
-				true,
-			)
-			newNodes = append(newNodes, newPssNode)
-			localTransport.SetPSSNode(newPssNode)
-			nodeDetails := NodeDetails(node)
-			localTransportNodeDirectory[nodeDetails.ToNodeDetailsID()] = &localTransport
-		}
-	}
-
-	return sharedCh, refreshedCh, oldNodes, oldNodeList, newNodes, newNodeList
-}
-
 func TestPSSOptimistic(test *testing.T) {
 	logging.SetLevelString("error")
 	runtime.GOMAXPROCS(10)
@@ -157,36 +30,9 @@ func TestPSSOptimistic(test *testing.T) {
 	n := 9
 	k := 5
 	t := 2
-	sharedCh, refreshedCh, nodes, nodeList, _, _ := SetupTestNodes(n, k, t, n, k, t, true)
+	sharedCh, refreshedCh, nodes, nodeList, _, _, _ := SetupTestNodes(n, k, t, n, k, t, true)
 	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(keys) + " keys, " + strconv.Itoa(n) + " nodes with reconstruction " + strconv.Itoa(k) + " and threshold " + strconv.Itoa(t))
-	var secrets []big.Int
-	var sharingIDs []SharingID
-	for h := 0; h < keys; h++ {
-		secret := pvss.RandomBigInt()
-		secrets = append(secrets, *secret)
-		mask := pvss.RandomBigInt()
-		randPoly := pvss.RandomPoly(*secret, k)
-		randPolyprime := pvss.RandomPoly(*mask, k)
-		commit := pvss.GetCommit(*randPoly)
-		commitH := pvss.GetCommitH(*randPolyprime)
-		sumCommitments := pvss.AddCommitments(commit, commitH)
-		sharingID := SharingID("SHARING" + strconv.Itoa(h))
-		sharingIDs = append(sharingIDs, sharingID)
-		for _, node := range nodes {
-			index := node.NodeDetails.Index
-			Si := *pvss.PolyEval(*randPoly, *big.NewInt(int64(index)))
-			Siprime := *pvss.PolyEval(*randPolyprime, *big.NewInt(int64(index)))
-			node.ShareStore[sharingID] = &Sharing{
-				SharingID: sharingID,
-				Nodes:     nodeList,
-				Epoch:     1,
-				I:         index,
-				Si:        Si,
-				Siprime:   Siprime,
-				C:         sumCommitments,
-			}
-		}
-	}
+	secrets, sharingIDs := SeedKeys(keys, k, nodeList, nodes)
 	for _, sharingID := range sharingIDs {
 		for _, node := range nodes {
 			pssMsgShare := PSSMsgShare{
@@ -278,39 +124,12 @@ func TestPSSDifferentThresholds(test *testing.T) {
 	nNew := 13
 	kNew := 7
 	tNew := 3
-	sharedCh, refreshedCh, oldNodes, oldNodeList, newNodes, newNodeList := SetupTestNodes(nOld, kOld, tOld, nNew, kNew, tNew, false)
+	sharedCh, refreshedCh, oldNodes, oldNodeList, newNodes, newNodeList, _ := SetupTestNodes(nOld, kOld, tOld, nNew, kNew, tNew, false)
+	secrets, sharingIDs := SeedKeys(keys, kOld, oldNodeList, oldNodes)
 	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(keys) + " keys, " + strconv.Itoa(nOld) + " nodes with reconstruction " + strconv.Itoa(kOld) + " and threshold " + strconv.Itoa(tOld))
 	fmt.Println("redistributing to " + strconv.Itoa(nNew) + " nodes with reconstruction " + strconv.Itoa(kNew) + " and threshold " + strconv.Itoa(tNew))
 	logging.Debug("OldNodes: " + fmt.Sprint(oldNodeList))
 	logging.Debug("NewNodes: " + fmt.Sprint(newNodeList))
-	var secrets []big.Int
-	var sharingIDs []SharingID
-	for h := 0; h < keys; h++ {
-		secret := pvss.RandomBigInt()
-		secrets = append(secrets, *secret)
-		mask := pvss.RandomBigInt()
-		randPoly := pvss.RandomPoly(*secret, kOld)
-		randPolyprime := pvss.RandomPoly(*mask, kOld)
-		commit := pvss.GetCommit(*randPoly)
-		commitH := pvss.GetCommitH(*randPolyprime)
-		sumCommitments := pvss.AddCommitments(commit, commitH)
-		sharingID := SharingID("SHARING" + strconv.Itoa(h))
-		sharingIDs = append(sharingIDs, sharingID)
-		for _, node := range oldNodes {
-			index := node.NodeDetails.Index
-			Si := *pvss.PolyEval(*randPoly, *big.NewInt(int64(index)))
-			Siprime := *pvss.PolyEval(*randPolyprime, *big.NewInt(int64(index)))
-			node.ShareStore[sharingID] = &Sharing{
-				SharingID: sharingID,
-				Nodes:     oldNodeList,
-				Epoch:     1,
-				I:         index,
-				Si:        Si,
-				Siprime:   Siprime,
-				C:         sumCommitments,
-			}
-		}
-	}
 	for _, sharingID := range sharingIDs {
 		for _, node := range oldNodes {
 			pssMsgShare := PSSMsgShare{
@@ -395,18 +214,203 @@ func TestPSSDifferentThresholds(test *testing.T) {
 
 }
 
+func TestPSSOfflineNodes(test *testing.T) {
+	logging.SetLevelString("error")
+	runtime.GOMAXPROCS(10)
+	keys := 1
+	nOld := 9
+	kOld := 5
+	tOld := 2
+	nNew := 9
+	kNew := 5
+	tNew := 2
+	sharedCh, refreshedCh, oldNodes, oldNodeList, newNodes, newNodeList, localDirectory := SetupTestNodes(nOld, kOld, tOld, nNew, kNew, tNew, false)
+	secrets, sharingIDs := SeedKeys(keys, kOld, oldNodeList, oldNodes)
+	fmt.Println("Running TestKeygenSharing for " + strconv.Itoa(keys) + " keys, " + strconv.Itoa(nOld) + " nodes with reconstruction " + strconv.Itoa(kOld) + " and threshold " + strconv.Itoa(tOld))
+	fmt.Println("redistributing to " + strconv.Itoa(nNew) + " nodes with reconstruction " + strconv.Itoa(kNew) + " and threshold " + strconv.Itoa(tNew))
+	logging.Debug("OldNodes: " + fmt.Sprint(oldNodeList))
+	logging.Debug("NewNodes: " + fmt.Sprint(newNodeList))
+
+	// make offline nodes
+	for i := 0; i < tOld; i++ {
+		oldNode := oldNodes[i]
+		fmt.Println("Offline Old Node: ", string(oldNode.NodeDetails.ToNodeDetailsID())[0:8])
+		localOfflineTransport := &LocalOfflineTransport{
+			OutputSharedChannel:    &sharedCh,
+			OutputRefreshedChannel: &refreshedCh,
+		}
+		oldNode.Transport = localOfflineTransport
+		(*localDirectory)[oldNode.NodeDetails.ToNodeDetailsID()] = localOfflineTransport
+	}
+	for i := 0; i < tNew; i++ {
+		newNode := newNodes[i]
+		fmt.Println("Offline New Node: ", string(newNode.NodeDetails.ToNodeDetailsID())[0:8])
+		localOfflineTransport := &LocalOfflineTransport{
+			OutputSharedChannel:    &sharedCh,
+			OutputRefreshedChannel: &refreshedCh,
+		}
+		newNode.Transport = localOfflineTransport
+		(*localDirectory)[newNode.NodeDetails.ToNodeDetailsID()] = localOfflineTransport
+	}
+
+	for _, sharingID := range sharingIDs {
+		for _, node := range oldNodes {
+			pssMsgShare := PSSMsgShare{
+				SharingID: sharingID,
+			}
+			pssID := (&PSSIDDetails{
+				SharingID: sharingID,
+				Index:     node.NodeDetails.Index,
+			}).ToPSSID()
+			data, err := bijson.Marshal(pssMsgShare)
+			if err != nil {
+				test.Fatal(err)
+			}
+			err = node.Transport.Send(node.NodeDetails, PSSMessage{
+				PSSID:  pssID,
+				Method: "share",
+				Data:   data,
+			})
+			assert.NoError(test, err)
+		}
+	}
+	completeMessages := 0
+	for completeMessages < (tOld+kOld)*(tNew+kNew)*keys {
+		msg := <-sharedCh
+		if strings.Contains(msg, "shared") {
+			logging.Debug("Received shared message")
+			completeMessages++
+			logging.Debug("Total completeMessages:" + strconv.Itoa(completeMessages))
+		} else {
+			assert.Fail(test, "did not get shared message")
+		}
+	}
+	assert.Equal(test, completeMessages, (tOld+kOld)*(tNew+kNew)*keys)
+	logging.Debug("All completed messages received")
+
+	refreshedMessages := 0
+	for refreshedMessages < (tNew+kNew)*keys {
+		msg := <-refreshedCh
+		if strings.Contains(msg, "refreshed") {
+			logging.Debug("Received refreshed message")
+			refreshedMessages++
+			logging.Debug("Total refreshMessages:" + strconv.Itoa(refreshedMessages))
+		} else {
+			assert.Fail(test, "did not get refreshed message")
+		}
+	}
+	assert.Equal(test, refreshedMessages, (tNew+kNew)*keys)
+	logging.Debug("All refreshed messages received")
+
+	for g, sharingID := range sharingIDs {
+		var shares []common.PrimaryShare
+		for _, node := range newNodes[2:] {
+			var subshares []common.PrimaryShare
+			for _, noderef := range oldNodes[2:] { // assuming that all nodes are part of the valid set
+				val := node.PSSStore[(&PSSIDDetails{
+					SharingID: sharingID,
+					Index:     noderef.NodeDetails.Index,
+				}).ToPSSID()].Si
+				if val.Cmp(big.NewInt(int64(0))) != 0 {
+					subshares = append(subshares, common.PrimaryShare{
+						Index: noderef.NodeDetails.Index,
+						Value: val,
+					})
+				} else {
+					test.Fatal("Si is 0")
+				}
+			}
+			reconstructedSi := pvss.LagrangeScalar(subshares[0:kOld], 0)
+			shares = append(shares, common.PrimaryShare{
+				Index: node.NodeDetails.Index,
+				Value: *reconstructedSi,
+			})
+		}
+		reconstructedSecret := pvss.LagrangeScalar(shares[0:kNew], 0)
+		assert.Equal(test, reconstructedSecret.Text(16), secrets[g].Text(16))
+	}
+
+	for i, sharingID := range sharingIDs {
+		var pts []common.Point
+		for _, node := range newNodes[2:] {
+			fmt.Println(33, node)
+			fmt.Println(44, node.RecoverStore)
+			fmt.Println(55, node.RecoverStore[sharingID])
+			pts = append(pts, common.Point{
+				X: *big.NewInt(int64(node.NodeDetails.Index)),
+				Y: node.RecoverStore[sharingID].Si,
+			})
+		}
+		assert.Equal(test, pvss.LagrangeScalarCP(pts, 0).Text(16), secrets[i].Text(16))
+	}
+}
+
 var LocalNodeDirectory map[string]*LocalTransport
 
 type Middleware func(PSSMessage) (modifiedMessage PSSMessage, end bool, err error)
+
+type LocalOfflineTransport struct {
+	OutputSharedChannel    *chan string
+	OutputRefreshedChannel *chan string
+}
+
+func (l *LocalOfflineTransport) GetType() string {
+	return "offline"
+}
+
+func (l *LocalOfflineTransport) SetPSSNode(ref *PSSNode) error {
+	return nil
+}
+
+func (l *LocalOfflineTransport) SetTMEngine(ref *func(NodeDetails, PSSMessage) error) error {
+	return nil
+}
+
+func (l *LocalOfflineTransport) Send(nodeDetails NodeDetails, pssMessage PSSMessage) error {
+	return nil
+}
+
+func (l *LocalOfflineTransport) Receive(senderDetails NodeDetails, pssMessage PSSMessage) error {
+	return nil
+}
+
+func (l *LocalOfflineTransport) SendBroadcast(pssMessage PSSMessage) error {
+	return nil
+}
+
+func (l *LocalOfflineTransport) ReceiveBroadcast(pssMessage PSSMessage) error {
+	return nil
+}
+
+func (l *LocalOfflineTransport) Output(s string) {
+	if strings.Contains(s, "shared") {
+		go func() {
+			*l.OutputSharedChannel <- "Output: " + s
+		}()
+	} else if strings.Contains(s, "refreshed") {
+		go func() {
+			*l.OutputRefreshedChannel <- "Output: " + s
+		}()
+	}
+}
+
+func (l *LocalOfflineTransport) Sign(s string) ([]byte, error) {
+	return []byte{}, nil
+}
+
 type LocalTransport struct {
 	PSSNode                *PSSNode
 	PrivateKey             *big.Int
-	NodeDirectory          *map[NodeDetailsID]*LocalTransport
+	NodeDirectory          *map[NodeDetailsID]PSSTransport
 	OutputSharedChannel    *chan string
 	OutputRefreshedChannel *chan string
 	SendMiddleware         []Middleware
 	ReceiveMiddleware      []Middleware
 	MockTMEngine           *func(NodeDetails, PSSMessage) error
+}
+
+func (l *LocalTransport) GetType() string {
+	return "local"
 }
 
 func (l *LocalTransport) SetPSSNode(ref *PSSNode) error {
@@ -504,7 +508,7 @@ func randIndexes(min int, max int, length int) (res []int) {
 	return
 }
 
-func MockEngine(engineState *MockEngineState, localTransportNodeDirectory *map[NodeDetailsID]*LocalTransport, kOld int) func(NodeDetails, PSSMessage) error {
+func MockEngine(engineState *MockEngineState, localTransportNodeDirectory *map[NodeDetailsID]PSSTransport, kOld int) func(NodeDetails, PSSMessage) error {
 
 	return func(senderDetails NodeDetails, pssMessage PSSMessage) error {
 		// fmt.Println("MockTMEngine - Node:", nodeDetails.Index, " pssMessage:", pssMessage)
@@ -565,7 +569,7 @@ func MockEngine(engineState *MockEngineState, localTransportNodeDirectory *map[N
 				if err != nil {
 					return err
 				}
-				go func(l *LocalTransport, data []byte) {
+				go func(l PSSTransport, data []byte) {
 					l.ReceiveBroadcast(PSSMessage{
 						PSSID:  NullPSSID,
 						Method: "decide",
@@ -579,4 +583,163 @@ func MockEngine(engineState *MockEngineState, localTransportNodeDirectory *map[N
 		return nil
 	}
 
+}
+
+type MockEngineState struct {
+	sync.Mutex
+	PSSDecision map[SharingID]bool
+}
+
+func SetupTestNodes(nOld int, kOld int, tOld int, nNew int, kNew int, tNew int, sameNodes bool) (chan string, chan string, []*PSSNode, []common.Node, []*PSSNode, []common.Node, *map[NodeDetailsID]PSSTransport) {
+	// setup
+	sharedCh := make(chan string)
+	refreshedCh := make(chan string)
+	var oldNodePrivKeys []big.Int
+	var newNodePrivKeys []big.Int
+	var oldNodePubKeys []common.Point
+	var newNodePubKeys []common.Point
+	for i := 0; i < nOld; i++ {
+		oldNodePrivKeys = append(oldNodePrivKeys, *pvss.RandomBigInt())
+		oldNodePubKeys = append(oldNodePubKeys, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(oldNodePrivKeys[i].Bytes())))
+	}
+	oldNodeIndexes := randIndexes(1, 50, nOld)
+	for i := 0; i < nNew; i++ {
+		newNodePrivKeys = append(newNodePrivKeys, *pvss.RandomBigInt())
+		newNodePubKeys = append(newNodePubKeys, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(newNodePrivKeys[i].Bytes())))
+	}
+	newNodeIndexes := randIndexes(51, 100, nNew)
+	var oldNodeList []common.Node
+	for i := 0; i < nOld; i++ {
+		oldNodeList = append(oldNodeList, common.Node{
+			Index:  oldNodeIndexes[i],
+			PubKey: oldNodePubKeys[i],
+		})
+	}
+	var newNodeList []common.Node
+	for i := 0; i < nNew; i++ {
+		newNodeList = append(newNodeList, common.Node{
+			Index:  newNodeIndexes[i],
+			PubKey: newNodePubKeys[i],
+		})
+	}
+	localTransportNodeDirectory := make(map[NodeDetailsID]PSSTransport)
+	oldEngineState := MockEngineState{
+		PSSDecision: make(map[SharingID]bool),
+	}
+	oldRunEngine := MockEngine(&oldEngineState, &localTransportNodeDirectory, kOld)
+	var oldNodes []*PSSNode
+	for i := 0; i < nOld; i++ {
+		node := common.Node{
+			Index:  oldNodeIndexes[i],
+			PubKey: oldNodePubKeys[i],
+		}
+		localTransport := LocalTransport{
+			NodeDirectory:          &localTransportNodeDirectory,
+			PrivateKey:             &oldNodePrivKeys[i],
+			OutputSharedChannel:    &sharedCh,
+			OutputRefreshedChannel: &refreshedCh,
+			MockTMEngine:           &oldRunEngine,
+		}
+		newNodeL := newNodeList
+		tN := tNew
+		kN := kNew
+		newNodeI := newNodeIndexes
+		isP := false
+		if sameNodes == true {
+			newNodeL = oldNodeList
+			tN = tOld
+			kN = kOld
+			newNodeI = oldNodeIndexes
+			isP = true
+		}
+		newPssNode := NewPSSNode(
+			node,
+			oldNodeList,
+			tOld,
+			kOld,
+			newNodeL,
+			tN,
+			kN,
+			*big.NewInt(int64(newNodeI[i])),
+			&localTransport,
+			true,
+			isP,
+		)
+		oldNodes = append(oldNodes, newPssNode)
+		localTransport.SetPSSNode(newPssNode)
+		nodeDetails := NodeDetails(node)
+		localTransportNodeDirectory[nodeDetails.ToNodeDetailsID()] = &localTransport
+	}
+
+	newEngineState := MockEngineState{
+		PSSDecision: make(map[SharingID]bool),
+	}
+	newRunEngine := MockEngine(&newEngineState, &localTransportNodeDirectory, kNew)
+	var newNodes []*PSSNode
+	if sameNodes != true {
+		for i := 0; i < nNew; i++ {
+			node := common.Node{
+				Index:  newNodeIndexes[i],
+				PubKey: newNodePubKeys[i],
+			}
+			localTransport := LocalTransport{
+				NodeDirectory:          &localTransportNodeDirectory,
+				PrivateKey:             &newNodePrivKeys[i],
+				OutputSharedChannel:    &sharedCh,
+				OutputRefreshedChannel: &refreshedCh,
+				MockTMEngine:           &newRunEngine,
+			}
+			newPssNode := NewPSSNode(
+				node,
+				oldNodeList,
+				tOld,
+				kOld,
+				newNodeList,
+				tNew,
+				kNew,
+				*big.NewInt(int64(newNodeIndexes[i])),
+				&localTransport,
+				false,
+				true,
+			)
+			newNodes = append(newNodes, newPssNode)
+			localTransport.SetPSSNode(newPssNode)
+			nodeDetails := NodeDetails(node)
+			localTransportNodeDirectory[nodeDetails.ToNodeDetailsID()] = &localTransport
+		}
+	}
+
+	return sharedCh, refreshedCh, oldNodes, oldNodeList, newNodes, newNodeList, &localTransportNodeDirectory
+}
+
+func SeedKeys(keys int, kOld int, oldNodeList []common.Node, oldNodes []*PSSNode) ([]big.Int, []SharingID) {
+	var secrets []big.Int
+	var sharingIDs []SharingID
+	for h := 0; h < keys; h++ {
+		secret := pvss.RandomBigInt()
+		secrets = append(secrets, *secret)
+		mask := pvss.RandomBigInt()
+		randPoly := pvss.RandomPoly(*secret, kOld)
+		randPolyprime := pvss.RandomPoly(*mask, kOld)
+		commit := pvss.GetCommit(*randPoly)
+		commitH := pvss.GetCommitH(*randPolyprime)
+		sumCommitments := pvss.AddCommitments(commit, commitH)
+		sharingID := SharingID("SHARING" + strconv.Itoa(h))
+		sharingIDs = append(sharingIDs, sharingID)
+		for _, node := range oldNodes {
+			index := node.NodeDetails.Index
+			Si := *pvss.PolyEval(*randPoly, *big.NewInt(int64(index)))
+			Siprime := *pvss.PolyEval(*randPolyprime, *big.NewInt(int64(index)))
+			node.ShareStore[sharingID] = &Sharing{
+				SharingID: sharingID,
+				Nodes:     oldNodeList,
+				Epoch:     1,
+				I:         index,
+				Si:        Si,
+				Siprime:   Siprime,
+				C:         sumCommitments,
+			}
+		}
+	}
+	return secrets, sharingIDs
 }

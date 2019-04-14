@@ -354,6 +354,7 @@ func (n *NodeDetails) FromNodeDetailsID(nodeDetailsID NodeDetailsID) {
 }
 
 type PSSTransport interface {
+	GetType() string
 	SetPSSNode(*PSSNode) error
 	Sign(string) ([]byte, error)
 	Send(NodeDetails, PSSMessage) error

@@ -1,25 +1,24 @@
 # Builder image, produces a statically linked binary
-FROM golang:1.11.2-alpine AS node-build
+FROM golang:1.12.1-alpine3.9 as node-build
 
 
 RUN apk update && apk add bash make git gcc libstdc++ g++ musl-dev
 RUN apk add --no-cache \
     --repository http://nl.alpinelinux.org/alpine/edge/testing \
     leveldb-dev
-RUN mkdir -p /go/src/github.com/tendermint/tendermint && \
-    git clone https://github.com/YZhenY/tendermint /go/src/github.com/tendermint/tendermint
 
-WORKDIR /go/src/github.com/tendermint/tendermint
-RUN make get_tools && make get_vendor_deps
+WORKDIR /src
+ADD go.mod go.sum ./
+RUN go mod download
 
+ADD . ./
 
-COPY . /go/src/github.com/torusresearch/torus-public
-WORKDIR /go/src/github.com/torusresearch/torus-public/cmd/dkgnode
-
+WORKDIR /src/cmd/dkgnode
 RUN go build
 
+
 # final image
-FROM alpine:3.7
+FROM alpine:3.9
 
 RUN apk update && apk add ca-certificates --no-cache
 RUN apk add --no-cache \
@@ -28,7 +27,7 @@ RUN apk add --no-cache \
 
 RUN mkdir -p /torus
 
-COPY --from=node-build /go/src/github.com/torusresearch/torus-public/cmd/dkgnode/dkgnode /torus/dkgnode
+COPY --from=node-build /src/cmd/dkgnode/dkgnode /torus/dkgnode
 
 EXPOSE 443 80 1080 26656 26657
 VOLUME ["/torus", "/root/https"]

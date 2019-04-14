@@ -1,13 +1,17 @@
 kind: pipeline
-name: default
+name: main-pipeline
 
-workspace:
-  base: /go
-  path: src/github.com/torusresearch/torus-public
+platform:
+    os: linux
+    arch: amd64
 
 steps:
 - name: test
-  image: golang
+  image: overmorrow/torus-builder:1.12
+  volumes:
+  - name: deps
+    path: /go
   commands:
-  - go get
-  - go test
+  - go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci
+  - cd ./dkgnode
+  - go build

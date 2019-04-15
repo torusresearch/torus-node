@@ -41,3 +41,25 @@ type Node struct {
 	Index  int
 	PubKey Point
 }
+
+func GetColumnPrimaryShare(matrix [][]PrimaryShare, index int) (res []PrimaryShare) {
+	for _, arr := range matrix {
+		for j, priShare := range arr {
+			if j == index {
+				res = append(res, priShare)
+			}
+		}
+	}
+	return
+}
+
+func GetColumnPoint(matrix [][]Point, index int) (res []Point) {
+	for _, arr := range matrix {
+		for j, priShare := range arr {
+			if j == index {
+				res = append(res, priShare)
+			}
+		}
+	}
+	return
+}

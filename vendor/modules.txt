@@ -386,6 +386,8 @@ github.com/tidwall/gjson
 github.com/tidwall/match
 # github.com/tidwall/pretty v0.0.0-20180105212114-65a9db5fad51
 github.com/tidwall/pretty
+# github.com/torusresearch/bijson v0.0.0-20190412111544-04b14d25087c
+github.com/torusresearch/bijson
 # github.com/tsenart/vegeta v6.3.0+incompatible
 github.com/tsenart/vegeta/lib
 # github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc

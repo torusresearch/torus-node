@@ -10,7 +10,7 @@ import (
 )
 
 // Commit creates a public commitment polynomial for the h base point
-func getCommitH(polynomial common.PrimaryPolynomial) []common.Point {
+func GetCommitH(polynomial common.PrimaryPolynomial) []common.Point {
 	commits := make([]common.Point, polynomial.Threshold)
 	for i := range commits {
 		commits[i] = common.BigIntToPoint(secp256k1.Curve.ScalarMult(&secp256k1.H.X, &secp256k1.H.Y, polynomial.Coeff[i].Bytes()))
@@ -29,8 +29,8 @@ func CreateSharesGen(nodes []common.Node, secret big.Int, threshold int) (*[]com
 	sharesPrime := getShares(polynomialPrime, nodes)
 
 	// committing to polynomial
-	pubPoly := getCommit(polynomial)
-	pubPolyPrime := getCommitH(polynomialPrime)
+	pubPoly := GetCommit(polynomial)
+	pubPolyPrime := GetCommitH(polynomialPrime)
 
 	// create Ci
 	Ci := make([]common.Point, threshold)
@@ -105,4 +105,15 @@ func VerifyShareCommitment(shareCommitment common.Point, pubPoly []common.Point,
 	} else {
 		return false
 	}
+}
+
+func RHS(shareCommitment common.Point, pubPoly []common.Point, index big.Int) common.Point {
+	rhs := common.Point{X: *new(big.Int).SetInt64(0), Y: *new(big.Int).SetInt64(0)}
+	for i := range pubPoly {
+		jt := new(big.Int).Set(&index)
+		jt.Exp(jt, new(big.Int).SetInt64(int64(i)), secp256k1.GeneratorOrder)
+		polyValue := common.BigIntToPoint(secp256k1.Curve.ScalarMult(&pubPoly[i].X, &pubPoly[i].Y, jt.Bytes()))
+		rhs = common.BigIntToPoint(secp256k1.Curve.Add(&rhs.X, &rhs.Y, &polyValue.X, &polyValue.Y))
+	}
+	return rhs
 }

@@ -4,15 +4,22 @@ package pvss
 // Scheme and its Application to Electronic Voting
 
 import (
+	"crypto/ecdsa"
 	"crypto/rand"
 	"errors"
+	"log"
 	"math/big"
 	"sort"
 
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
+
+func RandomPoly(secret big.Int, threshold int) *common.PrimaryPolynomial {
+	return generateRandomZeroPolynomial(secret, threshold)
+}
 
 func RandomBigInt() *big.Int {
 	randomInt, _ := rand.Int(rand.Reader, secp256k1.GeneratorOrder)
@@ -54,20 +61,25 @@ func getShares(polynomial common.PrimaryPolynomial, nodes []common.Node) []commo
 	return shares
 }
 
-// Commit creates a public commitment polynomial for the given base point b or
-// the standard base if b == nil.
-func getCommit(polynomial common.PrimaryPolynomial) []common.Point {
+// Commit creates a public commitment polynomial
+func GetCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	commits := make([]common.Point, polynomial.Threshold)
 	for i := range commits {
 		commits[i] = common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(polynomial.Coeff[i].Bytes()))
 	}
-	// fmt.Println(commits[0].X.Text(16), commits[0].Y.Text(16), "commit0")
-	// fmt.Println(commits[1].X.Text(16), commits[1].Y.Text(16), "commit1")
 	return commits
 }
 
-// add two polynomials (modulo generator order Q)
-func addPolynomials(poly1 common.PrimaryPolynomial, poly2 common.PrimaryPolynomial) *common.PrimaryPolynomial {
+func AddCommitments(commit1 []common.Point, commit2 []common.Point) (sumCommit []common.Point) {
+	for i, pt := range commit1 {
+		pt2 := commit2[i]
+		sumCommit = append(sumCommit, common.BigIntToPoint(secp256k1.Curve.Add(&pt.X, &pt.Y, &pt2.X, &pt2.Y)))
+	}
+	return
+}
+
+// AddPolynomials add two polynomials (modulo generator order Q)
+func AddPolynomials(poly1 common.PrimaryPolynomial, poly2 common.PrimaryPolynomial) *common.PrimaryPolynomial {
 	var sumPoly []big.Int
 	if poly1.Threshold != poly2.Threshold {
 		logging.Error("thresholds of two polynomials are not equal")
@@ -126,6 +138,58 @@ func Signcrypt(recipientPubKey common.Point, data []byte, privKey big.Int) (*com
 	szecret.Mod(szecret, secp256k1.GeneratorOrder)
 
 	return &common.Signcryption{*ciphertext, rG, *szecret}, nil
+}
+
+func bytes32(bytes []byte) [32]byte {
+	tmp := [32]byte{}
+	copy(tmp[:], bytes)
+	return tmp
+}
+
+func ECDSASign(s string, privKey *big.Int) []byte {
+	pubKey := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKey.Bytes()))
+	ecdsaPrivKey := &ecdsa.PrivateKey{
+		PublicKey: ecdsa.PublicKey{
+			Curve: secp256k1.Curve,
+			X:     &pubKey.X,
+			Y:     &pubKey.Y,
+		},
+		D: privKey,
+	}
+	hashRaw := secp256k1.Keccak256([]byte(s))
+	signature, err := ethCrypto.Sign(hashRaw, ecdsaPrivKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return signature
+}
+
+// func ECDSAValidateRaw(ecdsaPubBytes []byte, messageHash []byte, signature []byte) bool {
+// 	return ethCrypto.VerifySignature(ecdsaPubBytes, messageHash, signature)
+// }
+
+func ECDSAVerify(str string, pubKey *common.Point, signature []byte) bool {
+	r := new(big.Int)
+	s := new(big.Int)
+	r.SetBytes(signature[:32])
+	s.SetBytes(signature[32:64])
+
+	ecdsaPubKey := &ecdsa.PublicKey{
+		Curve: secp256k1.Curve,
+		X:     &(*pubKey).X,
+		Y:     &(*pubKey).Y,
+	}
+
+	return ecdsa.Verify(
+		ecdsaPubKey,
+		secp256k1.Keccak256([]byte(str)),
+		r,
+		s,
+	)
+}
+
+func VerifyString(s string, pubKey common.Point, signature []byte) {
+
 }
 
 func UnSignCrypt(signcryption common.Signcryption, privKey big.Int, senderPubKey common.Point) (*[]byte, error) {
@@ -210,7 +274,7 @@ func CreateShares(nodes []common.Node, secret big.Int, threshold int) (*[]common
 	shares := getShares(polynomial, nodes)
 
 	// committing to polynomial
-	pubPoly := getCommit(polynomial)
+	pubPoly := GetCommit(polynomial)
 
 	return &shares, &pubPoly, nil
 }
@@ -224,7 +288,7 @@ func CreateAndPrepareShares(nodes []common.Node, secret big.Int, threshold int, 
 	shares := getShares(polynomial, nodes)
 
 	// committing to polynomial
-	pubPoly := getCommit(polynomial)
+	pubPoly := GetCommit(polynomial)
 
 	// signcrypt shares
 	signcryptedShares, err := batchSigncryptShare(nodes, shares, privKey)
@@ -356,10 +420,20 @@ func LagrangeInterpolatePolynomial(points []common.Point) []big.Int {
 	return lagrange(points)
 }
 
+func LagrangeScalarCP(pts []common.Point, target int) *big.Int {
+	var shares []common.PrimaryShare
+	for _, pt := range pts {
+		shares = append(shares, common.PrimaryShare{
+			Index: int(pt.X.Int64()),
+			Value: pt.Y,
+		})
+	}
+	return LagrangeScalar(shares, target)
+}
+
 func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret := new(big.Int)
 	for _, share := range shares {
-		// when x = 0
 		delta := new(big.Int).SetInt64(int64(1))
 		upper := new(big.Int).SetInt64(int64(1))
 		lower := new(big.Int).SetInt64(int64(1))
@@ -378,7 +452,7 @@ func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 				lower.Mod(lower, secp256k1.GeneratorOrder)
 			}
 		}
-		// elliptic division
+		// finite field division
 		inv := new(big.Int)
 		inv.ModInverse(lower, secp256k1.GeneratorOrder)
 		delta.Mul(upper, inv)
@@ -390,6 +464,5 @@ func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 		secret.Add(secret, delta)
 	}
 	secret.Mod(secret, secp256k1.GeneratorOrder)
-	// secret.Mod(secret, secp256k1.GeneratorOrder)
 	return secret
 }

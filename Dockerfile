@@ -8,13 +8,14 @@ RUN apk add --no-cache \
     leveldb-dev
 
 WORKDIR /src
-ADD go.mod go.sum ./
-RUN go mod download
 
 ADD . ./
 
+RUN go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci -mod=vendor
+
 WORKDIR /src/cmd/dkgnode
-RUN go build
+
+RUN go build -mod=vendor
 
 
 # final image

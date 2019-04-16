@@ -233,7 +233,7 @@ func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload 
 // helper method - writes a protobuf go data object to a network stream
 // data: reference of protobuf go data object to send (not the object itself)
 // s: network stream to write the data to
-func (localHost *P2PSuite) sendProtoMessage(id peer.ID, p protocol.ID, msg P2PMessage) error {
+func (localHost *P2PSuite) sendP2PMessage(id peer.ID, p protocol.ID, msg P2PMessage) error {
 	data, err := bijson.Marshal(msg)
 	if err != nil {
 		return err

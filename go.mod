@@ -13,11 +13,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20190122210438-a6952de1bbe6 // indirect
 	github.com/btcsuite/btcd v0.0.0-20190410025418-9bfb2ca0346b
 	github.com/caarlos0/env v0.0.0-20190308142353-9a320ffe30f7
-	github.com/cespare/cp v1.1.1 // indirect
-	github.com/deckarep/golang-set v0.0.0-20180603214616-504e848d77ea // indirect
-	github.com/edsrzf/mmap-go v1.0.0 // indirect
-	github.com/ethereum/go-ethereum v1.8.20
-	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a // indirect
+	github.com/ethereum/go-ethereum v1.8.26
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
 	github.com/google/uuid v1.1.1

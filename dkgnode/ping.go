@@ -80,7 +80,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	resp.Sign = signature
 
 	// send the response
-	err = p.localHost.sendProtoMessage(s.Conn().RemotePeer(), pingResponse, resp)
+	err = p.localHost.sendP2PMessage(s.Conn().RemotePeer(), pingResponse, resp)
 
 	if err == nil {
 		logging.Debugf("%s: Ping response to %s sent.", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String())
@@ -153,7 +153,7 @@ func (p *PingProtocol) Ping(peerid peer.ID) error {
 	// add the signature to the message
 	req.Sign = signature
 
-	err = p.localHost.sendProtoMessage(peerid, pingRequest, req)
+	err = p.localHost.sendP2PMessage(peerid, pingRequest, req)
 	if err != nil {
 		return fmt.Errorf("Failed to send proto message: %s", err.Error())
 	}

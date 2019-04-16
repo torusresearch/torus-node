@@ -85,6 +85,9 @@ func New() {
 		log.Fatal(err)
 	}
 
+	logging.Info("starting telemetry")
+	go telemetry.Serve()
+
 	// run tendermint ABCI server
 	// It seems tendermint handles sigterm on its own..
 	go RunABCIServer(&suite)
@@ -251,9 +254,6 @@ func New() {
 	}
 
 	go keyGenWorker(&suite, keyGenMonitorMsgs)
-	logging.Info("starting telemetry")
-	go telemetry.Serve()
-
 	<-idleConnsClosed
 }
 

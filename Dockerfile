@@ -11,7 +11,7 @@ WORKDIR /src
 
 ADD . ./
 
-RUN go test -cover ./dkgnode ./logging ./pvss ./common ./tmabci -mod=vendor
+RUN go test -mod=vendor -cover ./dkgnode ./logging ./pvss ./common ./tmabci
 
 WORKDIR /src/cmd/dkgnode
 

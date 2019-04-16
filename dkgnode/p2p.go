@@ -41,7 +41,7 @@ type P2PBasicMsg struct {
 	NodePubKey []byte `json:"nodePubKey,omitempty"`
 	Sign       []byte `json:"sign,omitempty"`
 	MsgType    string `json:"msgtype,omitempty"`
-	Payload    interface{}
+	Payload    []byte `json:"payload"`
 }
 
 type NodeReference struct {
@@ -54,8 +54,13 @@ type NodeReference struct {
 }
 type P2PSuite struct {
 	host.Host
-	HostAddress ma.Multiaddr
-	PingProto   *PingProtocol
+	HostAddress            ma.Multiaddr
+	JSONUnmarshalReference map[string]P2PJSON
+	PingProto              *PingProtocol
+}
+type P2PJSON interface {
+	GetStructType() string
+	UnmarshalToStruct()
 }
 
 func (msg *P2PBasicMsg) GetTimestamp() int64 {
@@ -206,7 +211,7 @@ func (localHost *P2PSuite) verifyData(data []byte, signature []byte, peerId peer
 
 // helper method - generate message data shared between all node's p2p protocols
 // messageId: unique for requests, copied from request for responses
-func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload interface{}) *P2PBasicMsg {
+func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload []byte) *P2PBasicMsg {
 	// Add protobufs bin data for message author public key
 	// this is useful for authenticating  messages forwarded by a node authored by another node
 	nodePubKey, err := localHost.Peerstore().PubKey(localHost.ID()).Bytes()

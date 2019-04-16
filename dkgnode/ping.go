@@ -37,9 +37,7 @@ func NewPingProtocol(localHost *P2PSuite) *PingProtocol {
 func (p *PingProtocol) onPingRequest(s inet.Stream) {
 
 	// get request data
-	data := &P2PBasicMsg{
-		Payload: Ping{},
-	}
+	data := &P2PBasicMsg{}
 	buf, err := ioutil.ReadAll(s)
 	if err != nil {
 		s.Reset()
@@ -64,8 +62,12 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 
 	// generate response message
 	log.Printf("%s: Sending ping response to %s. Message id: %s...", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.GetId())
-
-	resp := p.localHost.NewP2PMessage(data.GetId(), false, Ping{Message: fmt.Sprintf("Ping response from %s", p.localHost.ID())})
+	pingBytes, err := bijson.Marshal(Ping{Message: fmt.Sprintf("Ping response from %s", p.localHost.ID())})
+	if err != nil {
+		logging.Error("could not marshal ping")
+		return
+	}
+	resp := p.localHost.NewP2PMessage(data.GetId(), false, pingBytes)
 
 	// sign the data
 	signature, err := p.localHost.signP2PMessage(resp)
@@ -87,7 +89,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 
 // remote ping response handler
 func (p *PingProtocol) onPingResponse(s inet.Stream) {
-	data := &P2PBasicMsg{Payload: Ping{}}
+	data := &P2PBasicMsg{}
 	buf, err := ioutil.ReadAll(s)
 	if err != nil {
 		s.Reset()
@@ -110,6 +112,13 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 		return
 	}
 
+	ping := &Ping{}
+	bijson.Unmarshal(data.Payload, ping)
+	if err != nil {
+		logging.Error(err.Error())
+		return
+	}
+
 	// locate request data and remove it if found
 	_, ok := p.requests[data.GetId()]
 	if ok {
@@ -120,15 +129,20 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 		return
 	}
 
-	logging.Debugf("%s: Received ping response from %s. Message id:%s. Message: %s.", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.GetId(), data.Payload.(Ping).Message)
+	logging.Debugf("%s: Received ping response from %s. Message id:%s. Message: %s.", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.GetId(), ping.Message)
 }
 
 // Pings a peer
 func (p *PingProtocol) Ping(peerid peer.ID) error {
 	logging.Debugf("%s: Sending ping to: %s....", p.localHost.ID(), peerid)
 
+	pBytes, err := bijson.Marshal(Ping{fmt.Sprintf("Ping from %s", p.localHost.ID())})
+	if err != nil {
+		return fmt.Errorf("Failed marshal ping %v", Ping{fmt.Sprintf("Ping from %s", p.localHost.ID())})
+
+	}
 	// create message data
-	req := p.localHost.NewP2PMessage(uuid.New().String(), false, Ping{fmt.Sprintf("Ping from %s", p.localHost.ID())})
+	req := p.localHost.NewP2PMessage(uuid.New().String(), false, pBytes)
 
 	// sign the data
 	signature, err := p.localHost.signP2PMessage(req)
@@ -146,6 +160,6 @@ func (p *PingProtocol) Ping(peerid peer.ID) error {
 
 	// store ref request so response handler has access to it
 	p.requests[req.GetId()] = req
-	logging.Debugf("%s: Ping to: %s was sent. Message Id: %s, Message: %s", p.localHost.ID(), peerid, req.GetId(), req.Payload.(Ping).Message)
+	logging.Debugf("%s: Ping to: %s was sent. Message Id: %s, Message: %s", p.localHost.ID(), peerid, req.GetId(), string(req.Payload))
 	return nil
 }

@@ -10,6 +10,6 @@ bft.db
 log*.txt
 /temporary
 .build
-*.org
+TODOs.org
 /keygen/profile*
 *.profile

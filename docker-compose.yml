@@ -15,6 +15,7 @@ services:
       - "26656-26657:26656-26657"
       - "1080"
       - "7001:8080"
+      - "8000:8000"
     volumes:
       - ./config/config.local.1.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl
@@ -29,6 +30,7 @@ services:
       - "1080"
       - "26659-26660:26656-26657"
       - "7002:8080"
+      - "8001:8001"
     volumes:
       - ./config/config.local.2.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl
@@ -44,6 +46,7 @@ services:
       - "1080"
       - "26661-26662:26656-26657"
       - "7003:8080"
+      - "8002:8002"
     volumes:
       - ./tests/openssl:/.torus/openssl
       - ./config/config.local.3.json:/.torus/config.json
@@ -58,6 +61,7 @@ services:
       - "1080"
       - "26663-26664:26656-26657"
       - "7004:8080"
+      - "8003:8003"
     volumes:
       - ./config/config.local.4.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl
@@ -72,6 +76,7 @@ services:
       - "1080"
       - "26665-26666:26656-26657"
       - "7005:8080"
+      - "8004:8004"
     volumes:
       - ./config/config.local.5.json:/.torus/config.json
       - ./tests/openssl:/.torus/openssl

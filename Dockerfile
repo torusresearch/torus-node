@@ -4,7 +4,7 @@ FROM golang:1.12.1-alpine3.9 as node-build
 
 RUN apk update && apk add bash make git gcc libstdc++ g++ musl-dev
 RUN apk add --no-cache \
-    --repository http://nl.alpinelinux.org/alpine/edge/testing \
+    --repository http://nl.alpinelinux.org/alpine/edge/community \
     leveldb-dev
 
 WORKDIR /src
@@ -23,7 +23,7 @@ FROM alpine:3.9
 
 RUN apk update && apk add ca-certificates --no-cache
 RUN apk add --no-cache \
-  --repository http://nl.alpinelinux.org/alpine/edge/testing \
+  --repository http://nl.alpinelinux.org/alpine/edge/community \
   leveldb
 
 RUN mkdir -p /torus

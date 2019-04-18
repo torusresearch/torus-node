@@ -35,6 +35,7 @@ type Suite struct {
 	ABCIApp         *ABCIApp
 	DefaultVerifier auth.GeneralVerifier
 	P2PSuite        *P2PSuite
+	DBSuite         *DBSuite
 }
 
 type googleIdentityVerifier struct {
@@ -266,8 +267,9 @@ func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
 			if keyGenMonitorMsg.Type == "start_keygen" {
 				//starts keygeneration with starting and ending index
 				logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-				go startKeyGeneration(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 
+				// go startKeyGeneration(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+				go startAVSSKeygen(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 			}
 		}
 	}

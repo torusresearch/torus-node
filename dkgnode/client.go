@@ -158,6 +158,8 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	return "Keygen complete.", nil
 }
 
+
+
 func startKeyGeneration(suite *Suite, shareStartingIndex int, shareEndingIndex int) error {
 	shareCounter := telemetry.NewCounter("num_shares_verified", "how many times shares were verified")
 	invalidShareCounter := telemetry.NewCounter("num_shares_invalid", "how many times shares could not be verified")

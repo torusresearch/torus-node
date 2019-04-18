@@ -86,7 +86,7 @@ type NodeLog struct {
 
 type AVSSKeygen interface {
 	// Trigger Start for Keygen and Initialize
-	InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, comChannel chan string) error
+	InitiateKeygen() error
 
 	// For this, these listeners must be triggered on incoming messages
 	// Listeners and Reactions
@@ -189,8 +189,8 @@ const (
 	EKEchoReconstruct    = "echo_reconstruct"
 )
 
-// TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well & store
-func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, comChannel chan string) error {
+func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, transport AVSSKeygenTransport, store AVSSKeygenStorage, comChannel chan string) (*KeygenInstance, error) {
+	ki := &KeygenInstance{}
 	ki.Lock()
 	defer ki.Unlock()
 	ki.NodeIndex = nodeIndex
@@ -370,30 +370,34 @@ func (ki *KeygenInstance) InitiateKeygen(startingIndex big.Int, numOfKeys int, n
 
 	ki.KeyLog = make(map[string](map[string]*KEYGENLog))
 	ki.Secrets = make(map[string]KEYGENSecrets)
+	// TODO: Trigger setting up of listeners here
 
+	return ki, nil
+}
+
+// TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well & store
+func (ki *KeygenInstance) InitiateKeygen() error {
 	// prepare commitmentMatrixes for broadcast
 	commitmentMatrixes := make([][][]common.Point, ki.NumOfKeys)
-	for i := 0; i < numOfKeys; i++ {
+	for i := 0; i < ki.NumOfKeys; i++ {
 		// help initialize all the keylogs
 		index := big.NewInt(int64(i))
 		index.Add(index, &ki.StartIndex)
 		ki.KeyLog[index.Text(16)] = make(map[string]*KEYGENLog)
 		secret := *pvss.RandomBigInt()
-		f := pvss.GenerateRandomBivariatePolynomial(secret, threshold)
-		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), threshold)
+		f := pvss.GenerateRandomBivariatePolynomial(secret, ki.Threshold)
+		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), ki.Threshold)
 		commitmentMatrixes[i] = pvss.GetCommitmentMatrix(f, fprime)
 
 		// store secrets
 		keyIndex := big.NewInt(int64(i))
-		keyIndex.Add(keyIndex, &startingIndex)
+		keyIndex.Add(keyIndex, &ki.StartIndex)
 		ki.Secrets[keyIndex.Text(16)] = KEYGENSecrets{
 			secret: secret,
 			f:      f,
 			fprime: fprime,
 		}
 	}
-
-	// TODO: Trigger setting up of listeners here
 	err := ki.Transport.BroadcastInitiateKeygen(commitmentMatrixes)
 	if err != nil {
 		return err

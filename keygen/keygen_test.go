@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"testing"
-	// "time"
+	"time"
 
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
@@ -114,149 +114,156 @@ func TestOptimisticKeygen(t *testing.T) {
 	assert.True(t, count == len(nodeList))
 }
 
-// func TestTimeboundOne(t *testing.T) {
+func TestTimeboundOne(t *testing.T) {
 
-// 	f, err := os.Create("profile_timebound_one.prof")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	pprof.StartCPUProfile(f)
-// 	defer pprof.StopCPUProfile()
+	f, err := os.Create("profile_timebound_one.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 
-// 	runtime.GOMAXPROCS(10)
-// 	logging.SetLevelString(XXXTestLogging)
-// 	comsChannel := make(chan string)
-// 	numOfNodes := 9
-// 	threshold := 5
-// 	malNodes := 2
-// 	numKeys := 5
-// 	nodeList := make([]big.Int, numOfNodes)
-// 	nodeKegenInstances := make(map[string]*KeygenInstance)
-// 	done := false
-// 	// build timer function to kill of exceeds time
-// 	go func(d *bool) {
-// 		time.Sleep(10 * time.Second)
-// 		comsChannel <- "timeout"
-// 	}(&done)
+	runtime.GOMAXPROCS(10)
+	logging.SetLevelString(XXXTestLogging)
+	comsChannel := make(chan string)
+	numOfNodes := 9
+	threshold := 5
+	malNodes := 2
+	numKeys := 5
+	nodeList := make([]big.Int, numOfNodes)
+	nodeKegenInstances := make(map[string]*KeygenInstance)
+	done := false
+	// build timer function to kill of exceeds time
+	go func(d *bool) {
+		time.Sleep(10 * time.Second)
+		comsChannel <- "timeout"
+	}(&done)
 
-// 	// sets up node list
-// 	for i := range nodeList {
-// 		nodeList[i] = *big.NewInt(int64(i + 1))
-// 	}
+	pubKeys := make(map[string]*common.Point)
+	privKeys := make(map[string]*big.Int)
+	// sets up node list
+	for i := range nodeList {
+		nodeList[i] = *big.NewInt(int64(i + 1))
+	}
 
-// 	for i := range nodeList {
-// 		//set up store
-// 		store := &mockKeygenStore{}
-// 		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, comsChannel)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		nodeKegenInstances[nodeList[i].Text(16)] = instance
-// 	}
+	for i := range nodeList {
+		//set up store
+		store := &mockKeygenStore{}
+		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, nil, comsChannel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		privKeys[nodeList[i].Text(16)] = pvss.RandomBigInt()
+		pt := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeys[nodeList[i].Text(16)].Bytes()))
+		pubKeys[nodeList[i].Text(16)] = &pt
+		nodeKegenInstances[nodeList[i].Text(16)] = instance
+	}
 
-// 	//edit transport functions
-// 	for k, v := range nodeKegenInstances {
-// 		var nodeIndex big.Int
-// 		nodeIndex.SetString(k, 16)
-// 		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
-// 		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
-// 			v.Transport = &mockDeadTransport{}
-// 		} else {
-// 			v.Transport = &transport
-// 		}
-// 	}
+	//edit transport functions
+	for k, v := range nodeKegenInstances {
+		var nodeIndex big.Int
+		nodeIndex.SetString(k, 16)
+		auth := nodeAuth{nodeIndex, pubKeys, privKeys}
+		v.Auth = &auth
+		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
+			v.Transport = &mockDeadTransport{}
+		} else {
+			v.Transport = &transport
+		}
+	}
 
-// 	//start!
-// 	for _, nodeIndex := range nodeList {
-// 		go func(nIndex big.Int) {
-// 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
-// 			defer func() {
-// 				if err != nil {
-// 					t.Logf("Initiate Keygen error: %s", err)
-// 				}
-// 			}()
-// 		}(nodeIndex)
-// 	}
+	//start!
+	for _, nodeIndex := range nodeList {
+		go func(nIndex big.Int) {
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
+			defer func() {
+				if err != nil {
+					t.Logf("Initiate Keygen error: %s", err)
+				}
+			}()
+		}(nodeIndex)
+	}
 
-// 	time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second)
 
-// 	// log node status
-// 	for i, nodeIndex := range nodeList {
-// 		// to not cause a panic
-// 		if i == 0 {
-// 			continue
-// 		}
-// 		instance := nodeKegenInstances[nodeIndex.Text(16)]
-// 		instance.Lock()
-// 		t.Log(nodeIndex.Text(16), instance.State.Current())
-// 		// for _, ni := range nodeList {
-// 		// 	t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
-// 		// }
-// 		instance.Unlock()
-// 	}
+	// log node status
+	for i, nodeIndex := range nodeList {
+		// to not cause a panic
+		if i == 0 {
+			continue
+		}
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		// for _, ni := range nodeList {
+		// 	t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+		// }
+		instance.Unlock()
+	}
 
-// 	// trigger timebound one here
-// 	for _, nodeIndex := range nodeList {
-// 		// to not cause a panic
-// 		// if i == 0 {
-// 		// 	continue
-// 		// }
-// 		instance := nodeKegenInstances[nodeIndex.Text(16)]
-// 		err := instance.TriggerRoundOneTimebound()
-// 		if err != nil {
-// 			t.Log(err)
-// 		}
-// 	}
+	// trigger timebound one here
+	for _, nodeIndex := range nodeList {
+		// to not cause a panic
+		// if i == 0 {
+		// 	continue
+		// }
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		err := instance.TriggerRoundOneTimebound()
+		if err != nil {
+			t.Log(err)
+		}
+	}
 
-// 	// wait till nodes are done (w/o malicious node)
-// 	count := 0
-// 	for {
-// 		select {
-// 		case msg := <-comsChannel:
-// 			if msg == SIKeygenCompleted {
-// 				count++
-// 			}
-// 			if msg == "timeout" {
-// 				done = true
-// 			}
-// 		}
-// 		if count >= len(nodeList)-1 || done { // accounted for here
-// 			break
-// 		}
+	// wait till nodes are done (w/o malicious node)
+	count := 0
+	for {
+		select {
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+			if msg == "timeout" {
+				done = true
+			}
+		}
+		if count >= len(nodeList)-1 || done { // accounted for here
+			break
+		}
 
-// 	}
-// 	// time.Sleep(12 * time.Second)
+	}
+	// time.Sleep(12 * time.Second)
 
-// 	// log node status
-// 	for i, nodeIndex := range nodeList {
-// 		// to not cause a panic
-// 		if i == 0 {
-// 			continue
-// 		}
-// 		instance := nodeKegenInstances[nodeIndex.Text(16)]
-// 		instance.Lock()
-// 		t.Log(nodeIndex.Text(16), instance.State.Current())
-// 		for keyIndex := range instance.KeyLog {
-// 			for g, ni := range nodeList {
-// 				if g == 0 {
-// 					continue
-// 				}
-// 				if instance.KeyLog[keyIndex][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
-// 					t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
-// 					nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
-// 					t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
-// 					t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
-// 					// 	t.Log("Ready:")
-// 					// 	for _, ready := range nodeLog.ReceivedReadys {
-// 					// 		t.Log(ready)
-// 					// 	}
-// 				}
-// 			}
-// 		}
-// 		// assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
-// 		instance.Unlock()
-// 	}
-// }
+	// log node status
+	for i, nodeIndex := range nodeList {
+		// to not cause a panic
+		if i == 0 {
+			continue
+		}
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		for keyIndex := range instance.KeyLog {
+			for g, ni := range nodeList {
+				if g == 0 {
+					continue
+				}
+				if instance.KeyLog[keyIndex][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
+					t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+					nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
+					t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
+					t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
+					// 	t.Log("Ready:")
+					// 	for _, ready := range nodeLog.ReceivedReadys {
+					// 		t.Log(ready)
+					// 	}
+				}
+			}
+		}
+		// assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
+		instance.Unlock()
+	}
+}
 
 // func TestTimeboundTwo(t *testing.T) {
 
@@ -283,7 +290,8 @@ func TestOptimisticKeygen(t *testing.T) {
 // 		time.Sleep(10 * time.Second)
 // 		comsChannel <- "timeout"
 // 	}(&done)
-
+// 	pubKeys := make(map[string]*common.Point)
+// 	privKeys := make(map[string]*big.Int)
 // 	// sets up node list
 // 	for i := range nodeList {
 // 		nodeList[i] = *big.NewInt(int64(i + 1))
@@ -292,10 +300,13 @@ func TestOptimisticKeygen(t *testing.T) {
 // 	for i := range nodeList {
 // 		//set up store
 // 		store := &mockKeygenStore{}
-// 		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, comsChannel)
+// 		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, nil, comsChannel)
 // 		if err != nil {
 // 			t.Fatal(err)
 // 		}
+// 		privKeys[nodeList[i].Text(16)] = pvss.RandomBigInt()
+// 		pt := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeys[nodeList[i].Text(16)].Bytes()))
+// 		pubKeys[nodeList[i].Text(16)] = &pt
 // 		nodeKegenInstances[nodeList[i].Text(16)] = instance
 // 	}
 
@@ -303,6 +314,8 @@ func TestOptimisticKeygen(t *testing.T) {
 // 	for k, v := range nodeKegenInstances {
 // 		var nodeIndex big.Int
 // 		nodeIndex.SetString(k, 16)
+// 		auth := nodeAuth{nodeIndex, pubKeys, privKeys}
+// 		v.Auth = &auth
 // 		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
 // 		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
 // 			v.Transport = &mockDeadTransportTwo{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
@@ -386,203 +399,216 @@ func TestOptimisticKeygen(t *testing.T) {
 // 	}
 // }
 
-// func TestEchoReconstruction(t *testing.T) {
-// 	f, err := os.Create("profile_echo_reconstruction.prof")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	pprof.StartCPUProfile(f)
-// 	defer pprof.StopCPUProfile()
+func TestEchoReconstruction(t *testing.T) {
+	f, err := os.Create("profile_echo_reconstruction.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 
-// 	runtime.GOMAXPROCS(10)
-// 	logging.SetLevelString(XXXTestLogging)
-// 	comsChannel := make(chan string)
-// 	numOfNodes := 5
-// 	threshold := 3
-// 	malNodes := 0
-// 	numKeys := 1
-// 	nodeList := make([]big.Int, numOfNodes)
-// 	nodeKegenInstances := make(map[string]*KeygenInstance)
+	runtime.GOMAXPROCS(10)
+	logging.SetLevelString(XXXTestLogging)
+	comsChannel := make(chan string)
+	numOfNodes := 5
+	threshold := 3
+	malNodes := 0
+	numKeys := 1
+	nodeList := make([]big.Int, numOfNodes)
+	nodeKegenInstances := make(map[string]*KeygenInstance)
 
-// 	done := false
-// 	// build timer function to kill of exceeds time
-// 	go func(d *bool) {
-// 		time.Sleep(10 * time.Second)
-// 		comsChannel <- "timeout"
-// 	}(&done)
+	done := false
+	// build timer function to kill of exceeds time
+	go func(d *bool) {
+		time.Sleep(10 * time.Second)
+		comsChannel <- "timeout"
+	}(&done)
+	pubKeys := make(map[string]*common.Point)
+	privKeys := make(map[string]*big.Int)
+	// sets up node list
+	for i := range nodeList {
+		nodeList[i] = *big.NewInt(int64(i + 1))
+	}
 
-// 	// sets up node list
-// 	for i := range nodeList {
-// 		nodeList[i] = *big.NewInt(int64(i + 1))
-// 	}
+	for i := range nodeList {
+		//set up store
+		store := &mockKeygenStore{}
+		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, nil, comsChannel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		privKeys[nodeList[i].Text(16)] = pvss.RandomBigInt()
+		pt := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeys[nodeList[i].Text(16)].Bytes()))
+		pubKeys[nodeList[i].Text(16)] = &pt
+		nodeKegenInstances[nodeList[i].Text(16)] = instance
+	}
 
-// 	for i := range nodeList {
-// 		//set up store
-// 		store := &mockKeygenStore{}
-// 		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, comsChannel)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		nodeKegenInstances[nodeList[i].Text(16)] = instance
-// 	}
+	//edit transport functions
+	for k, v := range nodeKegenInstances {
+		var nodeIndex big.Int
+		nodeIndex.SetString(k, 16)
+		auth := nodeAuth{nodeIndex, pubKeys, privKeys}
+		v.Auth = &auth
+		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
+			v.Transport = &mockEvilTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances, ignore: nodeList[1]}
+		} else {
+			v.Transport = &transport
+		}
+		//set up store
+		v.Store = &mockKeygenStore{}
+	}
 
-// 	//edit transport functions
-// 	for k, v := range nodeKegenInstances {
-// 		var nodeIndex big.Int
-// 		nodeIndex.SetString(k, 16)
-// 		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
-// 		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
-// 			v.Transport = &mockEvilTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances, ignore: nodeList[1]}
-// 		} else {
-// 			v.Transport = &transport
-// 		}
-// 		//set up store
-// 		v.Store = &mockKeygenStore{}
-// 	}
+	//start!
+	for _, nodeIndex := range nodeList {
+		go func(nIndex big.Int) {
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
+			defer func() {
+				if err != nil {
+					t.Logf("Initiate Keygen error: %s", err)
+				}
+			}()
+		}(nodeIndex)
+	}
 
-// 	//start!
-// 	for _, nodeIndex := range nodeList {
-// 		go func(nIndex big.Int) {
-// 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
-// 			defer func() {
-// 				if err != nil {
-// 					t.Logf("Initiate Keygen error: %s", err)
-// 				}
-// 			}()
-// 		}(nodeIndex)
-// 	}
+	// wait till nodes are done (w/o malicious node)
+	count := 0
+	for {
+		select {
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+			if msg == "timeout" {
+				done = true
+			}
+		}
+		if count >= len(nodeList) || done { // accounted for here
+			break
+		}
+	}
 
-// 	// wait till nodes are done (w/o malicious node)
-// 	count := 0
-// 	for {
-// 		select {
-// 		case msg := <-comsChannel:
-// 			if msg == SIKeygenCompleted {
-// 				count++
-// 			}
-// 			if msg == "timeout" {
-// 				done = true
-// 			}
-// 		}
-// 		if count >= len(nodeList) || done { // accounted for here
-// 			break
-// 		}
-// 	}
+	for _, nodeIndex := range nodeList {
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		for _, ni := range nodeList {
+			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+			if instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
+				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
+				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
+				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
+			}
+		}
+		instance.Unlock()
+	}
+	assert.True(t, !done)
+}
 
-// 	for _, nodeIndex := range nodeList {
-// 		instance := nodeKegenInstances[nodeIndex.Text(16)]
-// 		instance.Lock()
-// 		t.Log(nodeIndex.Text(16), instance.State.Current())
-// 		for _, ni := range nodeList {
-// 			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
-// 			if instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
-// 				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
-// 				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
-// 				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
-// 			}
-// 		}
-// 		instance.Unlock()
-// 	}
-// 	assert.True(t, !done)
-// }
+func TestDKGCompleteSync(t *testing.T) {
 
-// func TestDKGCompleteSync(t *testing.T) {
+	f, err := os.Create("profile_dkg_complete_sync.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 
-// 	f, err := os.Create("profile_dkg_complete_sync.prof")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	pprof.StartCPUProfile(f)
-// 	defer pprof.StopCPUProfile()
+	runtime.GOMAXPROCS(10)
+	logging.SetLevelString(XXXTestLogging)
+	comsChannel := make(chan string)
+	numOfNodes := 9
+	threshold := 5
+	malNodes := 2
+	numKeys := 1
+	nodeList := make([]big.Int, numOfNodes)
+	nodeKegenInstances := make(map[string]*KeygenInstance)
 
-// 	runtime.GOMAXPROCS(10)
-// 	logging.SetLevelString(XXXTestLogging)
-// 	comsChannel := make(chan string)
-// 	numOfNodes := 9
-// 	threshold := 5
-// 	malNodes := 2
-// 	numKeys := 1
-// 	nodeList := make([]big.Int, numOfNodes)
-// 	nodeKegenInstances := make(map[string]*KeygenInstance)
+	done := false
+	// build timer function to kill of exceeds time
+	go func(d *bool) {
+		time.Sleep(10 * time.Second)
+		comsChannel <- "timeout"
+	}(&done)
 
-// 	done := false
-// 	// build timer function to kill of exceeds time
-// 	go func(d *bool) {
-// 		time.Sleep(10 * time.Second)
-// 		comsChannel <- "timeout"
-// 	}(&done)
+	pubKeys := make(map[string]*common.Point)
+	privKeys := make(map[string]*big.Int)
+	// sets up node list
+	for i := range nodeList {
+		nodeList[i] = *big.NewInt(int64(i + 1))
+	}
 
-// 	// sets up node list
-// 	for i := range nodeList {
-// 		nodeList[i] = *big.NewInt(int64(i + 1))
-// 	}
+	for i := range nodeList {
+		//set up store
+		store := &mockKeygenStore{}
+		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, nil, comsChannel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		privKeys[nodeList[i].Text(16)] = pvss.RandomBigInt()
+		pt := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKeys[nodeList[i].Text(16)].Bytes()))
+		pubKeys[nodeList[i].Text(16)] = &pt
+		nodeKegenInstances[nodeList[i].Text(16)] = instance
+	}
 
-// 	for i := range nodeList {
-// 		//set up store
-// 		store := &mockKeygenStore{}
-// 		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, comsChannel)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		nodeKegenInstances[nodeList[i].Text(16)] = instance
-// 	}
+	//edit transport functions
+	for k, v := range nodeKegenInstances {
+		var nodeIndex big.Int
+		nodeIndex.SetString(k, 16)
+		auth := nodeAuth{nodeIndex, pubKeys, privKeys}
+		v.Auth = &auth
+		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 || nodeIndex.Cmp(big.NewInt(int64(1))) == 1 || nodeIndex.Cmp(big.NewInt(int64(1))) == 2 {
+			v.Transport = &mockLaggingTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		} else {
+			v.Transport = &transport
+		}
+	}
 
-// 	//edit transport functions
-// 	for k, v := range nodeKegenInstances {
-// 		var nodeIndex big.Int
-// 		nodeIndex.SetString(k, 16)
-// 		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
-// 		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 || nodeIndex.Cmp(big.NewInt(int64(1))) == 1 || nodeIndex.Cmp(big.NewInt(int64(1))) == 2 {
-// 			v.Transport = &mockLaggingTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
-// 		} else {
-// 			v.Transport = &transport
-// 		}
-// 	}
+	//start!
+	for _, nodeIndex := range nodeList {
+		go func(nIndex big.Int) {
+			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
+			defer func() {
+				if err != nil {
+					t.Logf("Initiate Keygen error: %s", err)
+				}
+			}()
+		}(nodeIndex)
+	}
+	// wait till nodes are done (w/o malicious node)
+	count := 0
+	for {
+		select {
+		case msg := <-comsChannel:
+			if msg == SIKeygenCompleted {
+				count++
+			}
+			if msg == "timeout" {
+				done = true
+			}
+		}
+		if count >= len(nodeList) || done { // accounted for here
+			break
+		}
+	}
 
-// 	//start!
-// 	for _, nodeIndex := range nodeList {
-// 		go func(nIndex big.Int) {
-// 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
-// 			defer func() {
-// 				if err != nil {
-// 					t.Logf("Initiate Keygen error: %s", err)
-// 				}
-// 			}()
-// 		}(nodeIndex)
-// 	}
-// 	// wait till nodes are done (w/o malicious node)
-// 	count := 0
-// 	for {
-// 		select {
-// 		case msg := <-comsChannel:
-// 			if msg == SIKeygenCompleted {
-// 				count++
-// 			}
-// 			if msg == "timeout" {
-// 				done = true
-// 			}
-// 		}
-// 		if count >= len(nodeList) || done { // accounted for here
-// 			break
-// 		}
-// 	}
-
-// 	for _, nodeIndex := range nodeList {
-// 		instance := nodeKegenInstances[nodeIndex.Text(16)]
-// 		instance.Lock()
-// 		t.Log(nodeIndex.Text(16), instance.State.Current())
-// 		for _, ni := range nodeList {
-// 			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
-// 			if instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
-// 				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
-// 				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
-// 				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
-// 			}
-// 		}
-// 		instance.Unlock()
-// 	}
-// 	assert.True(t, !done)
-// }
+	for _, nodeIndex := range nodeList {
+		instance := nodeKegenInstances[nodeIndex.Text(16)]
+		instance.Lock()
+		t.Log(nodeIndex.Text(16), instance.State.Current())
+		for _, ni := range nodeList {
+			t.Log("KeyLogState from ", ni.Text(16), instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current())
+			if instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)].SubshareState.Current() != "perfect_subshare" {
+				nodeLog := instance.KeyLog[big.NewInt(int64(0)).Text(16)][ni.Text(16)]
+				t.Log("Number of Echos: ", len(nodeLog.ReceivedEchoes))
+				t.Log("Number of Readys: ", len(nodeLog.ReceivedReadys))
+			}
+		}
+		instance.Unlock()
+	}
+	assert.True(t, !done)
+}
 
 type nodeAuth struct {
 	NodeIndex   big.Int

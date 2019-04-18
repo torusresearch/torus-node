@@ -44,21 +44,21 @@ func (ki *KeygenInstance) TriggerRoundOneTimebound() error {
 	return nil
 }
 
-// Call this (to be triggered by timing set and checked by tendermint) when time has exceeded timebound one (t1)
-func (ki *KeygenInstance) TriggerRoundTwoTimebound() error {
-	ki.Lock()
-	defer ki.Unlock()
-	if ki.State.Is(SIRunningKeygen) { // check if in correct state
+// // Call this (to be triggered by timing set and checked by tendermint) when time has exceeded timebound one (t1)
+// func (ki *KeygenInstance) TriggerRoundTwoTimebound() error {
+// 	ki.Lock()
+// 	defer ki.Unlock()
+// 	if ki.State.Is(SIRunningKeygen) { // check if in correct state
 
-		// continue with keygen with remaining qualified set
-		go func() {
-			err := ki.State.Event(EIAllSubsharesDone)
-			if err != nil {
-				logging.Errorf("Error initiating keygen with smaller set: %v", err)
-			}
-		}()
-	} else {
-		return errors.New("Can't TriggerRoundTwoTimebound when not in " + SIRunningKeygen + " in state " + ki.State.Current())
-	}
-	return nil
-}
+// 		// continue with keygen with remaining qualified set
+// 		go func() {
+// 			err := ki.State.Event(EIAllSubsharesDone)
+// 			if err != nil {
+// 				logging.Errorf("Error initiating keygen with smaller set: %v", err)
+// 			}
+// 		}()
+// 	} else {
+// 		return errors.New("Can't TriggerRoundTwoTimebound when not in " + SIRunningKeygen + " in state " + ki.State.Current())
+// 	}
+// 	return nil
+// }

@@ -53,3 +53,31 @@ To deploy an ethereum smart contract to Ganache
 
 ## Staging Environment / Testnet
 https://nodeX.staging.dev.tor.us
+
+
+## go mod
+If you modify any dependencies... just do the follow 3 easy steps:
+
+1. Tidy it
+
+  ```
+  go mod tidy
+  ```
+
+2. Vendor it
+
+  ```
+  go mod vendor
+  ```
+  
+3. Fix go mod not vendoring C libraries
+
+  ```
+  go get -u github.com/ethereum/go-ethereum@v1.8.20/crypto
+
+  rm -rf   vendor/github.com/ethereum/go-ethereum/crypto
+
+  cp -a $GOPATH/pkg/mod/github.com/ethereum/go-ethereum@v1.8.20/crypto vendor/github.com/ethereum/go-ethereum/crypto
+
+  chmod -R 755 vendor/github.com/ethereum/go-ethereum/crypto
+  ```

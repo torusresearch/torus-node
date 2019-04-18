@@ -231,6 +231,7 @@ github.com/ethereum/go-ethereum v1.8.20 h1:Sr6DLbdc7Fl2IMDC0sjF2wO1jTO5nALFC1SoQ
 github.com/ethereum/go-ethereum v1.8.20/go.mod h1:PwpWDrCLZrV+tfrhqqF6kPknbISMHaJv9Ln3kPCZLwY=
 github.com/ethereum/go-ethereum v1.8.26 h1:zjBSKqHZ7Mxo5swJQOW4V1CCmWwKnMLidP2+gaYwcbo=
 github.com/ethereum/go-ethereum v1.8.26/go.mod h1:PwpWDrCLZrV+tfrhqqF6kPknbISMHaJv9Ln3kPCZLwY=
+github.com/ethereum/go-ethereum v1.8.27 h1:d+gkiLaBDk5fn3Pe/xNVaMrB/ozI+AUB2IlVBp29IrY=
 github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=

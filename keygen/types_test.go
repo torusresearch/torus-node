@@ -1,7 +1,6 @@
 package keygen
 
 import (
-	"fmt"
 	"math/big"
 	"reflect"
 	"testing"

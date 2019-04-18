@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/torusresearch/torus-public/pvss"
 
@@ -42,6 +41,7 @@ type KEYGENReady struct {
 	Aprimeij big.Int
 	Bij      big.Int
 	Bprimeij big.Int
+	ReadySig []byte
 }
 
 type KEYGENShareComplete struct {
@@ -54,9 +54,10 @@ type KEYGENShareComplete struct {
 }
 
 type KEYGENDKGComplete struct {
-	Nonce   int
-	Proofs  []KEYGENShareComplete
-	NodeSet []string // sorted nodeIndexes in Set
+	Nonce           int
+	Proofs          []KEYGENShareComplete
+	NodeSet         []string                                    // sorted nodeIndexes in Set
+	ReadySignatures map[string](map[string](map[string][]byte)) // Keyindex => DealerIndex => NodeIndex (Who signed)
 }
 
 // KeyIndex => NodeIndex => KEYGENLog
@@ -114,6 +115,10 @@ type AVSSKeygenStorage interface {
 	StoreKEYGENSecret(keyIndex big.Int, secret KEYGENSecrets) error
 	StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error
 }
+type AVSSAuth interface {
+	Sign(msg string) ([]byte, error)
+	Verify(text string, nodeIndex big.Int, signature []byte) bool
+}
 
 // Main Keygen Struct
 type KeygenInstance struct {
@@ -133,19 +138,22 @@ type KeygenInstance struct {
 	Transport         AVSSKeygenTransport
 	Store             AVSSKeygenStorage
 	MsgBuffer         KEYGENBuffer
+	Auth              AVSSAuth
+	FinalNodeSet      []string
 	Nonce             int
 	ComChannel        chan string
 }
 
 const retryDelay = 2
+const readyPrefix = "mug"
 
 // KEYGEN STATES (SK)
 const (
 	// State - Internal
-	SIWaitingInitiateKeygen = "waiting_initiate_keygen"
-	SIRunningKeygen         = "running_keygen"
-	SIWaitingDKGComplete    = "waiting_keygen_dkg_complete"
-	SIKeygenCompleted       = "keygen_completed"
+	SIWaitingInitiateKeygen   = "waiting_initiate_keygen"
+	SIRunningKeygen           = "running_keygen"
+	SIWaitingToFinishUpKeygen = "waiting_to_finish_up_keygen"
+	SIKeygenCompleted         = "keygen_completed"
 
 	// For State - node log
 	SNStandby                  = "standby"
@@ -167,10 +175,9 @@ const (
 // KEYGEN Events (EK)
 const (
 	// Internal Events
-	EIAllInitiateKeygen  = "all_initiate_keygen"
-	EIAllSubsharesDone   = "all_subshares_done"
-	EIAllKeygenCompleted = "all_keygen_completed"
-	EIResendDKGCompleted = "resend_dkg_completed"
+	EIAllInitiateKeygen     = "all_initiate_keygen"
+	EIAllSubsharesDone      = "all_subshares_done"
+	EISentKeygenDKGComplete = "sent_keygen_dkg_complete"
 
 	// For node log events
 	ENInitiateKeygen      = "initiate_keygen"
@@ -189,7 +196,7 @@ const (
 	EKEchoReconstruct    = "echo_reconstruct"
 )
 
-func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, transport AVSSKeygenTransport, store AVSSKeygenStorage, comChannel chan string) (*KeygenInstance, error) {
+func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, transport AVSSKeygenTransport, store AVSSKeygenStorage, auth AVSSAuth, comChannel chan string) (*KeygenInstance, error) {
 	ki := &KeygenInstance{}
 	ki.Lock()
 	defer ki.Unlock()
@@ -205,6 +212,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 	ki.UnqualifiedNodes = make(map[string]*NodeLog)
 	ki.Transport = transport
 	ki.Store = store
+	ki.Auth = auth
 	ki.ComChannel = comChannel
 	// Initialize buffer
 	ki.MsgBuffer = KEYGENBuffer{}
@@ -214,9 +222,8 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 		SIWaitingInitiateKeygen,
 		fsm.Events{
 			{Name: EIAllInitiateKeygen, Src: []string{SIWaitingInitiateKeygen}, Dst: SIRunningKeygen},
-			{Name: EIAllSubsharesDone, Src: []string{SIWaitingDKGComplete, SIRunningKeygen}, Dst: SIWaitingDKGComplete},
-			{Name: EIAllKeygenCompleted, Src: []string{SIWaitingDKGComplete}, Dst: SIKeygenCompleted},
-			{Name: EIResendDKGCompleted, Src: []string{SIWaitingDKGComplete}, Dst: SIWaitingDKGComplete},
+			{Name: EIAllSubsharesDone, Src: []string{SIWaitingToFinishUpKeygen, SIRunningKeygen}, Dst: SIKeygenCompleted},
+			{Name: EISentKeygenDKGComplete, Src: []string{SIRunningKeygen}, Dst: SIWaitingToFinishUpKeygen},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) {
@@ -254,59 +261,72 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 			"after_" + EIAllSubsharesDone: func(e *fsm.Event) {
 				ki.Lock()
 				defer ki.Unlock()
-				// create qualified set
-				var nodeSet []string
-				for nodeIndex, log := range ki.NodeLog {
-					if log.Is(SNQualifiedNode) {
-						nodeSet = append(nodeSet, nodeIndex)
-					}
-				}
-				sort.SliceStable(nodeSet, func(i, j int) bool { return nodeSet[i] < nodeSet[j] })
-
-				// Here we prepare KEYGENShareComplete
-				keygenShareCompletes := make([]KEYGENShareComplete, ki.NumOfKeys)
-				for i := 0; i < ki.NumOfKeys; i++ {
-					keyIndex := big.Int{}
-					keyIndex.SetInt64(int64(i)).Add(&keyIndex, &ki.StartIndex)
-					// form  Si
-					si := big.NewInt(int64(0))
-					siprime := big.NewInt(int64(0))
-					count := 0
-					for _, nodeIndex := range nodeSet {
-						// add up subshares for qualified set
-						count++
-						v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
-						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
-						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
-					}
-					// logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Count for KEYGENComplete: %v", count)
-					c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
-					ki.Store.StoreCompletedShare(keyIndex, *si, *siprime)
-					keygenShareCompletes[i] = KEYGENShareComplete{
-						KeyIndex: keyIndex,
-						c:        c,
-						u1:       u1,
-						u2:       u2,
-						gsi:      gs,
-						gsihr:    gshr,
-					}
-				}
-				// broadcast keygen
-				err := ki.Transport.BroadcastKEYGENDKGComplete(KEYGENDKGComplete{Nonce: ki.Nonce, NodeSet: nodeSet, Proofs: keygenShareCompletes})
-				if err != nil {
-					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENDKGComplete: %s", err)
-				}
-				ki.Nonce++
-				// Here we retry in the case of synchrony issues
-				go func() {
-					time.Sleep(retryDelay * time.Second)
-					if ki.State.Is(SIWaitingDKGComplete) {
-						err := ki.State.Event(EIAllSubsharesDone)
-						if err != nil {
-							logging.Error(err.Error())
+				if len(ki.FinalNodeSet) == 0 {
+					// create qualified set
+					var nodeSet []string
+					for nodeIndex, log := range ki.NodeLog {
+						if log.Is(SNQualifiedNode) {
+							nodeSet = append(nodeSet, nodeIndex)
 						}
 					}
-				}()
+					sort.SliceStable(nodeSet, func(i, j int) bool { return nodeSet[i] < nodeSet[j] })
+
+					// Here we prepare KEYGENShareComplete
+					keygenShareCompletes := make([]KEYGENShareComplete, ki.NumOfKeys)
+					for i := 0; i < ki.NumOfKeys; i++ {
+						keyIndex := big.Int{}
+						keyIndex.SetInt64(int64(i)).Add(&keyIndex, &ki.StartIndex)
+						// form  Si
+						si := big.NewInt(int64(0))
+						siprime := big.NewInt(int64(0))
+						count := 0
+						for _, nodeIndex := range nodeSet {
+							// add up subshares for qualified set
+							count++
+							v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
+							si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
+							siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
+						}
+						// logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Count for KEYGENComplete: %v", count)
+						c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
+						ki.Store.StoreCompletedShare(keyIndex, *si, *siprime)
+						keygenShareCompletes[i] = KEYGENShareComplete{
+							KeyIndex: keyIndex,
+							c:        c,
+							u1:       u1,
+							u2:       u2,
+							gsi:      gs,
+							gsihr:    gshr,
+						}
+					}
+
+					tempReadySigMap := make(map[string](map[string](map[string][]byte)))
+					// prepare keygen Ready signatures
+					for keyIndex, keylog := range ki.KeyLog {
+						tempReadySigMap[keyIndex] = make(map[string](map[string][]byte))
+						for _, dealerIndex := range nodeSet {
+							tempReadySigMap[keyIndex][dealerIndex] = make(map[string][]byte)
+							for sigIndex, ready := range keylog[dealerIndex].ReceivedReadys {
+								tempReadySigMap[keyIndex][dealerIndex][sigIndex] = ready.ReadySig
+							}
+						}
+					}
+
+					// broadcast keygen
+					err := ki.Transport.BroadcastKEYGENDKGComplete(KEYGENDKGComplete{Nonce: ki.Nonce, NodeSet: nodeSet, Proofs: keygenShareCompletes, ReadySignatures: tempReadySigMap})
+					if err != nil {
+						logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENDKGComplete: %s", err)
+					}
+				} else {
+					// End keygen.
+					go func() {
+						err := ki.State.Event(EIAllSubsharesDone)
+						if err != nil {
+							logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
+						}
+					}()
+				}
+
 			},
 			"enter_" + SIKeygenCompleted: func(e *fsm.Event) {
 				ki.ComChannel <- SIKeygenCompleted
@@ -323,7 +343,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 				{Name: ENValidShares, Src: []string{SNKeygening}, Dst: SNQualifiedNode},
 				{Name: ENFailedRoundOne, Src: []string{SNStandby}, Dst: SNUnqualifiedNode},
 				{Name: ENFailedRoundTwo, Src: []string{SNStandby, SNKeygening}, Dst: SNUnqualifiedNode},
-				{Name: ENSyncKEYGENComplete, Src: []string{SNQualifiedNode}, Dst: SNSyncedShareComplete},
+				{Name: ENSyncKEYGENComplete, Src: []string{SNKeygening, SNQualifiedNode}, Dst: SNSyncedShareComplete},
 			},
 			fsm.Callbacks{
 				"enter_state": func(e *fsm.Event) {
@@ -346,22 +366,6 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 							if err != nil {
 								logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Node %s Could not %s. Err: %s", ki.NodeIndex.Text(16), EIAllInitiateKeygen, err)
 							}
-						}()
-					}
-				},
-				"after_" + ENSyncKEYGENComplete: func(e *fsm.Event) {
-					ki.Lock()
-					defer ki.Unlock()
-					// See if all SharesCompleted are in
-					counter := 0
-					for _, v := range ki.NodeLog {
-						if v.Is(SNSyncedShareComplete) {
-							counter++
-						}
-					}
-					if counter >= ki.Threshold+ki.NumMalNodes {
-						go func() {
-							ki.State.Event(EIAllKeygenCompleted)
 						}()
 					}
 				},
@@ -480,6 +484,10 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 								keyIndexStr := index.Text(16)
 								dealerStr := nodeIndex.Text(16)
 								nodeToSendIndex.SetString(k, 16)
+								sig, err := ki.Auth.Sign(readyPrefix + keyIndexStr + dealerStr)
+								if err != nil {
+									logging.Error(err.Error())
+								}
 								keygenReady := KEYGENReady{
 									KeyIndex: *index,
 									Dealer:   nodeIndex,
@@ -487,8 +495,9 @@ func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point
 									Aprimeij: *pvss.PolyEval(ki.KeyLog[keyIndexStr][dealerStr].ReceivedSend.AIprimeY, nodeToSendIndex),
 									Bij:      *pvss.PolyEval(ki.KeyLog[keyIndexStr][dealerStr].ReceivedSend.BIX, nodeToSendIndex),
 									Bprimeij: *pvss.PolyEval(ki.KeyLog[keyIndexStr][dealerStr].ReceivedSend.BIprimeX, nodeToSendIndex),
+									ReadySig: sig,
 								}
-								err := ki.Transport.SendKEYGENReady(keygenReady, nodeToSendIndex)
+								err = ki.Transport.SendKEYGENReady(keygenReady, nodeToSendIndex)
 								if err != nil {
 									// TODO: Handle failure, resend?
 									logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not sent KEYGENReady %s", err)
@@ -727,6 +736,9 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
+	if !ki.Auth.Verify(readyPrefix+msg.KeyIndex.Text(16)+msg.Dealer.Text(16), fromNodeIndex, msg.ReadySig) {
+		return errors.New("Ready Signature is not right")
+	}
 	if ki.State.Is(SIRunningKeygen) {
 		keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 		if !ok {
@@ -778,14 +790,20 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	return nil
 }
 
-func (ki *KeygenInstance) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete, fromNodeIndex big.Int) error {
+func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	if len(keygenShareCompletes.Proofs) != ki.NumOfKeys {
+	if len(msg.Proofs) != ki.NumOfKeys {
 		return errors.New("length of proofs is not correct")
 	}
+	if len(msg.NodeSet) < ki.Threshold+ki.NumMalNodes {
+		return errors.New("Nodeset not large enough")
+	}
+	if len(ki.FinalNodeSet) != 0 {
+		return errors.New("Broadcast already accepted")
+	}
 	// verify shareCompletes
-	for i, keygenShareCom := range keygenShareCompletes.Proofs {
+	for i, keygenShareCom := range msg.Proofs {
 		// ensure valid keyindex
 		expectedKeyIndex := big.NewInt(int64(i))
 		expectedKeyIndex.Add(expectedKeyIndex, &ki.StartIndex)
@@ -802,7 +820,7 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComp
 		// add up all commitments
 		var sumCommitments [][]common.Point
 		// TODO: Potentially quite intensive
-		for _, nodeIndex := range keygenShareCompletes.NodeSet {
+		for _, nodeIndex := range msg.NodeSet {
 			keyLog, ok := ki.KeyLog[keygenShareCom.KeyIndex.Text(16)][nodeIndex]
 			if ok {
 				if len(sumCommitments) == 0 {
@@ -820,52 +838,79 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComp
 		if !pvss.AVSSVerifyShareCommitment(sumCommitments, fromNodeIndex, keygenShareCom.gsihr) {
 			return errors.New("Faulty Share Commitment OnKEYGENDKGComplete")
 		}
-	}
 
-	ki.MsgBuffer.StoreKEYGENDKGComplete(keygenShareCompletes, fromNodeIndex)
-
-	// Here we evaluate keygens from this set suffices
-	completes := ki.MsgBuffer.RetrieveKEYGENDKGComplete(keygenShareCompletes.Nonce, fromNodeIndex)
-
-	// at this point arrays should already be sorted
-	// we get here if everything passes
-	if len(completes) >= ki.Threshold+ki.NumMalNodes {
-		// hash sort here
-		hashCount := make(map[string]int)
-		for _, dkgComplete := range completes {
-			_, ok := hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)]
-			if !ok {
-				hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)] = 0
-			}
-			hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)]++
-		}
-
-		thresholdHit := false
-		var nodeSet []string
-		for str, count := range hashCount {
-			if count >= ki.Threshold+ki.NumMalNodes {
-				for _, dkgComplete := range completes {
-					if fmt.Sprintf("%v", dkgComplete.NodeSet) == str {
-						thresholdHit = true
-						nodeSet = dkgComplete.NodeSet
-						break
+		// check ready signatures
+		for keyIndex, key := range msg.ReadySignatures {
+			for dealerIndex, dealer := range key {
+				if len(dealer) < ki.Threshold+ki.NumMalNodes {
+					return errors.New("Not enough ready statements")
+				}
+				for signerIndex, sig := range dealer {
+					signerInt := big.Int{}
+					signerInt.SetString(signerIndex, 16)
+					if !ki.Auth.Verify(readyPrefix+keyIndex+dealerIndex, signerInt, sig) {
+						return errors.New(" Ready statement Not valid" + readyPrefix + keyIndex + dealerIndex)
 					}
 				}
 			}
 		}
-
-		// define set
-		if thresholdHit {
-			for _, nodeIndex := range nodeSet {
-				go func(nodeLog *NodeLog) {
-					nodeLog.Event(ENSyncKEYGENComplete)
-				}(ki.NodeLog[nodeIndex])
-			}
-
-		}
-
 	}
 
-	// gshr should be a point on the sum commitment matix
+	// define set
+	ki.FinalNodeSet = msg.NodeSet
+
+	// End keygen if we sent the/a broadcast
+	if ki.State.Is(SIWaitingToFinishUpKeygen) {
+		go func() {
+			err := ki.State.Event(EIAllSubsharesDone)
+			if err != nil {
+				logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
+			}
+		}()
+	}
+
+	// ki.MsgBuffer.StoreKEYGENDKGComplete(msg, fromNodeIndex)
+
+	// Here we evaluate keygens from this set suffices
+	// completes := ki.MsgBuffer.RetrieveKEYGENDKGComplete(keygenShareCompletes.Nonce, fromNodeIndex)
+
+	// // at this point arrays should already be sorted
+	// // we get here if everything passes
+	// if len(completes) >= ki.Threshold+ki.NumMalNodes {
+	// 	// hash sort here
+	// 	hashCount := make(map[string]int)
+	// 	for _, dkgComplete := range completes {
+	// 		_, ok := hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)]
+	// 		if !ok {
+	// 			hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)] = 0
+	// 		}
+	// 		hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)]++
+	// 	}
+
+	// 	thresholdHit := false
+	// 	var nodeSet []string
+	// 	for str, count := range hashCount {
+	// 		if count >= ki.Threshold+ki.NumMalNodes {
+	// 			for _, dkgComplete := range completes {
+	// 				if fmt.Sprintf("%v", dkgComplete.NodeSet) == str {
+	// 					thresholdHit = true
+	// 					nodeSet = dkgComplete.NodeSet
+	// 					break
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+
+	// 	// define set
+	// 	if thresholdHit {
+	// 		for _, nodeIndex := range nodeSet {
+	// 			go func(nodeLog *NodeLog) {
+	// 				nodeLog.Event(ENSyncKEYGENComplete)
+	// 			}(ki.NodeLog[nodeIndex])
+	// 		}
+	// 	}
+	// }
+
+	// // gshr should be a point on the sum commitment matix
 	return nil
 }

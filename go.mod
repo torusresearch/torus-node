@@ -44,12 +44,10 @@ require (
 	github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32 // indirect
 	github.com/osamingo/jsonrpc v0.0.0-20171209064156-92d51847b98f
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pelletier/go-toml v1.3.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.6.0
-	github.com/spf13/afero v1.2.2 // indirect
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/tendermint/btcd v0.1.1
@@ -67,14 +65,9 @@ require (
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
 	golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a // indirect
 	golang.org/x/net v0.0.0-20190415100556-4a65cf94b679 // indirect
-	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
 	golang.org/x/sys v0.0.0-20190415081028-16da32be82c5 // indirect
-	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/h2non/baloo.v3 v3.0.2
 	gopkg.in/h2non/gentleman.v2 v2.0.3 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
-	k8s.io/api v0.0.0-20190405172450-8fc60343b75c // indirect
-	k8s.io/apimachinery v0.0.0-20190406052345-8f13d758fb1a // indirect
-	k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7 // indirect
 )

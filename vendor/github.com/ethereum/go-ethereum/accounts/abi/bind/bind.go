@@ -381,23 +381,54 @@ func namedTypeJava(javaKind string, solKind abi.Type) string {
 // methodNormalizer is a name transformer that modifies Solidity method names to
 // conform to target language naming concentions.
 var methodNormalizer = map[Lang]func(string) string{
-	LangGo:   abi.ToCamelCase,
+	LangGo:   capitalise,
 	LangJava: decapitalise,
 }
 
 // capitalise makes a camel-case string which starts with an upper case character.
 func capitalise(input string) string {
-	return abi.ToCamelCase(input)
+	for len(input) > 0 && input[0] == '_' {
+		input = input[1:]
+	}
+	if len(input) == 0 {
+		return ""
+	}
+	return toCamelCase(strings.ToUpper(input[:1]) + input[1:])
 }
 
 // decapitalise makes a camel-case string which starts with a lower case character.
 func decapitalise(input string) string {
-	if len(input) == 0 {
-		return input
+	for len(input) > 0 && input[0] == '_' {
+		input = input[1:]
 	}
+	if len(input) == 0 {
+		return ""
+	}
+	return toCamelCase(strings.ToLower(input[:1]) + input[1:])
+}
 
-	goForm := abi.ToCamelCase(input)
-	return strings.ToLower(goForm[:1]) + goForm[1:]
+// toCamelCase converts an under-score string to a camel-case string
+func toCamelCase(input string) string {
+	toupper := false
+
+	result := ""
+	for k, v := range input {
+		switch {
+		case k == 0:
+			result = strings.ToUpper(string(input[0]))
+
+		case toupper:
+			result += strings.ToUpper(string(v))
+			toupper = false
+
+		case v == '_':
+			toupper = true
+
+		default:
+			result += string(v)
+		}
+	}
+	return result
 }
 
 // structured checks whether a list of ABI data types has enough information to

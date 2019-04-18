@@ -36,15 +36,11 @@ import (
 )
 
 const (
+	contentType             = "application/json"
 	maxRequestContentLength = 1024 * 512
 )
 
-var (
-	// https://www.jsonrpc.org/historical/json-rpc-over-http.html#id13
-	acceptedContentTypes = []string{"application/json", "application/json-rpc", "application/jsonrequest"}
-	contentType          = acceptedContentTypes[0]
-	nullAddr, _          = net.ResolveTCPAddr("tcp", "127.0.0.1:0")
-)
+var nullAddr, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 
 type httpConn struct {
 	client    *http.Client
@@ -267,21 +263,12 @@ func validateRequest(r *http.Request) (int, error) {
 		err := fmt.Errorf("content length too large (%d>%d)", r.ContentLength, maxRequestContentLength)
 		return http.StatusRequestEntityTooLarge, err
 	}
-	// Allow OPTIONS (regardless of content-type)
-	if r.Method == http.MethodOptions {
-		return 0, nil
+	mt, _, err := mime.ParseMediaType(r.Header.Get("content-type"))
+	if r.Method != http.MethodOptions && (err != nil || mt != contentType) {
+		err := fmt.Errorf("invalid content type, only %s is supported", contentType)
+		return http.StatusUnsupportedMediaType, err
 	}
-	// Check content-type
-	if mt, _, err := mime.ParseMediaType(r.Header.Get("content-type")); err == nil {
-		for _, accepted := range acceptedContentTypes {
-			if accepted == mt {
-				return 0, nil
-			}
-		}
-	}
-	// Invalid content-type
-	err := fmt.Errorf("invalid content type, only %s is supported", contentType)
-	return http.StatusUnsupportedMediaType, err
+	return 0, nil
 }
 
 func newCorsHandler(srv *Server, allowedOrigins []string) http.Handler {

@@ -72,6 +72,7 @@ require (
 	golang.org/x/net v0.0.0-20190415100556-4a65cf94b679 // indirect
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
 	golang.org/x/sys v0.0.0-20190415081028-16da32be82c5 // indirect
+	golang.org/x/tools v0.0.0-20190319232107-3f1ed9edd1b4 // indirect
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/h2non/baloo.v3 v3.0.2
 	gopkg.in/h2non/gentleman.v2 v2.0.3 // indirect

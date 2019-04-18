@@ -69,11 +69,11 @@ If you modify any dependencies... just do the follow 3 easy steps:
   ```
   go mod vendor
   ```
-  
+
 3. Fix go mod not vendoring C libraries
 
   ```
-  go get -u github.com/ethereum/go-ethereum@v1.8.20/crypto
+  go get -u github.com/ethereum/go-ethereum@v1.8.20
 
   rm -rf   vendor/github.com/ethereum/go-ethereum/crypto
 

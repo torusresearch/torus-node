@@ -203,6 +203,8 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 	ki.Nonce = 0
 	ki.NodeLog = make(map[string]*NodeLog)
 	ki.UnqualifiedNodes = make(map[string]*NodeLog)
+	ki.Transport = transport
+	ki.Store = store
 	ki.ComChannel = comChannel
 	// Initialize buffer
 	ki.MsgBuffer = KEYGENBuffer{}
@@ -370,6 +372,12 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 
 	ki.KeyLog = make(map[string](map[string]*KEYGENLog))
 	ki.Secrets = make(map[string]KEYGENSecrets)
+
+	for i := 0; i < ki.NumOfKeys; i++ {
+		index := big.NewInt(int64(i))
+		index.Add(index, &ki.StartIndex)
+		ki.KeyLog[index.Text(16)] = make(map[string]*KEYGENLog)
+	}
 	// TODO: Trigger setting up of listeners here
 
 	return ki, nil
@@ -381,9 +389,6 @@ func (ki *KeygenInstance) InitiateKeygen() error {
 	commitmentMatrixes := make([][][]common.Point, ki.NumOfKeys)
 	for i := 0; i < ki.NumOfKeys; i++ {
 		// help initialize all the keylogs
-		index := big.NewInt(int64(i))
-		index.Add(index, &ki.StartIndex)
-		ki.KeyLog[index.Text(16)] = make(map[string]*KEYGENLog)
 		secret := *pvss.RandomBigInt()
 		f := pvss.GenerateRandomBivariatePolynomial(secret, ki.Threshold)
 		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), ki.Threshold)

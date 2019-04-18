@@ -26,7 +26,6 @@ func TestOptimisticKeygen(t *testing.T) {
 	}
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
-
 	runtime.GOMAXPROCS(10)
 	logging.SetLevelString(XXXTestLogging)
 	comsChannel := make(chan string)
@@ -36,11 +35,15 @@ func TestOptimisticKeygen(t *testing.T) {
 	numKeys := 5
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
+	// sets up node list
 	for i := range nodeList {
 		nodeList[i] = *big.NewInt(int64(i + 1))
-				//set up store
+	}
+
+	for i := range nodeList {
+		//set up store
 		store := &mockKeygenStore{}
-		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i],nil, store  ,comsChannel)
+		instance, err := NewAVSSKeygen(*big.NewInt(int64(0)), numKeys, nodeList, threshold, malNodes, nodeList[i], nil, store, comsChannel)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,6 +55,7 @@ func TestOptimisticKeygen(t *testing.T) {
 		var nodeIndex big.Int
 		nodeIndex.SetString(k, 16)
 		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
+		t.Log(transport)
 		v.Transport = &transport
 	}
 

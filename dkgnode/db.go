@@ -2,8 +2,8 @@ package dkgnode
 
 import (
 	"github.com/patrickmn/go-cache"
-	"github.com/torusresearch/torus-public/db"
-	"github.com/torusresearch/torus-public/logging"
+	// "github.com/torusresearch/torus-public/db"
+	// "github.com/torusresearch/torus-public/logging"
 	"time"
 )
 
@@ -29,13 +29,13 @@ type DBSuite struct {
 	Instance TorusDB
 }
 
-func SetupDB(suite *Suite) {
-	torusLdb, err := db.NewTorusLDB(suite.Config.BasePath)
-	if err != nil {
-		logging.Fatalf("Was not able to start leveldb: %v", err)
-	}
-	suite.DBSuite = &DBSuite{Instance: &torusLdb}
-}
+// func SetupDB(suite *Suite) {
+// 	torusLdb, err := db.NewTorusLDB(suite.Config.BasePath)
+// 	if err != nil {
+// 		logging.Fatalf("Was not able to start leveldb: %v", err)
+// 	}
+// 	suite.DBSuite = &DBSuite{Instance: &torusLdb}
+// }
 
 // CacheSuite - handles caching
 type CacheSuite struct {

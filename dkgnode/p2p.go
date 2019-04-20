@@ -34,14 +34,15 @@ type P2PMessage interface {
 
 type P2PBasicMsg struct {
 	// shared between all requests
-	Timestamp  int64  `json:"timestamp,omitempty"`
-	Id         string `json:"id,omitempty"`
-	Gossip     bool   `json:"gossip,omitempty"`
-	NodeId     string `json:"nodeId,omitempty"`
-	NodePubKey []byte `json:"nodePubKey,omitempty"`
-	Sign       []byte `json:"sign,omitempty"`
-	MsgType    string `json:"msgtype,omitempty"`
-	Payload    []byte `json:"payload"`
+	Timestamp  int64  `json:"timestamp,omitempty"`  // unix time
+	Id         string `json:"id,omitempty"`         // allows requesters to use request data when processing a response
+	Gossip     bool   `json:"gossip,omitempty"`     // true to have receiver peer gossip the message to neighbors
+	NodeId     string `json:"nodeId,omitempty"`     // id of node that created the message (not the peer that may have sent it). =base58(multihash(nodePubKey))
+	NodePubKey []byte `json:"nodePubKey,omitempty"` // Authoring node Secp256k1 public key (32bytes)
+	Sign       []byte `json:"sign,omitempty"`       // signature of message data + method specific data by message authoring node.
+
+	MsgType string `json:"msgtype,omitempty"` // identifyng message type
+	Payload []byte `json:"payload"`           // payload data to be unmarshalled
 }
 
 type NodeReference struct {
@@ -54,14 +55,15 @@ type NodeReference struct {
 }
 type P2PSuite struct {
 	host.Host
-	HostAddress            ma.Multiaddr
-	JSONUnmarshalReference map[string]P2PJSON
-	PingProto              *PingProtocol
+	HostAddress ma.Multiaddr
+	// JSONUnmarshalReference map[string]P2PJSON
+	PingProto *PingProtocol
 }
-type P2PJSON interface {
-	GetStructType() string
-	UnmarshalToStruct()
-}
+
+// type P2PJSON interface {
+// 	GetStructType() string
+// 	UnmarshalToStruct()
+// }
 
 func (msg *P2PBasicMsg) GetTimestamp() int64 {
 	return msg.Timestamp
@@ -312,3 +314,17 @@ func connectToP2PNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address
 		P2PConnection:   details.P2pListenAddress,
 	}, nil
 }
+
+// func getNodeIndexFromPubKey(pubKey []byte) big.Int {
+// 	pk, err := crypto.UnmarshalPublicKey(pubKey)
+// 	if err != nil {
+// 		logging.Error("Failed to derive id")
+// 		return
+// 	}
+// 	// extract node id from the provided public key
+// 	idFromKey, err := peer.IDFromPublicKey(key)
+// 	for _, nodeRef := range p.suite.EthSuite.NodeList {
+// 		nodeRef.PeerID
+// 	}
+// 	return
+// }

@@ -44,6 +44,10 @@ type KEYGENReady struct {
 	ReadySig []byte
 }
 
+type KEYGENInitiate struct {
+	CommitmentMatrixes [][][]common.Point
+}
+
 type KEYGENShareComplete struct {
 	KeyIndex big.Int
 	c        big.Int
@@ -91,7 +95,7 @@ type AVSSKeygen interface {
 
 	// For this, these listeners must be triggered on incoming messages
 	// Listeners and Reactions
-	OnInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error
+	OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int) error
 	OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error
 	OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error
 	OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error
@@ -103,7 +107,7 @@ type AVSSKeygen interface {
 type AVSSKeygenTransport interface {
 	// Implementing the Code below will allow KEYGEN to run
 	// "Client" Actions
-	BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error
+	BroadcastInitiateKeygen(msg KEYGENInitiate) error
 	SendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
 	SendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
 	SendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
@@ -407,7 +411,7 @@ func (ki *KeygenInstance) InitiateKeygen() error {
 			fprime: fprime,
 		}
 	}
-	err := ki.Transport.BroadcastInitiateKeygen(commitmentMatrixes)
+	err := ki.Transport.BroadcastInitiateKeygen(KEYGENInitiate{commitmentMatrixes})
 	if err != nil {
 		return err
 	}
@@ -418,17 +422,17 @@ func (ki *KeygenInstance) InitiateKeygen() error {
 	return nil
 }
 
-func (ki *KeygenInstance) OnInitiateKeygen(commitmentMatrixes [][][]common.Point, nodeIndex big.Int) error {
+func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
 	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
 	if ki.NodeLog[nodeIndex.Text(16)].Is(SNStandby) {
 		// check length of commitment matrix is right
-		if len(commitmentMatrixes) != ki.NumOfKeys {
+		if len(msg.CommitmentMatrixes) != ki.NumOfKeys {
 			return errors.New("length of  commitment matrix is not correct")
 		}
 		// store commitment matrix
-		for i, commitmentMatrix := range commitmentMatrixes {
+		for i, commitmentMatrix := range msg.CommitmentMatrixes {
 			index := big.NewInt(int64(i))
 			index.Add(index, &ki.StartIndex)
 			// TODO: create state to handle time out of t2

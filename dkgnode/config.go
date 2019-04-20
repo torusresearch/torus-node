@@ -24,7 +24,8 @@ type Config struct {
 	P2PListenAddress           string `json:"p2plistenaddress" env:"P2P_LISTEN_ADDRESS"`
 	NodeListAddress            string `json:"nodelistaddress" env:"NODE_LIST_ADDRESS"`
 	NumberOfNodes              int    `json:"numberofnodes" env:"NUMBER_OF_NODES"`
-	Threshold                  int    `json:"threshold" env:"THRESHOLD"`
+	Threshold                  int    `json:"threshold" env:"THRESHOLD"`     // k
+	NumMalNodes                int    `json:"nummalnodes" env:"NUMMALNODES"` // t
 	KeysPerEpoch               int    `json:"keysperepoch" env:"KEYS_PER_EPOCH"`
 	KeyBufferTriggerPercentage int    `json:"keybuffertriggerpercetage" env:"KEY_BUFFER_TRIGGER_PERCENTAGE"` //percetage threshold of keys left to trigger buffering 90 - 20
 	BasePath                   string `json:"basepath" env:"BASE_PATH"`
@@ -213,6 +214,7 @@ func defaultConfigSettings() Config {
 		NodeListAddress:            "0x4e8fce1336c534e0452410c2cb8cd628949dcc85",
 		NumberOfNodes:              5,
 		Threshold:                  3,
+		NumMalNodes:                1,
 		KeysPerEpoch:               100,
 		KeyBufferTriggerPercentage: 80,
 		BasePath:                   "/.torus",

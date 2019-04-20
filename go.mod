@@ -20,6 +20,7 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.8.20
 	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a // indirect
+	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
 	github.com/google/uuid v1.1.1

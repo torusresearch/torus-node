@@ -1,4 +1,4 @@
-package keygen
+package pss
 
 import (
 	"errors"

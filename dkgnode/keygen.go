@@ -31,7 +31,7 @@ import (
 	// "fmt"
 	"io/ioutil"
 	// "log"
-	// "crypto/ecdsa"
+	"crypto/ecdsa"
 	"errors"
 	"math/big"
 	// uuid "github.com/google/uuid"
@@ -87,16 +87,6 @@ type BFTKeygenMsg struct {
 	P2PBasicMsg
 	Protocol string
 }
-
-// type AVSSKeygenTransport interface {
-// 	// Implementing the Code below will allow KEYGEN to run
-// 	// "Client" Actions
-// 	BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error
-// 	SendKEYGENSend(msg KEYGENSend, nodeIndex big.Int) error
-// 	SendKEYGENEcho(msg KEYGENEcho, nodeIndex big.Int) error
-// 	SendKEYGENReady(msg KEYGENReady, nodeIndex big.Int) error
-// 	BroadcastKEYGENDKGComplete(msg KEYGENDKGComplete) error
-// }
 
 func NewKeygenProtocol(suite *Suite, localHost *P2PSuite) *KEYGENProtocol {
 	k := &KEYGENProtocol{
@@ -287,32 +277,20 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 func (ka *KEYGENProtocol) Sign(msg string) ([]byte, error) {
 
 	sig := ECDSASign([]byte(msg), ka.suite.EthSuite.NodePrivateKey)
-	// bytes32(signature[:32]),
-	// bytes32(signature[32:64]),
-	// uint8(int(signature[64])) + 27, // Yes add 27, weird Ethereum quirk
 	return sig.Raw, nil
 }
 func (ka *KEYGENProtocol) Verify(text string, nodeIndex big.Int, signature []byte) bool {
 	// Derive ID From Index
 	// TODO: this should be exported once nodelist becomes more modular
-	// var nodePK ecdsa.PublicKey
-	// for _, nodeRef := range ka.suite.EthSuite.NodeList {
-	// 	if nodeRef.Index.Cmp(&nodeIndex) == 0 {
-	// 		nodePK = *nodeRef.PublicKey
-	// 		break
-	// 	}
-	// }
+	var nodePK ecdsa.PublicKey
+	for _, nodeRef := range ka.suite.EthSuite.NodeList {
+		if nodeRef.Index.Cmp(&nodeIndex) == 0 {
+			nodePK = *nodeRef.PublicKey
+			break
+		}
+	}
 
-	// ecSig := ECDSASignature{
-	// 	signature,
-
-	// 	bytes32(signature[:32]),
-	// 	bytes32(signature[32:64]),
-	// 	uint8(int(signature[64])), +27, // Yes add 27, weird Ethereum quirk
-	// }
-
-	// return ECDSAVerify(nodePK, ecSig)
-	return false
+	return ECDSAVerifyFromRaw(text, nodePK, signature)
 }
 
 type KEYGENTransport struct {

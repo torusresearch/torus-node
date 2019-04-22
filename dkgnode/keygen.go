@@ -121,7 +121,6 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 		}
 	}
 	keygenTp := KEYGENTransport{}
-	keygenAuth := KEYGENAuth{}
 	c := make(chan string)
 	instance, err := keygen.NewAVSSKeygen(
 		*big.NewInt(int64(shareStartingIndex)),
@@ -132,7 +131,7 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 		ownNodeIndex,
 		&keygenTp,
 		suite.DBSuite.Instance,
-		&keygenAuth,
+		kp,
 		c,
 	)
 	if err != nil {
@@ -228,32 +227,6 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 	}
-
-	// generate response message
-	// log.Printf("%s: Sending ping response to %s. Message id: %s...", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.GetId())
-	// pingBytes, err := bijson.Marshal(Ping{Message: fmt.Sprintf("Ping response from %s", p.localHost.ID())})
-	// if err != nil {
-	// 	logging.Error("could not marshal ping")
-	// 	return
-	// }
-	// resp := p.localHost.NewP2PMessage(data.GetId(), false, pingBytes)
-
-	// // sign the data
-	// signature, err := p.localHost.signP2PMessage(resp)
-	// if err != nil {
-	// 	logging.Error("failed to sign response")
-	// 	return
-	// }
-
-	// // add the signature to the message
-	// resp.Sign = signature
-
-	// // send the response
-	// err = p.localHost.sendP2PMessage(s.Conn().RemotePeer(), pingResponse, resp)
-
-	// if err == nil {
-	// 	logging.Debugf("%s: Ping response to %s sent.", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String())
-	// }
 }
 
 func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
@@ -308,6 +281,14 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 	}
 
 	return true
+}
+
+func (ka *KEYGENProtocol) Sign(msg string) ([]byte, error) {
+	ECDSASign([]byte(msg), ka.suite.EthSuite.NodePrivateKey)
+	return nil, nil
+}
+func (ka *KEYGENProtocol) Verify(text string, nodeIndex big.Int, signature []byte) bool {
+	return false
 }
 
 type KEYGENTransport struct {
@@ -412,14 +393,4 @@ func (kt *KEYGENTransport) prepAndSendKeygenMsg(pl []byte, msgType string, nodeI
 		return errors.New("failed to send SendKEYGENSend " + err.Error())
 	}
 	return nil
-}
-
-type KEYGENAuth struct {
-}
-
-func (ka *KEYGENAuth) Sign(msg string) ([]byte, error) {
-	return nil, nil
-}
-func (ka *KEYGENAuth) Verify(text string, nodeIndex big.Int, signature []byte) bool {
-	return false
 }

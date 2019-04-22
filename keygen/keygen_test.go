@@ -662,11 +662,11 @@ func (transport *mockTransport) SendKEYGENReady(msg KEYGENReady, to big.Int) err
 	return nil
 }
 
-func (transport *mockTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+func (transport *mockTransport) BroadcastInitiateKeygen(commitmentMatrixes KEYGENInitiate) error {
 	// logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
 	for _, instance := range *transport.nodeKegenInstances {
 		// logging.Debugf("index: %s", k)
-		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
+		go func(ins *KeygenInstance, cm KEYGENInitiate, tns big.Int) {
 			err := ins.OnInitiateKeygen(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
@@ -703,7 +703,7 @@ func (transport *mockDeadTransport) SendKEYGENReady(msg KEYGENReady, to big.Int)
 	return nil
 }
 
-func (transport *mockDeadTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+func (transport *mockDeadTransport) BroadcastInitiateKeygen(commitmentMatrixes KEYGENInitiate) error {
 	return nil
 }
 
@@ -728,10 +728,10 @@ func (transport *mockDeadTransportTwo) SendKEYGENReady(msg KEYGENReady, to big.I
 	return nil
 }
 
-func (transport *mockDeadTransportTwo) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+func (transport *mockDeadTransportTwo) BroadcastInitiateKeygen(commitmentMatrixes KEYGENInitiate) error {
 	for _, instance := range *transport.nodeKegenInstances {
 		// logging.Debugf("index: %s", k)
-		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
+		go func(ins *KeygenInstance, cm KEYGENInitiate, tns big.Int) {
 			err := ins.OnInitiateKeygen(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
@@ -787,11 +787,11 @@ func (transport *mockEvilTransport) SendKEYGENReady(msg KEYGENReady, to big.Int)
 	return nil
 }
 
-func (transport *mockEvilTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+func (transport *mockEvilTransport) BroadcastInitiateKeygen(commitmentMatrixes KEYGENInitiate) error {
 	// logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
 	for _, instance := range *transport.nodeKegenInstances {
 		// logging.Debugf("index: %s", k)
-		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
+		go func(ins *KeygenInstance, cm KEYGENInitiate, tns big.Int) {
 			err := ins.OnInitiateKeygen(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)
@@ -848,11 +848,11 @@ func (transport *mockLaggingTransport) SendKEYGENReady(msg KEYGENReady, to big.I
 	return nil
 }
 
-func (transport *mockLaggingTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+func (transport *mockLaggingTransport) BroadcastInitiateKeygen(commitmentMatrixes KEYGENInitiate) error {
 	// logging.Debugf("Broadcast Initiate Keygen Called: %s", transport.nodeIndex)
 	for _, instance := range *transport.nodeKegenInstances {
 		// logging.Debugf("index: %s", k)
-		go func(ins *KeygenInstance, cm [][][]common.Point, tns big.Int) {
+		go func(ins *KeygenInstance, cm KEYGENInitiate, tns big.Int) {
 			err := ins.OnInitiateKeygen(cm, tns)
 			if err != nil {
 				fmt.Println("ERRROR BroadcastInitiateKeygen: ", err)

@@ -218,7 +218,7 @@ func (localHost *P2PSuite) verifyData(data []byte, signature []byte, peerId peer
 
 // helper method - generate message data shared between all node's p2p protocols
 // messageId: unique for requests, copied from request for responses
-func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload []byte) *P2PBasicMsg {
+func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload []byte, msgType string) *P2PBasicMsg {
 	// Add protobufs bin data for message author public key
 	// this is useful for authenticating  messages forwarded by a node authored by another node
 	nodePubKey, err := localHost.Peerstore().PubKey(localHost.ID()).Bytes()
@@ -234,6 +234,7 @@ func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload 
 		Id:         messageId,
 		Gossip:     gossip,
 		Payload:    payload,
+		MsgType:    msgType,
 	}
 }
 

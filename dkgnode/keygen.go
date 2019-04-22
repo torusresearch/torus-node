@@ -315,10 +315,77 @@ type KEYGENTransport struct {
 	ProtoName protocol.ID
 }
 
-func (kt *KEYGENTransport) BroadcastInitiateKeygen(msg keygen.KEYGENInitiate) error {
+func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.Int) error {
+	plBytes, err := bijson.Marshal(msg)
+	if err != nil {
+		return errors.New("Could not marshal: " + err.Error())
+	}
+	err = kt.prepAndSendKeygenMsg(plBytes, keygenConsts.Send, nodeIndex)
+	if err != nil {
+		return errors.New("Could not send KeygenP2PMsg: " + err.Error())
+	}
 	return nil
 }
-func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.Int) error {
+
+func (kt *KEYGENTransport) SendKEYGENEcho(msg keygen.KEYGENEcho, nodeIndex big.Int) error {
+	plBytes, err := bijson.Marshal(msg)
+	if err != nil {
+		return errors.New("Could not marshal: " + err.Error())
+	}
+	err = kt.prepAndSendKeygenMsg(plBytes, keygenConsts.Echo, nodeIndex)
+	if err != nil {
+		return errors.New("Could not send KeygenP2PMsg: " + err.Error())
+	}
+	return nil
+}
+
+func (kt *KEYGENTransport) SendKEYGENReady(msg keygen.KEYGENReady, nodeIndex big.Int) error {
+	plBytes, err := bijson.Marshal(msg)
+	if err != nil {
+		return errors.New("Could not marshal: " + err.Error())
+	}
+	err = kt.prepAndSendKeygenMsg(plBytes, keygenConsts.Ready, nodeIndex)
+	if err != nil {
+		return errors.New("Could not send KeygenP2PMsg: " + err.Error())
+	}
+	return nil
+}
+
+func (kt *KEYGENTransport) BroadcastInitiateKeygen(msg keygen.KEYGENInitiate) error {
+	plBytes, err := bijson.Marshal(msg)
+	if err != nil {
+		return errors.New("Could not marshal: " + err.Error())
+	}
+	bftMsg := BFTKeygenMsg{
+		P2PBasicMsg: *kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Initiate),
+		Protocol:    string(kt.ProtoName),
+	}
+	wrap := DefaultBFTTxWrapper{bftMsg}
+	_, err = kt.Protocol.suite.BftSuite.BftRPC.Broadcast(wrap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (kt *KEYGENTransport) BroadcastKEYGENDKGComplete(msg keygen.KEYGENDKGComplete) error {
+	plBytes, err := bijson.Marshal(msg)
+	if err != nil {
+		return errors.New("Could not marshal: " + err.Error())
+	}
+	bftMsg := BFTKeygenMsg{
+		P2PBasicMsg: *kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Ready),
+		Protocol:    string(kt.ProtoName),
+	}
+	wrap := DefaultBFTTxWrapper{bftMsg}
+	_, err = kt.Protocol.suite.BftSuite.BftRPC.Broadcast(wrap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (kt *KEYGENTransport) prepAndSendKeygenMsg(pl []byte, msgType string, nodeIndex big.Int) error {
 	// Derive ID From Index
 	// TODO: this should be exported once nodelist becomes more modular
 	var nodeId peer.ID
@@ -329,12 +396,7 @@ func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.I
 		}
 	}
 
-	plBytes, err := bijson.Marshal(msg)
-	if err != nil {
-		return errors.New("Could not marshal: " + err.Error())
-	}
-
-	p2pMsg := kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes)
+	p2pMsg := kt.Protocol.localHost.NewP2PMessage(HashToString(pl), false, pl, msgType)
 
 	// sign the data
 	signature, err := kt.Protocol.localHost.signP2PMessage(p2pMsg)
@@ -349,15 +411,6 @@ func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.I
 	if err != nil {
 		return errors.New("failed to send SendKEYGENSend " + err.Error())
 	}
-	return nil
-}
-func (kt *KEYGENTransport) SendKEYGENEcho(msg keygen.KEYGENEcho, nodeIndex big.Int) error {
-	return nil
-}
-func (kt *KEYGENTransport) SendKEYGENReady(msg keygen.KEYGENReady, nodeIndex big.Int) error {
-	return nil
-}
-func (kt *KEYGENTransport) BroadcastKEYGENDKGComplete(msg keygen.KEYGENDKGComplete) error {
 	return nil
 }
 

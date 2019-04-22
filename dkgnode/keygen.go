@@ -38,7 +38,7 @@ import (
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	// peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/torusresearch/bijson"
-	"github.com/torusresearch/torus-public/common"
+	// "github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/keygen"
 	"github.com/torusresearch/torus-public/logging"
 )
@@ -128,7 +128,7 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 	}
 
 	// attach listners
-	kp.localHost.SetStreamHandler(protocol.ID(keygenID), kp.onKeygenMessage)
+	kp.localHost.SetStreamHandler(protocol.ID(keygenID), kp.onP2PKeygenMessage)
 
 	// peg it to the protocol
 	kp.KeygenInstances[keygenID] = instance
@@ -137,7 +137,7 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 }
 
 // remote peer requests handler
-func (p *KEYGENProtocol) onKeygenMessage(s inet.Stream) {
+func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 
 	// get request data
 	p2pMsg := &P2PBasicMsg{}
@@ -244,10 +244,81 @@ func (p *KEYGENProtocol) onKeygenMessage(s inet.Stream) {
 	// }
 }
 
+type BFTKeygenMsg struct {
+	P2PBasicMsg
+	Protocol string
+}
+
+func (p *KEYGENProtocol) onBFTMsg(p2pMsg P2PBasicMsg) bool {
+
+	valid := p.localHost.authenticateMessage(p2pMsg)
+
+	if !valid {
+		logging.Error("Failed to authenticate message")
+		return false
+	}
+
+	// Derive NodeIndex From PK
+	// TODO: this should be exported once nodelist becomes more modular
+	var nodeIndex big.Int
+	pk, err := crypto.UnmarshalPublicKey(p2pMsg.GetNodePubKey())
+	if err != nil {
+		logging.Error("Failed to derive pk")
+		return false
+	}
+	for _, nodeRef := range p.suite.EthSuite.NodeList {
+		if nodeRef.PeerID.MatchesPublicKey(pk) {
+			nodeIndex = *nodeRef.Index
+			break
+		}
+	}
+
+	// switch p2pMsg.GetMsgType() {
+	// case keygenConsts.Send:
+	// 	payload := keygen.KEYGENSend{}
+	// 	err = bijson.Unmarshal(p2pMsg.Payload, payload)
+	// 	if err != nil {
+	// 		logging.Error(err.Error())
+	// 		return false
+	// 	}
+	// 	err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENSend(payload, nodeIndex)
+	// 	if err != nil {
+	// 		logging.Error(err.Error())
+	// 		return false
+	// 	}
+	// case keygenConsts.Echo:
+	// 	payload := keygen.KEYGENEcho{}
+	// 	err = bijson.Unmarshal(p2pMsg.Payload, payload)
+	// 	if err != nil {
+	// 		logging.Error(err.Error())
+	// 		return false
+	// 	}
+	// 	err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENEcho(payload, nodeIndex)
+	// 	if err != nil {
+	// 		logging.Error(err.Error())
+	// 		return false
+	// 	}
+	// case keygenConsts.Ready:
+	// 	payload := keygen.KEYGENReady{}
+	// 	err = bijson.Unmarshal(p2pMsg.Payload, payload)
+	// 	if err != nil {
+	// 		logging.Error(err.Error())
+	// 		return false
+	// 	}
+	// 	err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENReady(payload, nodeIndex)
+	// 	if err != nil {
+	// 		logging.Error(err.Error())
+	// 		return false
+	// 	}
+	// }
+
+	return true
+}
+
 type KEYGENTransport struct {
 }
 
-func (kt *KEYGENTransport) BroadcastInitiateKeygen(commitmentMatrixes [][][]common.Point) error {
+func (kt *KEYGENTransport) BroadcastInitiateKeygen(msg keygen.KEYGENInitiate) error {
 	return nil
 }
 func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.Int) error {

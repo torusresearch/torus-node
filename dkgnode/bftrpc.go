@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/keygen"
 	"github.com/torusresearch/torus-public/logging"
 )
 
@@ -65,11 +66,13 @@ type ValidatorUpdateBFTTx struct {
 
 // mapping of name of struct to id
 var bftTxs = map[string]byte{
-	getType(PubPolyBFTTx{}):         byte(1),
-	getType(KeyGenShareBFTTx{}):     byte(3),
-	getType(AssignmentBFTTx{}):      byte(4),
-	getType(StatusBFTTx{}):          byte(5),
-	getType(ValidatorUpdateBFTTx{}): byte(6),
+	getType(PubPolyBFTTx{}):             byte(1),
+	getType(KeyGenShareBFTTx{}):         byte(3),
+	getType(AssignmentBFTTx{}):          byte(4),
+	getType(StatusBFTTx{}):              byte(5),
+	getType(ValidatorUpdateBFTTx{}):     byte(6),
+	getType(P2PBasicMsg{}):              byte(7),
+	getType(keygen.KEYGENDKGComplete{}): byte(8),
 }
 
 func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {

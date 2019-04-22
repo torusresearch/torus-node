@@ -13,6 +13,7 @@ import (
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	"github.com/torusresearch/torus-public/keygen"
 	"github.com/torusresearch/torus-public/logging"
 )
 
@@ -260,8 +261,23 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			{Key: []byte("updatevalidator"), Value: []byte("1")},
 		}
 		return true, &tags, nil
-
+	case byte(7): // P2PBasicMsg
+		// TODO: Bring up router to this level (needed for PSS)
+		wrapper := DefaultBFTTxWrapper{&P2PBasicMsg{}}
+		err := wrapper.DecodeBFTTx(txNoSig)
+		if err != nil {
+			return false, nil, err
+		}
+		p2pMsg := wrapper.BFTTx.(*P2PBasicMsg)
+		if !app.Suite.P2PSuite.KeygenProto.onBFTMsg(*p2pMsg) {
+			return false, nil, errors.New("P2PBasicMsg not accepted")
+		}
+		tags = []common.KVPair{
+			{Key: []byte("p2pmsg"), Value: []byte("1")},
+		}
+		return true, &tags, nil
 	}
+
 	return false, &tags, errors.New("Tx type not recognised")
 }
 

@@ -29,6 +29,7 @@ type P2PMessage interface {
 	GetNodeId() string
 	GetNodePubKey() []byte
 	GetSign() []byte
+	SetSign(sig []byte)
 	GetMsgType() string
 }
 
@@ -57,7 +58,8 @@ type P2PSuite struct {
 	host.Host
 	HostAddress ma.Multiaddr
 	// JSONUnmarshalReference map[string]P2PJSON
-	PingProto *PingProtocol
+	PingProto   *PingProtocol
+	KeygenProto *KEYGENProtocol
 }
 
 // type P2PJSON interface {
@@ -85,6 +87,9 @@ func (msg *P2PBasicMsg) GetSign() []byte {
 }
 func (msg *P2PBasicMsg) GetMsgType() string {
 	return msg.MsgType
+}
+func (msg *P2PBasicMsg) SetSign(sig []byte) {
+	msg.Sign = sig
 }
 
 // SetupP2PHost creates a LibP2P host with an ID being the supplied private key and initiates
@@ -125,18 +130,18 @@ func SetupP2PHost(suite *Suite) (host.Host, error) {
 
 	// Set a stream handlers or protocols
 	suite.P2PSuite.PingProto = NewPingProtocol(suite.P2PSuite)
-
+	suite.P2PSuite.KeygenProto = NewKeygenProtocol(suite, suite.P2PSuite)
 	return h, nil
 }
 
 // Authenticate incoming p2p message
 // message: a protobufs go data object
 // data: common p2p message data
-func (localHost *P2PSuite) authenticateMessage(data P2PBasicMsg) bool {
+func (localHost *P2PSuite) authenticateMessage(data P2PMessage) bool {
 	// store a temp ref to signature and remove it from message data
 	// sign is a string to allow easy reset to zero-value (empty string)
-	sign := data.Sign
-	data.Sign = nil
+	sign := data.GetSign()
+	data.SetSign(nil)
 
 	// marshall data without the signature to bytes format
 	bin, err := bijson.Marshal(data)
@@ -146,10 +151,10 @@ func (localHost *P2PSuite) authenticateMessage(data P2PBasicMsg) bool {
 	}
 
 	// restore sig in message data (for possible future use)
-	data.Sign = sign
+	data.SetSign(sign)
 
 	// restore peer id binary format from base58 encoded node id data
-	peerId, err := peer.IDB58Decode(data.NodeId)
+	peerId, err := peer.IDB58Decode(data.GetId())
 	if err != nil {
 		logging.Errorf("Failed to decode node id from base58", err)
 		return false
@@ -157,7 +162,7 @@ func (localHost *P2PSuite) authenticateMessage(data P2PBasicMsg) bool {
 
 	// verify the data was authored by the signing peer identified by the public key
 	// and signature included in the message
-	return localHost.verifyData(bin, []byte(sign), peerId, data.NodePubKey)
+	return localHost.verifyData(bin, []byte(sign), peerId, data.GetNodePubKey())
 }
 
 // sign an outgoing p2p message payload

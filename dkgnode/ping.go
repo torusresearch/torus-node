@@ -53,7 +53,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 		return
 	}
 
-	valid := p.localHost.authenticateMessage(*data)
+	valid := p.localHost.authenticateMessage(data)
 
 	if !valid {
 		logging.Error("Failed to authenticate message")
@@ -105,7 +105,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 		return
 	}
 
-	valid := p.localHost.authenticateMessage(*data)
+	valid := p.localHost.authenticateMessage(data)
 
 	if !valid {
 		logging.Error("Failed to authenticate message")

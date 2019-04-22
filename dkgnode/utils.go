@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"net"
@@ -132,9 +133,31 @@ func ECDSAVerify(ecdsaPubKey ecdsa.PublicKey, ecdsaSignature ECDSASignature) boo
 	r.SetBytes(ecdsaSignature.R[:])
 	s.SetBytes(ecdsaSignature.S[:])
 
+	fmt.Println("r: ", r.String())
+	fmt.Println("s: ", s.String())
 	return ecdsa.Verify(
 		&ecdsaPubKey,
 		ecdsaSignature.Hash[:],
+		r,
+		s,
+	)
+}
+
+func ECDSAVerifyFromRaw(msg string, ecdsaPubKey ecdsa.PublicKey, signature []byte) bool {
+	r := new(big.Int)
+	s := new(big.Int)
+	tempR := bytes32(signature[:32])
+	tempS := bytes32(signature[32:64])
+	r.SetBytes(tempR[:])
+	s.SetBytes(tempS[:])
+	bytesHash := bytes32(secp256k1.Keccak256([]byte(msg)))
+
+	fmt.Println("1: ", secp256k1.Keccak256([]byte(msg)))
+	fmt.Println("r: ", r.String())
+	fmt.Println("s: ", s.String())
+	return ecdsa.Verify(
+		&ecdsaPubKey,
+		bytesHash[:],
 		r,
 		s,
 	)

@@ -146,6 +146,7 @@ func bytes32(bytes []byte) [32]byte {
 	return tmp
 }
 
+// Signs using Ethereum ECDSA (where randomness is deterministic)
 func ECDSASign(s string, privKey *big.Int) []byte {
 	pubKey := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(privKey.Bytes()))
 	ecdsaPrivKey := &ecdsa.PrivateKey{

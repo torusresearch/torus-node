@@ -31,6 +31,7 @@ import (
 	// "fmt"
 	"io/ioutil"
 	// "log"
+	// "crypto/ecdsa"
 	"errors"
 	"math/big"
 	// uuid "github.com/google/uuid"
@@ -284,10 +285,33 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 }
 
 func (ka *KEYGENProtocol) Sign(msg string) ([]byte, error) {
-	ECDSASign([]byte(msg), ka.suite.EthSuite.NodePrivateKey)
-	return nil, nil
+
+	sig := ECDSASign([]byte(msg), ka.suite.EthSuite.NodePrivateKey)
+	// bytes32(signature[:32]),
+	// bytes32(signature[32:64]),
+	// uint8(int(signature[64])) + 27, // Yes add 27, weird Ethereum quirk
+	return sig.Raw, nil
 }
 func (ka *KEYGENProtocol) Verify(text string, nodeIndex big.Int, signature []byte) bool {
+	// Derive ID From Index
+	// TODO: this should be exported once nodelist becomes more modular
+	// var nodePK ecdsa.PublicKey
+	// for _, nodeRef := range ka.suite.EthSuite.NodeList {
+	// 	if nodeRef.Index.Cmp(&nodeIndex) == 0 {
+	// 		nodePK = *nodeRef.PublicKey
+	// 		break
+	// 	}
+	// }
+
+	// ecSig := ECDSASignature{
+	// 	signature,
+
+	// 	bytes32(signature[:32]),
+	// 	bytes32(signature[32:64]),
+	// 	uint8(int(signature[64])), +27, // Yes add 27, weird Ethereum quirk
+	// }
+
+	// return ECDSAVerify(nodePK, ecSig)
 	return false
 }
 

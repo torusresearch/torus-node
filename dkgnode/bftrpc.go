@@ -71,7 +71,7 @@ var bftTxs = map[string]byte{
 	getType(AssignmentBFTTx{}):          byte(4),
 	getType(StatusBFTTx{}):              byte(5),
 	getType(ValidatorUpdateBFTTx{}):     byte(6),
-	getType(P2PBasicMsg{}):              byte(7),
+	getType(BFTKeygenMsg{}):              byte(7),
 	getType(keygen.KEYGENDKGComplete{}): byte(8),
 }
 

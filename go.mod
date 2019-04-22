@@ -66,9 +66,10 @@ require (
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	github.com/xlab-si/emmy v0.0.0-20181126075652-2a3c9dd29847
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
-	golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a // indirect
-	golang.org/x/net v0.0.0-20190415100556-4a65cf94b679 // indirect
-	golang.org/x/sys v0.0.0-20190415081028-16da32be82c5 // indirect
+	golang.org/x/crypto v0.0.0-20190418165655-df01cb2cc480 // indirect
+	golang.org/x/net v0.0.0-20190419010253-1f3472d942ba // indirect
+	golang.org/x/sys v0.0.0-20190418153312-f0ce4c0180be // indirect
+	golang.org/x/tools v0.0.0-20190418235243-4796d4bd3df0 // indirect
 	gopkg.in/h2non/baloo.v3 v3.0.2
 	gopkg.in/h2non/gentleman.v2 v2.0.3 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect

@@ -185,3 +185,9 @@ func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 	}
 	return
 }
+
+// Hashes to a hex string (only the first 6 chars)
+func HashToString(bytes []byte) string {
+	hash := secp256k1.Keccak256(bytes)
+	return hex.EncodeToString(hash)[0:6]
+}

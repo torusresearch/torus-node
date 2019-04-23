@@ -293,7 +293,6 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 						}
 						// logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Count for KEYGENComplete: %v", count)
 						c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
-						ki.Store.StoreCompletedShare(keyIndex, *si, *siprime)
 						keygenShareCompletes[i] = KEYGENShareComplete{
 							KeyIndex: keyIndex,
 							c:        c,
@@ -333,6 +332,33 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 
 			},
 			"enter_" + SIKeygenCompleted: func(e *fsm.Event) {
+				// To wrap things up we first store Secrets and respective Key Shares
+				for i := 0; i < ki.NumOfKeys; i++ {
+					keyIndex := big.Int{}
+					keyIndex.SetInt64(int64(i)).Add(&keyIndex, &ki.StartIndex)
+					// form  Si
+					si := big.NewInt(int64(0))
+					siprime := big.NewInt(int64(0))
+					count := 0
+					for _, nodeIndex := range ki.FinalNodeSet {
+						// add up subshares for qualified set
+						count++
+						v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
+						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
+						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
+					}
+					err := ki.Store.StoreCompletedShare(keyIndex, *si, *siprime)
+					if err != nil {
+						// TODO: Handle error in channel?
+						logging.Error("error storing share: " + err.Error())
+					}
+					err = ki.Store.StoreKEYGENSecret(keyIndex, ki.Secrets[keyIndex.Text(16)])
+					if err != nil {
+						// TODO: Handle error in channel?
+						logging.Error("error storing share: " + err.Error())
+					}
+				}
+				// Communicate Keygen Completion
 				ki.ComChannel <- SIKeygenCompleted + "|" + ki.StartIndex.Text(10) + "|" + string(ki.NumOfKeys)
 			},
 		},

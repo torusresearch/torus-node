@@ -83,6 +83,7 @@ type KEYGENProtocol struct {
 	KeygenInstances map[keygenID]*keygen.KeygenInstance
 	requests        map[string]*P2PBasicMsg // used to access request data from response handlers
 	counters        map[string]*telemetry.Counter
+	MainChannel     chan string
 }
 
 type BFTKeygenMsg struct {
@@ -91,20 +92,37 @@ type BFTKeygenMsg struct {
 }
 
 func NewKeygenProtocol(suite *Suite, localHost *P2PSuite) *KEYGENProtocol {
+	// for logging statistics
 	counters := make(map[string]*telemetry.Counter)
 	counters["num_shares_verified"] = telemetry.NewCounter("num_shares_verified", "how many times shares were verified")
 	counters["num_shares_invalid"] = telemetry.NewCounter("num_shares_invalid", "how many times shares could not be verified")
 	telemetry.Register(counters["num_shares_verified"])
 	telemetry.Register(counters["num_shares_invalid"])
-
+	mainChan := make(chan string)
 	k := &KEYGENProtocol{
 		suite:           suite,
 		localHost:       localHost,
 		KeygenInstances: make(map[keygenID]*keygen.KeygenInstance),
 		requests:        make(map[string]*P2PBasicMsg),
 		counters:        counters,
+		MainChannel:     mainChan,
 	}
+	// initiate channel aggregator here
+	go k.handleMainChannel()
 	return k
+}
+
+// We react to communication from KEYGEN Instances here
+func (kp *KEYGENProtocol) handleMainChannel() {
+	for {
+		select {
+		case _ = <-kp.MainChannel:
+			// For now we just increase the telementry number by X amount
+			for i := 0; i < kp.suite.Config.KeysPerEpoch; i++ {
+				kp.counters["num_shares_verified"].Inc()
+			}
+		}
+	}
 }
 
 func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareEndingIndex int) error {

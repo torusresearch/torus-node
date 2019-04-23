@@ -20,18 +20,18 @@ func randBigInt() *big.Int {
 	return x
 }
 
-func randBigIntArray(n int) []*big.Int {
-	var arr []*big.Int
+func randBigIntArray(n int) []big.Int {
+	var arr []big.Int
 
 	for i := 0; i < n; i++ {
-		arr = append(arr, randBigInt())
+		arr = append(arr, *randBigInt())
 	}
 
 	return arr
 }
 
-func randBigF(n, m int) [][]*big.Int {
-	var arr [][]*big.Int
+func randBigF(n, m int) [][]big.Int {
+	var arr [][]big.Int
 
 	for i := 0; i < m; i++ {
 		arr = append(arr, randBigIntArray(n))
@@ -41,7 +41,7 @@ func randBigF(n, m int) [][]*big.Int {
 }
 func randomKEYGENSecret() *keygen.KEYGENSecrets {
 	return &keygen.KEYGENSecrets{
-		Secret: randBigInt(),
+		Secret: *randBigInt(),
 		F:      randBigF(10, 10),
 		Fprime: randBigF(10, 10),
 	}

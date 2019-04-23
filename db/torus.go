@@ -1,9 +1,9 @@
 package db
 
 import (
-	"encoding/json"
 	"math/big"
 
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/keygen"
 )
 
@@ -34,11 +34,10 @@ func NewTorusLDB(dbDirPath string) (*TorusLDB, error) {
 
 func (t *TorusLDB) StoreKEYGENSecret(keyIndex *big.Int, secret *keygen.KEYGENSecrets) error {
 	keyIndexBytes := keyIndex.Bytes()
-	marshalledSecret, err := secret.MarshalBinary()
+	marshalledSecret, err := bijson.Marshal(*secret)
 	if err != nil {
 		return err
 	}
-
 	t.db.Set(keyIndexBytes, marshalledSecret)
 	return nil
 }
@@ -47,13 +46,12 @@ func (t *TorusLDB) RetrieveKEYGENSecret(keyIndex *big.Int) (*keygen.KEYGENSecret
 	keyIndexBytes := keyIndex.Bytes()
 
 	res := t.db.Get(keyIndexBytes)
-	var ks keygen.KEYGENSecrets
-	err := ks.UnmarshalBinary(res)
+	ks := &keygen.KEYGENSecrets{}
+	err := bijson.Unmarshal(res, ks)
 	if err != nil {
 		return nil, err
 	}
-
-	return &ks, nil
+	return ks, nil
 
 }
 
@@ -63,7 +61,7 @@ type completedShare struct {
 }
 
 func (c completedShare) MarshalBinary() ([]byte, error) {
-	data, err := json.Marshal(c)
+	data, err := bijson.Marshal(c)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +69,7 @@ func (c completedShare) MarshalBinary() ([]byte, error) {
 }
 
 func (c *completedShare) UnmarshalBinary(data []byte) error {
-	err := json.Unmarshal(data, c)
+	err := bijson.Unmarshal(data, c)
 	if err != nil {
 		return err
 	}

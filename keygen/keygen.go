@@ -79,9 +79,9 @@ type KEYGENLog struct {
 // KeyIndex => KEYGENSecrets
 // Used to keep secrets and polynomials for secrets (As well as KEYGENSends sent by the node)
 type KEYGENSecrets struct {
-	secret big.Int
-	f      [][]big.Int
-	fprime [][]big.Int
+	Secret big.Int
+	F      [][]big.Int
+	Fprime [][]big.Int
 }
 
 type NodeLog struct {
@@ -248,10 +248,10 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 
 						keygenSend := KEYGENSend{
 							KeyIndex: *keyIndex,
-							AIY:      pvss.EvaluateBivarPolyAtX(committedSecrets.f, nodeIndex),
-							AIprimeY: pvss.EvaluateBivarPolyAtX(committedSecrets.fprime, nodeIndex),
-							BIX:      pvss.EvaluateBivarPolyAtY(committedSecrets.f, nodeIndex),
-							BIprimeX: pvss.EvaluateBivarPolyAtY(committedSecrets.fprime, nodeIndex),
+							AIY:      pvss.EvaluateBivarPolyAtX(committedSecrets.F, nodeIndex),
+							AIprimeY: pvss.EvaluateBivarPolyAtX(committedSecrets.Fprime, nodeIndex),
+							BIX:      pvss.EvaluateBivarPolyAtY(committedSecrets.F, nodeIndex),
+							BIprimeX: pvss.EvaluateBivarPolyAtY(committedSecrets.Fprime, nodeIndex),
 						}
 						// send to node
 						err := ki.Transport.SendKEYGENSend(keygenSend, nodeIndex)
@@ -333,7 +333,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 
 			},
 			"enter_" + SIKeygenCompleted: func(e *fsm.Event) {
-				ki.ComChannel <- SIKeygenCompleted
+				ki.ComChannel <- SIKeygenCompleted + "|" + ki.StartIndex.Text(10) + "|" + string(ki.NumOfKeys)
 			},
 		},
 	)
@@ -406,9 +406,9 @@ func (ki *KeygenInstance) InitiateKeygen() error {
 		keyIndex := big.NewInt(int64(i))
 		keyIndex.Add(keyIndex, &ki.StartIndex)
 		ki.Secrets[keyIndex.Text(16)] = KEYGENSecrets{
-			secret: secret,
-			f:      f,
-			fprime: fprime,
+			Secret: secret,
+			F:      f,
+			Fprime: fprime,
 		}
 	}
 	err := ki.Transport.BroadcastInitiateKeygen(KEYGENInitiate{commitmentMatrixes})

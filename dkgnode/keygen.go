@@ -43,6 +43,7 @@ import (
 	// "github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/keygen"
 	"github.com/torusresearch/torus-public/logging"
+	"github.com/torusresearch/torus-public/telemetry"
 )
 
 var keygenConsts = keygenConstants{
@@ -81,6 +82,7 @@ type KEYGENProtocol struct {
 	localHost       *P2PSuite // local host
 	KeygenInstances map[keygenID]*keygen.KeygenInstance
 	requests        map[string]*P2PBasicMsg // used to access request data from response handlers
+	counters        map[string]*telemetry.Counter
 }
 
 type BFTKeygenMsg struct {
@@ -89,11 +91,19 @@ type BFTKeygenMsg struct {
 }
 
 func NewKeygenProtocol(suite *Suite, localHost *P2PSuite) *KEYGENProtocol {
+	counters := make(map[string]*telemetry.Counter)
+	counters["num_shares_verified"] = telemetry.NewCounter("num_shares_verified", "how many times shares were verified")
+	counters["num_shares_invalid"] = telemetry.NewCounter("num_shares_invalid", "how many times shares could not be verified")
+	telemetry.Register(counters["num_shares_verified"])
+	telemetry.Register(counters["num_shares_invalid"])
+
 	k := &KEYGENProtocol{
 		suite:           suite,
 		localHost:       localHost,
 		KeygenInstances: make(map[keygenID]*keygen.KeygenInstance),
-		requests:        make(map[string]*P2PBasicMsg)}
+		requests:        make(map[string]*P2PBasicMsg),
+		counters:        counters,
+	}
 	return k
 }
 

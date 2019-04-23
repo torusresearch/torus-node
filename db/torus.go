@@ -32,9 +32,9 @@ func NewTorusLDB(dbDirPath string) (*TorusLDB, error) {
 	}, nil
 }
 
-func (t *TorusLDB) StoreKEYGENSecret(keyIndex *big.Int, secret *keygen.KEYGENSecrets) error {
+func (t *TorusLDB) StoreKEYGENSecret(keyIndex big.Int, secret keygen.KEYGENSecrets) error {
 	keyIndexBytes := keyIndex.Bytes()
-	marshalledSecret, err := bijson.Marshal(*secret)
+	marshalledSecret, err := bijson.Marshal(secret)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (t *TorusLDB) StoreKEYGENSecret(keyIndex *big.Int, secret *keygen.KEYGENSec
 	return nil
 }
 
-func (t *TorusLDB) RetrieveKEYGENSecret(keyIndex *big.Int) (*keygen.KEYGENSecrets, error) {
+func (t *TorusLDB) RetrieveKEYGENSecret(keyIndex big.Int) (*keygen.KEYGENSecrets, error) {
 	keyIndexBytes := keyIndex.Bytes()
 
 	res := t.db.Get(keyIndexBytes)

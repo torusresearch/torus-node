@@ -75,7 +75,14 @@ func New() {
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
-	err := SetupEth(&suite)
+	err := SetupDB(&suite)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//TODO: Dont die on failure but retry
+	// set up connection to ethereum blockchain
+	err = SetupEth(&suite)
 	if err != nil {
 		log.Fatal(err)
 	}

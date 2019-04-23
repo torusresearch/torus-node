@@ -60,12 +60,12 @@ func TestStoreAndRetrieve(t *testing.T) {
 	keyIndex := randBigInt()
 	randomKeygen := randomKEYGENSecret()
 
-	err = db.StoreKEYGENSecret(keyIndex, randomKeygen)
+	err = db.StoreKEYGENSecret(*keyIndex, *randomKeygen)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	retrievedKeygen, err := db.RetrieveKEYGENSecret(keyIndex)
+	retrievedKeygen, err := db.RetrieveKEYGENSecret(*keyIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,6 +100,7 @@ func BenchmarkStores(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		idx := bigKeys[i]
 		secret := internal[i]
-		db.StoreKEYGENSecret(idx, secret)
+		db.StoreKEYGENSecret(*idx, *secret)
+
 	}
 }

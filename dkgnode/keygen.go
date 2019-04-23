@@ -116,7 +116,8 @@ func NewKeygenProtocol(suite *Suite, localHost *P2PSuite) *KEYGENProtocol {
 func (kp *KEYGENProtocol) handleMainChannel() {
 	for {
 		select {
-		case _ = <-kp.MainChannel:
+		case msg := <-kp.MainChannel:
+			logging.Infof("KEYGEN Finished Msg: %v", msg)
 			// For now we just increase the telementry number by X amount
 			for i := 0; i < kp.suite.Config.KeysPerEpoch; i++ {
 				kp.counters["num_shares_verified"].Inc()

@@ -13,7 +13,7 @@ func TestECDSASignAndVerify(t *testing.T) {
 	testStr := "this is a test message"
 	signature := ECDSASign([]byte(testStr), ecdsaKey)
 	valid := ECDSAVerify(ecdsaKey.PublicKey, signature)
-	assert.False(t, valid)
+	assert.True(t, valid)
 }
 
 func TestECDSASignAndVerifyFromRaw(t *testing.T) {

@@ -2,7 +2,7 @@ package dkgnode
 
 import (
 	"math/big"
-	"strconv"
+	// "strconv"
 	"time"
 
 	"github.com/torusresearch/torus-public/logging"
@@ -20,12 +20,12 @@ type KeyGenUpdates struct {
 
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
-		logging.Debugf("KEYGEN: in start keygen monitor %s", suite.ABCIApp.state.LocalStatus)
+		logging.Debugf("KEYGEN: in start keygen monitor %s", suite.LocalStatus)
 		time.Sleep(1 * time.Second)
-		// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] != "" {
-		var localStatus = suite.ABCIApp.state.LocalStatus.Current()
-		if localStatus == "running_keygen" || localStatus == "verifying_shares" {
-			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %s", suite.ABCIApp.state.LocalStatus)
+		// if suite.LocalStatus["all_initiate_keygen"] != "" {
+		var localStatus = suite.LocalStatus.Current()
+		if localStatus == "running_keygen" {
+			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %s", suite.LocalStatus)
 			continue
 		} else {
 			logging.Debugf("KEYGEN: KEYGEN NOT IN PROGRESS %s", localStatus)
@@ -39,56 +39,13 @@ func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpd
 		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
 		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex)
 
-		logging.Debugf("KEYGEN: we are starting keygen %v", suite.ABCIApp.state.LocalStatus)
-		nodeIndex, err := matchNode(suite, suite.EthSuite.NodePublicKey.X.Text(16), suite.EthSuite.NodePublicKey.Y.Text(16))
-		if err != nil {
-			logging.Errorf("KEYGEN: could not get nodeIndex %s", err)
-			continue
-		}
-		go listenForShares(suite, suite.Config.KeysPerEpoch*suite.Config.NumberOfNodes*suite.Config.NumberOfNodes)
-		for {
-			time.Sleep(1 * time.Second)
-			initiateKeyGenerationStatusWrapper := DefaultBFTTxWrapper{
-				StatusBFTTx{
-					FromPubKeyX: suite.EthSuite.NodePublicKey.X.Text(16),
-					FromPubKeyY: suite.EthSuite.NodePublicKey.Y.Text(16),
-					Epoch:       suite.ABCIApp.state.Epoch,
-					StatusType:  "initiate_keygen",
-					StatusValue: "Y",
-					Data:        []byte(strconv.Itoa(endingIndex)),
-				},
-			}
-			_, err := suite.BftSuite.BftRPC.Broadcast(initiateKeyGenerationStatusWrapper)
-			if err != nil {
-				logging.Errorf("KEYGEN: could not broadcast initiateKeygeneration %s", err)
-			}
+		logging.Debugf("KEYGEN: we are starting keygen %v", suite.LocalStatus)
 
-			fsm, fsmExists := suite.ABCIApp.state.NodeStatus[uint(nodeIndex)]
-			allInitiateStatus := suite.ABCIApp.state.LocalStatus.Current()
-
-			// TODO: expecting keygen process to take longer than 1 second
-			if (fsmExists && fsm.Current() == "initiated_keygen") || (allInitiateStatus == "ready_for_keygen" || allInitiateStatus == "running_keygen") {
-				break
-			}
+		//report back to main process
+		keyGenMonitorUpdates <- KeyGenUpdates{
+			Type:    "start_keygen",
+			Payload: []int{startingIndex, endingIndex},
 		}
-		for {
-			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO BE Y %v", suite.ABCIApp.state.LocalStatus)
-			logging.Debugf("%v", suite.ABCIApp.state)
-			time.Sleep(1 * time.Second)
-			// if suite.ABCIApp.state.LocalStatus["all_initiate_keygen"] == "Y" {
-			if suite.ABCIApp.state.LocalStatus.Current() == "ready_for_keygen" {
-				logging.Debugf("STATUSTX: localstatus all initiate keygen is Y, appstate s%", suite.ABCIApp.state.LocalStatus)
-				//reset keygen flag
-				suite.ABCIApp.state.LocalStatus.Event("start_keygen")
-				//report back to main process
-				keyGenMonitorUpdates <- KeyGenUpdates{
-					Type:    "start_keygen",
-					Payload: []int{startingIndex, endingIndex},
-				}
-				break
-			}
-		}
-
 	}
 }
 

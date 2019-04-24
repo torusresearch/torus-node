@@ -150,7 +150,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 						// if so we change local status to be ready for keygen
 						if counter == len(app.Suite.EthSuite.NodeList) {
 							// fmt.Println("STATUSTX: counter is equal at here", counter, app.Suite.EthSuite.NodeList)
-							app.state.LocalStatus.Event("all_initiate_keygen") // TODO: make epoch variable
+							// app.state.LocalStatus.Event("all_initiate_keygen") // TODO: make epoch variable
 							// fmt.Println("STATUSTX: app.state is", app.state.NodeStatus, app.state)
 						} else {
 							// fmt.Println("Number of keygen initiation messages does not match number of nodes")
@@ -189,7 +189,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 							}
 							// fmt.Println("KEYGEN: changed state to standby", app.state.NodeStatus)
 
-							err := app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
+							// err := app.state.LocalStatus.Event("all_keygen_complete") // TODO: make epoch variable
 							if err != nil {
 								// fmt.Println("KEYGEN: Error changing state ", err)
 								return

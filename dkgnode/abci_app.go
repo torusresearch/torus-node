@@ -32,7 +32,6 @@ type State struct {
 	LastCreatedIndex    uint                    `json:"last_created_index`
 	EmailMapping        map[string]uint         `json:"email_mapping"`
 	NodeStatus          map[uint]*fsm.FSM       `json:"node_status"` // Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
-	LocalStatus         *fsm.FSM                `json:"-"`           //
 	ValidatorSet        []types.ValidatorUpdate `json:"-"`           // `json:"validator_set"`
 	UpdateValidators    bool                    `json:"-"`           // `json:"update_validators"`
 }
@@ -82,29 +81,6 @@ type ABCIApp struct {
 func NewABCIApp(suite *Suite) *ABCIApp {
 	db := dbm.NewMemDB()
 
-	//FSM Code elsewhere?
-	localStatusFsm := fsm.NewFSM(
-		"standby",
-		fsm.Events{
-			{Name: "all_initiate_keygen", Src: []string{"standby"}, Dst: "ready_for_keygen"},
-			{Name: "start_keygen", Src: []string{"ready_for_keygen"}, Dst: "running_keygen"},
-			{Name: "all_keygen_complete", Src: []string{"running_keygen"}, Dst: "verifying_shares"},
-			{Name: "shares_verified", Src: []string{"verifying_shares"}, Dst: "standby"},
-		},
-		fsm.Callbacks{
-			"enter_state": func(e *fsm.Event) { logging.Infof("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
-			"after_all_keygen_complete": func(e *fsm.Event) {
-				// update total number of available keys and epoch
-				suite.ABCIApp.state.LastCreatedIndex = suite.ABCIApp.state.LastCreatedIndex + uint(suite.ABCIApp.Suite.Config.KeysPerEpoch)
-				suite.ABCIApp.state.Epoch = suite.ABCIApp.state.Epoch + uint(1)
-
-				// TODO: Move to logging, or uncomment if running locally
-				// fmt.Println("STATUSTX: lastcreatedindex", suite.ABCIApp.state.LastCreatedIndex)
-				// fmt.Println("STATUSTX: state is", suite.ABCIApp.state)
-				// fmt.Println("STATUSTX: epoch is", suite.ABCIApp.state.Epoch)
-			},
-		},
-	)
 	abciApp := ABCIApp{
 		Suite: suite, db: db,
 		state: &State{
@@ -114,7 +90,6 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 			LastCreatedIndex:    0,
 			EmailMapping:        make(map[string]uint),
 			NodeStatus:          make(map[uint]*fsm.FSM),
-			LocalStatus:         localStatusFsm,
 		}}
 	return &abciApp
 }
@@ -203,12 +178,12 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 		logging.Debug(fmt.Sprint(val))
 		return types.ResponseQuery{Value: []byte(fmt.Sprint(val))}
 
-	case "GetKeyGenComplete":
-		logging.Debug("GOT A QUERY FOR GETKEYGENCOMPLETE")
-		logging.Debugf("for Epoch: %s", string(reqQuery.Data))
-		return types.ResponseQuery{
-			Value: []byte(app.state.LocalStatus.Current()),
-		}
+	// case "GetKeyGenComplete":
+	// 	logging.Debug("GOT A QUERY FOR GETKEYGENCOMPLETE")
+	// 	logging.Debugf("for Epoch: %s", string(reqQuery.Data))
+	// 	return types.ResponseQuery{
+	// 		Value: []byte(app.state.LocalStatus.Current()),
+	// 	}
 
 	default:
 		return types.ResponseQuery{Log: fmt.Sprintf("Invalid query path. Expected hash or tx, got %v", reqQuery.Path)}

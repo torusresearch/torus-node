@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/looplab/fsm"
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
@@ -36,6 +37,7 @@ type Suite struct {
 	DefaultVerifier auth.GeneralVerifier
 	P2PSuite        *P2PSuite
 	DBSuite         *DBSuite
+	LocalStatus     *fsm.FSM
 }
 
 type googleIdentityVerifier struct {
@@ -72,6 +74,8 @@ func New() {
 			pprof.StopCPUProfile()
 		}()
 	}
+
+	SetupFSM(&suite)
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
@@ -264,6 +268,8 @@ func New() {
 	go keyGenWorker(&suite, keyGenMonitorMsgs)
 	<-idleConnsClosed
 }
+
+
 
 func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
 	for {

@@ -2,7 +2,7 @@ package dkgnode
 
 /* All useful imports */
 import (
-	b64 "encoding/base64"
+	// b64 "encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -13,8 +13,8 @@ import (
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
-	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tidwall/gjson"
+	// tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	// "github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
@@ -158,46 +158,46 @@ func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) 
 	return &finalUserPubKey, nil
 }
 
-func listenForShares(suite *Suite, count int) {
-	logging.Debugf("KEYGEN: listening for shares %d", count)
-	query := tmquery.MustParse("keygeneration.sharecollection='1'")
-	logging.Debugf("QUERY IS: %s", query)
-	// note: we also get back the initial "{}"
-	// data comes back in bytes of utf-8 which correspond
-	// to a base64 encoding of the original data
-	responseCh, err := suite.BftSuite.RegisterQuery(query.String(), count)
-	if err != nil {
-		logging.Errorf("BFTWS: failure to registerquery %s", query.String())
-		return
-	}
-	for e := range responseCh {
-		logging.Debugf("KEYGEN: got a share %s", e)
-		// if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
-		// 	continue
-		// }
-		logging.Debugf("sub got %s", string(e[:]))
-		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
-		if err != nil {
-			logging.Errorf("error decoding b64 %s", err)
-			continue
-		}
-		// valid messages should start with mug00
-		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
-			logging.Debug("Message not prefixed with mug00")
-			continue
-		}
-		keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
-		err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
-		if err != nil {
-			logging.Debugf("error decoding bfttx %s", err)
-			continue
-		}
-		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
-		logging.Debugf("KEYGEN: handling signcryption for share %s", keyGenShareTx)
-		err = HandleSigncryptedShare(suite, *keyGenShareTx)
-		if err != nil {
-			logging.Errorf("failed to handle signcrypted share %s", err)
-			continue
-		}
-	}
-}
+// func listenForShares(suite *Suite, count int) {
+// 	logging.Debugf("KEYGEN: listening for shares %d", count)
+// 	query := tmquery.MustParse("keygeneration.sharecollection='1'")
+// 	logging.Debugf("QUERY IS: %s", query)
+// 	// note: we also get back the initial "{}"
+// 	// data comes back in bytes of utf-8 which correspond
+// 	// to a base64 encoding of the original data
+// 	responseCh, err := suite.BftSuite.RegisterQuery(query.String(), count)
+// 	if err != nil {
+// 		logging.Errorf("BFTWS: failure to registerquery %s", query.String())
+// 		return
+// 	}
+// 	for e := range responseCh {
+// 		logging.Debugf("KEYGEN: got a share %s", e)
+// 		// if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
+// 		// 	continue
+// 		// }
+// 		logging.Debugf("sub got %s", string(e[:]))
+// 		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
+// 		if err != nil {
+// 			logging.Errorf("error decoding b64 %s", err)
+// 			continue
+// 		}
+// 		// valid messages should start with mug00
+// 		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
+// 			logging.Debug("Message not prefixed with mug00")
+// 			continue
+// 		}
+// 		keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
+// 		err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
+// 		if err != nil {
+// 			logging.Debugf("error decoding bfttx %s", err)
+// 			continue
+// 		}
+// 		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
+// 		logging.Debugf("KEYGEN: handling signcryption for share %s", keyGenShareTx)
+// 		err = HandleSigncryptedShare(suite, *keyGenShareTx)
+// 		if err != nil {
+// 			logging.Errorf("failed to handle signcrypted share %s", err)
+// 			continue
+// 		}
+// 	}
+// }

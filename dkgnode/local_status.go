@@ -1,26 +1,64 @@
 package dkgnode
 
 import (
-
 	"github.com/looplab/fsm"
 	"github.com/torusresearch/torus-public/logging"
 )
 
+// LocalStatusConstants: Constants for the Nodes Local Status
+type localStatusConstants struct {
+	States localStatusStates
+	Events localStatusEvents
+}
+
+type localStatusStates struct {
+	Standby       string
+	RunningKeygen string
+}
+
+type localStatusEvents struct {
+	StartKeygen    string
+	KeygenComplete string
+}
+
+var lsStates = localStatusStates{
+	Standby:       "standby",
+	RunningKeygen: "running_keygen",
+}
+
+var lsEvents = localStatusEvents{
+	StartKeygen:    "start_keygen",
+	KeygenComplete: "keygen_complete",
+}
+
+type LocalStatus struct {
+	fsm.FSM
+	Constants localStatusConstants
+}
 
 func SetupFSM(suite *Suite) {
-	suite.LocalStatus = fsm.NewFSM(
-		"standby",
+	constants := localStatusConstants{States: lsStates, Events: lsEvents}
+	tempFsm := fsm.NewFSM(
+		constants.States.Standby,
 		fsm.Events{
-			{Name: "start_keygen", Src: []string{"standby"}, Dst: "running_keygen"},
-			{Name: "keygen_complete", Src: []string{"running_keygen"}, Dst: "standby"},
+			{Name: constants.Events.StartKeygen, Src: []string{constants.States.Standby}, Dst: constants.States.RunningKeygen},
+			{Name: constants.Events.KeygenComplete, Src: []string{constants.States.RunningKeygen}, Dst: constants.States.Standby},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) { logging.Infof("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
-			"after_keygen_complete": func(e *fsm.Event) {
+			"after_" + constants.Events.StartKeygen: func(e *fsm.Event) {
+				// update total number of available keys and epoch
+				go suite.P2PSuite.KeygenProto.NewKeygen(suite, e.Args[0].(int), e.Args[1].(int))
+			},
+			"after_" + constants.Events.KeygenComplete: func(e *fsm.Event) {
 				// update total number of available keys and epoch
 				suite.ABCIApp.state.LastCreatedIndex = suite.ABCIApp.state.LastCreatedIndex + uint(suite.ABCIApp.Suite.Config.KeysPerEpoch)
 				suite.ABCIApp.state.Epoch = suite.ABCIApp.state.Epoch + uint(1)
 			},
 		},
 	)
+	suite.LocalStatus = &LocalStatus{
+		*tempFsm,
+		constants,
+	}
 }

@@ -15,7 +15,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/looplab/fsm"
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
@@ -37,7 +36,7 @@ type Suite struct {
 	DefaultVerifier auth.GeneralVerifier
 	P2PSuite        *P2PSuite
 	DBSuite         *DBSuite
-	LocalStatus     *fsm.FSM
+	LocalStatus     *LocalStatus
 }
 
 type googleIdentityVerifier struct {
@@ -269,8 +268,6 @@ func New() {
 	<-idleConnsClosed
 }
 
-
-
 func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
 	for {
 		select {
@@ -281,8 +278,9 @@ func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
 				//starts keygeneration with starting and ending index
 				logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 
+				suite.LocalStatus.Event(suite.LocalStatus.Constants.Events.StartKeygen, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 				// go startKeyGeneration(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-				go suite.P2PSuite.KeygenProto.NewKeygen(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+				// go suite.P2PSuite.KeygenProto.NewKeygen(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 			}
 		}
 	}

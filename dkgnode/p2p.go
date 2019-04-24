@@ -127,6 +127,7 @@ func SetupP2PHost(suite *Suite) (host.Host, error) {
 		Host:        h,
 		HostAddress: fullAddr,
 	}
+	logging.Debugf("LocalHostID: %s", suite.P2PSuite.ID().String())
 
 	// Set a stream handlers or protocols
 	suite.P2PSuite.PingProto = NewPingProtocol(suite.P2PSuite)
@@ -154,7 +155,7 @@ func (localHost *P2PSuite) authenticateMessage(data P2PMessage) bool {
 	data.SetSign(sign)
 
 	// restore peer id binary format from base58 encoded node id data
-	peerId, err := peer.IDB58Decode(data.GetId())
+	peerId, err := peer.IDB58Decode(data.GetNodeId())
 	if err != nil {
 		logging.Errorf("Failed to decode node id from base58", err)
 		return false

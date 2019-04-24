@@ -261,6 +261,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		}
 		return true, &tags, nil
 	case byte(7): // BFTKeygenMsg
+		logging.Debugf("BFTMSG!!! ")
 		// TODO: Bring up router to this level (needed for PSS)
 		wrapper := DefaultBFTTxWrapper{&BFTKeygenMsg{}}
 		err := wrapper.DecodeBFTTx(txNoSig)

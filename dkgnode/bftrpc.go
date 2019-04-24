@@ -4,8 +4,8 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/keygen"
 	"github.com/torusresearch/torus-public/logging"
@@ -71,7 +71,7 @@ var bftTxs = map[string]byte{
 	getType(AssignmentBFTTx{}):          byte(4),
 	getType(StatusBFTTx{}):              byte(5),
 	getType(ValidatorUpdateBFTTx{}):     byte(6),
-	getType(BFTKeygenMsg{}):              byte(7),
+	getType(BFTKeygenMsg{}):             byte(7),
 	getType(keygen.KEYGENDKGComplete{}): byte(8),
 }
 
@@ -80,7 +80,7 @@ func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
 	txType := make([]byte, 1)
 	tx := wrapper.BFTTx
 	txType[0] = bftTxs[getType(tx)]
-	data, err := rlp.EncodeToBytes(tx)
+	data, err := bijson.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
 }
 
 func (wrapper *DefaultBFTTxWrapper) DecodeBFTTx(data []byte) error {
-	err := rlp.DecodeBytes(data[1:], wrapper.BFTTx)
+	err := bijson.Unmarshal(data[1:], &wrapper.BFTTx)
 	if err != nil {
 		return err
 	}

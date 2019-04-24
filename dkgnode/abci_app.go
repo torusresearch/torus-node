@@ -134,7 +134,7 @@ func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
 
 // NOTE: Commit happens before DeliverTx
 func (app *ABCIApp) Commit() types.ResponseCommit {
-	logging.Debugf("COMMITING... HEIGHT: %s", app.state.Height)
+	// logging.Debugf("COMMITING... HEIGHT: %s", app.state.Height)
 	// retrieve state from memdb
 	if app.state == nil {
 		app.LoadState()
@@ -145,7 +145,7 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 		app.state.EmailMapping = make(map[string]uint)
 		logging.Debug("INITIALIZED APP STATE EMAIL MAPPING")
 	} else {
-		logging.Debugf("app state email mapping has stuff %s", app.state.EmailMapping)
+		// logging.Debugf("app state email mapping has stuff %s", app.state.EmailMapping)
 	}
 
 	// update state
@@ -153,7 +153,7 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 	app.state.Height += 1
 	// commit to memdb
 	app.SaveState()
-	logging.Debugf("APP STATE COMMITTED: %s", app.state)
+	// logging.Debugf("APP STATE COMMITTED: %s", app.state)
 
 	return types.ResponseCommit{Data: app.state.AppHash}
 }

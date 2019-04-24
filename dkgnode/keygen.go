@@ -141,7 +141,10 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 			ownNodeIndex = *nodeRef.Index
 		}
 	}
-	keygenTp := KEYGENTransport{}
+	keygenTp := KEYGENTransport{
+		Protocol:  kp,
+		ProtoName: protocol.ID(keygenID),
+	}
 	c := make(chan string)
 	instance, err := keygen.NewAVSSKeygen(
 		*big.NewInt(int64(shareStartingIndex)),
@@ -165,12 +168,17 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 	// peg it to the protocol
 	kp.KeygenInstances[keygenID] = instance
 
+	//initiate Keygen
+	kp.KeygenInstances[keygenID].InitiateKeygen()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // remote peer requests handler
 func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
-
 	// get request data
 	p2pMsg := &P2PBasicMsg{}
 	buf, err := ioutil.ReadAll(s)
@@ -251,7 +259,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 }
 
 func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
-
+	logging.Debugf("BFT MSG ID: ", bftMsg.Id)
 	valid := p.localHost.authenticateMessage(&bftMsg)
 
 	if !valid {
@@ -369,13 +377,15 @@ func (kt *KEYGENTransport) BroadcastInitiateKeygen(msg keygen.KEYGENInitiate) er
 	if err != nil {
 		return errors.New("Could not marshal: " + err.Error())
 	}
+	tempP2P := kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Initiate)
 	bftMsg := BFTKeygenMsg{
-		P2PBasicMsg: *kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Initiate),
+		P2PBasicMsg: *tempP2P,
 		Protocol:    string(kt.ProtoName),
 	}
 	wrap := DefaultBFTTxWrapper{bftMsg}
 	_, err = kt.Protocol.suite.BftSuite.BftRPC.Broadcast(wrap)
 	if err != nil {
+		logging.Debug(err.Error())
 		return err
 	}
 	return nil

@@ -20,15 +20,15 @@ type KeyGenUpdates struct {
 
 func startKeyGenerationMonitor(suite *Suite, keyGenMonitorUpdates chan KeyGenUpdates) {
 	for {
-		logging.Debugf("KEYGEN: in start keygen monitor %s", suite.LocalStatus)
+		// logging.Debugf("KEYGEN: in start keygen monitor %s", suite.LocalStatus)
 		time.Sleep(1 * time.Second)
 		// if suite.LocalStatus["all_initiate_keygen"] != "" {
 		var localStatus = suite.LocalStatus.Current()
 		if localStatus == "running_keygen" {
-			logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %s", suite.LocalStatus)
+			// logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %s", suite.LocalStatus.Current())
 			continue
 		} else {
-			logging.Debugf("KEYGEN: KEYGEN NOT IN PROGRESS %s", localStatus)
+			// logging.Debugf("KEYGEN: KEYGEN NOT IN PROGRESS %s", localStatus)
 		}
 
 		percentLeft := 100 * (suite.ABCIApp.state.LastCreatedIndex - suite.ABCIApp.state.LastUnassignedIndex) / uint(suite.Config.KeysPerEpoch)

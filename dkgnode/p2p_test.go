@@ -29,6 +29,14 @@ func TestPeerSerializtionPing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+func TestAuthentication(t *testing.T) {
+	p2pSuite := P2PSuite{}
+	p2pmsg := &P2PBasicMsg{}
+	bijson.Unmarshal([]byte(pingMsg), p2pmsg)
+	if !p2pSuite.authenticateMessage(p2pmsg) {
+		t.Fatal("could not authenticate msg")
+	}
 
 }
 func TestPeerSerializtion(t *testing.T) {

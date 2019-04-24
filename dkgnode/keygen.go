@@ -226,7 +226,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			logging.Error(err.Error())
 			return
 		}
-		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENSend(payload, nodeIndex)
+		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENSend(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return
@@ -238,7 +238,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			logging.Error(err.Error())
 			return
 		}
-		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENEcho(payload, nodeIndex)
+		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENEcho(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return
@@ -250,7 +250,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			logging.Error(err.Error())
 			return
 		}
-		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENReady(payload, nodeIndex)
+		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENReady(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return
@@ -290,7 +290,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			logging.Error(err.Error())
 			return false
 		}
-		err = p.KeygenInstances[keygenID(bftMsg.Protocol)].OnInitiateKeygen(payload, nodeIndex)
+		err = p.KeygenInstances[keygenID(bftMsg.Protocol)].OnInitiateKeygen(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return false
@@ -302,7 +302,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			logging.Error(err.Error())
 			return false
 		}
-		err = p.KeygenInstances[keygenID(bftMsg.Protocol)].OnKEYGENDKGComplete(payload, nodeIndex)
+		err = p.KeygenInstances[keygenID(bftMsg.Protocol)].OnKEYGENDKGComplete(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return false

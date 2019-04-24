@@ -133,8 +133,6 @@ func ECDSAVerify(ecdsaPubKey ecdsa.PublicKey, ecdsaSignature ECDSASignature) boo
 	r.SetBytes(ecdsaSignature.R[:])
 	s.SetBytes(ecdsaSignature.S[:])
 
-	fmt.Println("r: ", r.String())
-	fmt.Println("s: ", s.String())
 	return ecdsa.Verify(
 		&ecdsaPubKey,
 		ecdsaSignature.Hash[:],
@@ -152,9 +150,6 @@ func ECDSAVerifyFromRaw(msg string, ecdsaPubKey ecdsa.PublicKey, signature []byt
 	s.SetBytes(tempS[:])
 	bytesHash := bytes32(secp256k1.Keccak256([]byte(msg)))
 
-	fmt.Println("1: ", secp256k1.Keccak256([]byte(msg)))
-	fmt.Println("r: ", r.String())
-	fmt.Println("s: ", s.String())
 	return ecdsa.Verify(
 		&ecdsaPubKey,
 		bytesHash[:],

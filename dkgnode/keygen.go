@@ -220,7 +220,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 
 	switch p2pMsg.GetMsgType() {
 	case keygenConsts.Send:
-		payload := keygen.KEYGENSend{}
+		payload := &keygen.KEYGENSend{}
 		err = bijson.Unmarshal(p2pMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
@@ -232,7 +232,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 	case keygenConsts.Echo:
-		payload := keygen.KEYGENEcho{}
+		payload := &keygen.KEYGENEcho{}
 		err = bijson.Unmarshal(p2pMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
@@ -244,7 +244,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 	case keygenConsts.Ready:
-		payload := keygen.KEYGENReady{}
+		payload := &keygen.KEYGENReady{}
 		err = bijson.Unmarshal(p2pMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
@@ -284,7 +284,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 
 	switch bftMsg.GetMsgType() {
 	case keygenConsts.Initiate:
-		payload := keygen.KEYGENInitiate{}
+		payload := &keygen.KEYGENInitiate{}
 		err = bijson.Unmarshal(bftMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
@@ -296,7 +296,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			return false
 		}
 	case keygenConsts.Complete:
-		payload := keygen.KEYGENDKGComplete{}
+		payload := &keygen.KEYGENDKGComplete{}
 		err = bijson.Unmarshal(bftMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
@@ -378,17 +378,17 @@ func (kt *KEYGENTransport) BroadcastInitiateKeygen(msg keygen.KEYGENInitiate) er
 		return errors.New("Could not marshal: " + err.Error())
 	}
 	tempP2P := kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Initiate)
-	// sign the data
-	signature, err := kt.Protocol.localHost.signP2PMessage(tempP2P)
-	if err != nil {
-		return errors.New("failed to sign tempP2P" + err.Error())
-	}
-	// add the signature to the message
-	tempP2P.Sign = signature
 	bftMsg := BFTKeygenMsg{
 		P2PBasicMsg: *tempP2P,
 		Protocol:    string(kt.ProtoName),
 	}
+	// sign the data
+	signature, err := kt.Protocol.localHost.signP2PMessage(&bftMsg)
+	if err != nil {
+		return errors.New("failed to sign bftMsg" + err.Error())
+	}
+	// add the signature to the message
+	bftMsg.Sign = signature
 
 	wrap := DefaultBFTTxWrapper{bftMsg}
 	_, err = kt.Protocol.suite.BftSuite.BftRPC.Broadcast(wrap)
@@ -405,17 +405,17 @@ func (kt *KEYGENTransport) BroadcastKEYGENDKGComplete(msg keygen.KEYGENDKGComple
 		return errors.New("Could not marshal: " + err.Error())
 	}
 	tempP2P := kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Initiate)
-	// sign the data
-	signature, err := kt.Protocol.localHost.signP2PMessage(tempP2P)
-	if err != nil {
-		return errors.New("failed to sign tempP2P" + err.Error())
-	}
-	// add the signature to the message
-	tempP2P.Sign = signature
 	bftMsg := BFTKeygenMsg{
 		P2PBasicMsg: *tempP2P,
 		Protocol:    string(kt.ProtoName),
 	}
+	// sign the data
+	signature, err := kt.Protocol.localHost.signP2PMessage(&bftMsg)
+	if err != nil {
+		return errors.New("failed to sign bftMsg" + err.Error())
+	}
+	// add the signature to the message
+	bftMsg.Sign = signature
 	wrap := DefaultBFTTxWrapper{bftMsg}
 	_, err = kt.Protocol.suite.BftSuite.BftRPC.Broadcast(wrap)
 	if err != nil {

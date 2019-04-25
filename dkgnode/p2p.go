@@ -310,6 +310,8 @@ func connectToP2PNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		suite.EthSuite.NodeIndex = details.Position
 	}
 
 	return &NodeReference{

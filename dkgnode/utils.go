@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log"
 	"math/big"
 	"net"

@@ -449,6 +449,7 @@ func (ki *KeygenInstance) InitiateKeygen() error {
 }
 
 func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int) error {
+	logging.Debugf("THIS IS KI: ", ki)
 	ki.Lock()
 	defer ki.Unlock()
 	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index

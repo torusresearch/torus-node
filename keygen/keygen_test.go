@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"runtime"
+	"strconv"
 	"runtime/pprof"
 	"testing"
 	"time"
@@ -84,7 +85,7 @@ func TestOptimisticKeygen(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted {
+			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 		}
@@ -220,7 +221,7 @@ func TestTimeboundOne(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted {
+			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 			if msg == "timeout" {
@@ -260,7 +261,7 @@ func TestTimeboundOne(t *testing.T) {
 				}
 			}
 		}
-		// assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundOne")
+		// assert.True(t, instance.State.Current() == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys), "Keygen not completed in TimeboundOne")
 		instance.Unlock()
 	}
 }
@@ -371,7 +372,7 @@ func TestTimeboundOne(t *testing.T) {
 // 	for {
 // 		select {
 // 		case msg := <-comsChannel:
-// 			if msg == SIKeygenCompleted {
+// 			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
 // 				count++
 // 			}
 // 			if msg == "timeout" {
@@ -394,7 +395,7 @@ func TestTimeboundOne(t *testing.T) {
 // 		instance := nodeKegenInstances[nodeIndex.Text(16)]
 // 		instance.Lock()
 // 		t.Log(nodeIndex.Text(16), instance.State.Current())
-// 		assert.True(t, instance.State.Current() == SIKeygenCompleted, "Keygen not completed in TimeboundTwo")
+// 		assert.True(t, instance.State.Current() == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys), "Keygen not completed in TimeboundTwo")
 // 		instance.Unlock()
 // 	}
 // }
@@ -476,7 +477,7 @@ func TestEchoReconstruction(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted {
+			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 			if msg == "timeout" {
@@ -581,7 +582,7 @@ func TestDKGCompleteSync(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted {
+			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 			if msg == "timeout" {
@@ -589,6 +590,7 @@ func TestDKGCompleteSync(t *testing.T) {
 			}
 		}
 		if count >= len(nodeList) || done { // accounted for here
+			t.Log("Count: ", count)
 			break
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/torusresearch/torus-public/pvss"
@@ -359,7 +360,10 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					}
 				}
 				// Communicate Keygen Completion
-				ki.ComChannel <- SIKeygenCompleted + "|" + ki.StartIndex.Text(10) + "|" + string(ki.NumOfKeys)
+				completionMsg := SIKeygenCompleted + "|" + ki.StartIndex.Text(10) + "|" + strconv.Itoa(ki.NumOfKeys)
+				logging.Debugf("This runs: %s", completionMsg)
+				logging.Debugf("Nujm of keys %v", ki.NumOfKeys)
+				ki.ComChannel <- completionMsg
 			},
 		},
 	)
@@ -449,7 +453,6 @@ func (ki *KeygenInstance) InitiateKeygen() error {
 }
 
 func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int) error {
-	logging.Debugf("THIS IS KI: ", ki)
 	ki.Lock()
 	defer ki.Unlock()
 	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index

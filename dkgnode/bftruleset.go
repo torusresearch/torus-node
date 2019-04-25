@@ -261,7 +261,6 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		}
 		return true, &tags, nil
 	case byte(7): // BFTKeygenMsg
-		logging.Debugf("BFTMSG!!! ")
 		// TODO: Bring up router to this level (needed for PSS)
 		wrapper := DefaultBFTTxWrapper{&BFTKeygenMsg{}}
 		err := wrapper.DecodeBFTTx(txNoSig)
@@ -270,7 +269,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		}
 		bftMsg := wrapper.BFTTx.(*BFTKeygenMsg)
 		if !app.Suite.P2PSuite.KeygenProto.onBFTMsg(*bftMsg) {
-			return false, nil, errors.New("P2PBasicMsg not accepted")
+			return false, nil, errors.New("BFTMsg not accepted")
 		}
 		tags = []common.KVPair{
 			{Key: []byte("bftmsg"), Value: []byte("1")},

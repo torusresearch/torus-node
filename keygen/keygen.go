@@ -70,7 +70,7 @@ type KEYGENLog struct {
 	KeyIndex               big.Int
 	NodeIndex              big.Int
 	C                      [][]common.Point               // big.Int (in hex) to Commitment matrix
-	ReceivedSend           KEYGENSend                     // Polynomials for respective commitment matrix.
+	ReceivedSend           *KEYGENSend                    // Polynomials for respective commitment matrix.
 	ReceivedEchoes         map[string]KEYGENEcho          // From(M) big.Int (in hex) to Echo
 	ReceivedReadys         map[string]KEYGENReady         // From(M) big.Int (in hex) to Ready
 	ReceivedShareCompletes map[string]KEYGENShareComplete // From(M) big.Int (in hex) to ShareComplete
@@ -239,6 +239,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 				defer ki.Unlock()
 				// TODO: Take care of case where this is called by end in t1
 				// send all KEGENSends to  respective nodes
+				logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " Sending KEYGENSends")
 				for i := int(startingIndex.Int64()); i < numOfKeys+int(startingIndex.Int64()); i++ {
 					keyIndex := big.NewInt(int64(i))
 					committedSecrets := ki.Secrets[keyIndex.Text(16)]
@@ -368,7 +369,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 		},
 	)
 
-	// Node Log tracks the state of other nodes involved in this Keygen phase
+	// Node Log FSM tracks the state of other nodes involved in this Keygen phase
 	for _, nodeIndex := range nodeIndexes {
 		tempFsm := fsm.NewFSM(
 			SNStandby,
@@ -408,68 +409,21 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 		ki.NodeLog[nodeIndex.Text(16)] = &NodeLog{FSM: *tempFsm, PerfectShareCount: 0}
 	}
 
+	// INitiatlize keylogs FSM that tracks each individual subshare
 	ki.KeyLog = make(map[string](map[string]*KEYGENLog))
-	ki.Secrets = make(map[string]KEYGENSecrets)
-
+	// start with key indexes
+	// then by the number of declared nodes
 	for i := 0; i < ki.NumOfKeys; i++ {
 		index := big.NewInt(int64(i))
 		index.Add(index, &ki.StartIndex)
 		ki.KeyLog[index.Text(16)] = make(map[string]*KEYGENLog)
-	}
-	// TODO: Trigger setting up of listeners here
-
-	return ki, nil
-}
-
-// TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well & store
-func (ki *KeygenInstance) InitiateKeygen() error {
-	// prepare commitmentMatrixes for broadcast
-	commitmentMatrixes := make([][][]common.Point, ki.NumOfKeys)
-	for i := 0; i < ki.NumOfKeys; i++ {
-		// help initialize all the keylogs
-		secret := *pvss.RandomBigInt()
-		f := pvss.GenerateRandomBivariatePolynomial(secret, ki.Threshold)
-		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), ki.Threshold)
-		commitmentMatrixes[i] = pvss.GetCommitmentMatrix(f, fprime)
-
-		// store secrets
-		keyIndex := big.NewInt(int64(i))
-		keyIndex.Add(keyIndex, &ki.StartIndex)
-		ki.Secrets[keyIndex.Text(16)] = KEYGENSecrets{
-			Secret: secret,
-			F:      f,
-			Fprime: fprime,
-		}
-	}
-	err := ki.Transport.BroadcastInitiateKeygen(KEYGENInitiate{commitmentMatrixes})
-	if err != nil {
-		return err
-	}
-
-	// TODO: We neet to set a timing (t1) here (Deprecated)
-	// Changed to tendermint triggering timing
-
-	return nil
-}
-
-func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int) error {
-	ki.Lock()
-	defer ki.Unlock()
-	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
-	if ki.NodeLog[nodeIndex.Text(16)].Is(SNStandby) {
-		// check length of commitment matrix is right
-		if len(msg.CommitmentMatrixes) != ki.NumOfKeys {
-			return errors.New("length of  commitment matrix is not correct")
-		}
-		// store commitment matrix
-		for i, commitmentMatrix := range msg.CommitmentMatrixes {
-			index := big.NewInt(int64(i))
-			index.Add(index, &ki.StartIndex)
-			// TODO: create state to handle time out of t2
+		for _, ni := range nodeIndexes {
+			nodeIndex := big.Int{}
+			nodeIndex.Set(&ni)
 			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)] = &KEYGENLog{
-				KeyIndex:               *index,
-				NodeIndex:              nodeIndex,
-				C:                      commitmentMatrix,
+				KeyIndex:  *index,
+				NodeIndex: nodeIndex,
+				// C:                      commitmentMatrix,
 				ReceivedEchoes:         make(map[string]KEYGENEcho),          // From(M) big.Int (in hex) to Echo
 				ReceivedReadys:         make(map[string]KEYGENReady),         // From(M) big.Int (in hex) to Ready
 				ReceivedShareCompletes: make(map[string]KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
@@ -493,18 +447,20 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 								nodeToSendIndex := big.Int{}
 								nodeToSendIndex.SetString(k, 16)
 								msg := ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend
-								keygenEcho := KEYGENEcho{
-									KeyIndex: *index,
-									Dealer:   nodeIndex,
-									Aij:      *pvss.PolyEval(msg.AIY, nodeToSendIndex),
-									Aprimeij: *pvss.PolyEval(msg.AIprimeY, nodeToSendIndex),
-									Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
-									Bprimeij: *pvss.PolyEval(msg.BIprimeX, nodeToSendIndex),
-								}
-								err := ki.Transport.SendKEYGENEcho(keygenEcho, nodeToSendIndex)
-								if err != nil {
-									// TODO: Handle failure, resend?
-									logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"Error sending echo: %v", err)
+								if msg != nil {
+									keygenEcho := KEYGENEcho{
+										KeyIndex: *index,
+										Dealer:   nodeIndex,
+										Aij:      *pvss.PolyEval(msg.AIY, nodeToSendIndex),
+										Aprimeij: *pvss.PolyEval(msg.AIprimeY, nodeToSendIndex),
+										Bij:      *pvss.PolyEval(msg.BIX, nodeToSendIndex),
+										Bprimeij: *pvss.PolyEval(msg.BIprimeX, nodeToSendIndex),
+									}
+									err := ki.Transport.SendKEYGENEcho(keygenEcho, nodeToSendIndex)
+									if err != nil {
+										// TODO: Handle failure, resend?
+										logging.Debugf("NODE"+ki.NodeIndex.Text(16)+"Error sending echo: %v", err)
+									}
 								}
 							}
 
@@ -608,7 +564,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 							aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
 							bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
 							biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
-							ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = KEYGENSend{
+							ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
 								KeyIndex: *index,
 								AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
 								AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
@@ -663,6 +619,63 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 				),
 			}
 		}
+	}
+	ki.Secrets = make(map[string]KEYGENSecrets)
+
+	// TODO: Trigger setting up of listeners here
+
+	return ki, nil
+}
+
+// TODO: Potentially Stuff specific KEYGEN Debugger | set up transport here as well & store
+func (ki *KeygenInstance) InitiateKeygen() error {
+	ki.Lock()
+	defer ki.Unlock()
+	// prepare commitmentMatrixes for broadcast
+	commitmentMatrixes := make([][][]common.Point, ki.NumOfKeys)
+	for i := 0; i < ki.NumOfKeys; i++ {
+		// help initialize all the keylogs
+		secret := *pvss.RandomBigInt()
+		f := pvss.GenerateRandomBivariatePolynomial(secret, ki.Threshold)
+		fprime := pvss.GenerateRandomBivariatePolynomial(*pvss.RandomBigInt(), ki.Threshold)
+		commitmentMatrixes[i] = pvss.GetCommitmentMatrix(f, fprime)
+
+		// store secrets
+		keyIndex := big.NewInt(int64(i))
+		keyIndex.Add(keyIndex, &ki.StartIndex)
+		ki.Secrets[keyIndex.Text(16)] = KEYGENSecrets{
+			Secret: secret,
+			F:      f,
+			Fprime: fprime,
+		}
+	}
+	err := ki.Transport.BroadcastInitiateKeygen(KEYGENInitiate{commitmentMatrixes})
+	if err != nil {
+		return err
+	}
+
+	// TODO: We neet to set a timing (t1) here (Deprecated)
+	// Changed to tendermint triggering timing
+
+	return nil
+}
+
+func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int) error {
+	ki.Lock()
+	defer ki.Unlock()
+	// Only accept onInitiate on Standby phase to only accept initiate keygen once from one node index
+	if ki.NodeLog[nodeIndex.Text(16)].Is(SNStandby) {
+		// check length of commitment matrix is right
+		if len(msg.CommitmentMatrixes) != ki.NumOfKeys {
+			return errors.New("length of  commitment matrix is not correct")
+		}
+		// store commitment matrix
+		for i, commitmentMatrix := range msg.CommitmentMatrixes {
+			index := big.NewInt(int64(i))
+			index.Add(index, &ki.StartIndex)
+			// TODO: create state to handle time out of t2
+			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C = commitmentMatrix
+		}
 
 		go func(nodeLog *NodeLog) {
 			err := nodeLog.Event(ENInitiateKeygen)
@@ -670,18 +683,24 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 				logging.Error(err.Error())
 			}
 		}(ki.NodeLog[nodeIndex.Text(16)])
+
 	}
 	return nil
 }
 
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
+	// logging.Debug("send in keygen")
 	ki.Lock()
 	defer ki.Unlock()
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 	if !ok {
-		return errors.New("Keylog not found")
+		logging.Error("Keylog not found OnKEYGENSend")
+		logging.Errorf("for keyIndex: %s from nodeIndex %s ", msg.KeyIndex.Text(16), fromNodeIndex.Text(16))
+		logging.Errorf("Keylog store: %v", ki.KeyLog[msg.KeyIndex.Text(16)])
+		logging.Errorf("status of ")
 	}
-	if keyLog.SubshareState.Is(SKWaitingForSend) {
+	if ok && keyLog.SubshareState.Is(SKWaitingForSend) {
+		logging.Debug("parsing send")
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
 			keyLog.C,
@@ -695,7 +714,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		}
 
 		// since valid we log
-		ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].ReceivedSend = msg
+		ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)].ReceivedSend = &msg
 		keyLog = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 
 		// and send echo
@@ -707,6 +726,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		}(keyLog)
 
 	} else {
+		logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " storing KEYGENSend")
 		ki.MsgBuffer.StoreKEYGENSend(msg, fromNodeIndex)
 	}
 	return nil
@@ -718,7 +738,7 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 	if ki.State.Is(SIRunningKeygen) {
 		keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 		if !ok {
-			return errors.New("Keylog not found")
+			return errors.New("Keylog not found OnKEYGENEcho")
 		}
 		// verify echo, if correct log echo. If there are more then threshold Echos we send ready
 		if !pvss.AVSSVerifyPoint(
@@ -776,7 +796,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	if ki.State.Is(SIRunningKeygen) {
 		keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 		if !ok {
-			return errors.New("Keylog not found")
+			return errors.New("Keylog not found OnKEYGENReady")
 		}
 		// we verify ready, if right we log and check if we have enough readys to validate shares
 		if !pvss.AVSSVerifyPoint(

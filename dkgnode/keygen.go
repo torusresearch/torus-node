@@ -156,11 +156,13 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 			ownNodeIndex = *nodeRef.Index
 		}
 	}
+	logging.Debugf("With k: %v, t: %v, nodeIndexes: %v", suite.Config.Threshold, suite.Config.NumMalNodes, nodeIndexList)
+	logging.Debugf("and own index: %v", ownNodeIndex)
 	keygenTp := KEYGENTransport{
 		Protocol:  kp,
 		ProtoName: protocol.ID(keygenID),
 	}
-	c := make(chan string)
+	// c := make(chan string)
 	instance, err := keygen.NewAVSSKeygen(
 		*big.NewInt(int64(shareStartingIndex)),
 		shareEndingIndex-shareStartingIndex,
@@ -171,7 +173,7 @@ func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareE
 		&keygenTp,
 		suite.DBSuite.Instance,
 		kp,
-		c,
+		kp.MainChannel,
 	)
 	if err != nil {
 		return "", err
@@ -192,15 +194,17 @@ func (kp *KEYGENProtocol) InitiateKeygen(suite *Suite, shareStartingIndex int, s
 	// Look if keygen instance exists
 	ki, ok := kp.KeygenInstances[keygenID]
 	if !ok {
-		_, err := kp.NewKeygen(suite, shareStartingIndex, shareEndingIndex)
+		keygenID, err := kp.NewKeygen(suite, shareStartingIndex, shareEndingIndex)
 		if err != nil {
 			return err
 		}
+		ki = kp.KeygenInstances[keygenID]
 	}
 	logging.Debugf("Keygen Initaited from %v to  %v", shareStartingIndex, shareEndingIndex)
 	//initiate Keygen
 	err := ki.InitiateKeygen()
 	if err != nil {
+		logging.Errorf("error initiating keygen: ", err)
 		return err
 	}
 
@@ -250,13 +254,29 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 
 	switch p2pMsg.GetMsgType() {
 	case keygenConsts.Send:
+
 		payload := &keygen.KEYGENSend{}
 		err = bijson.Unmarshal(p2pMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
 			return
 		}
-		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENSend(*payload, nodeIndex)
+		logging.Debugf("got p2p send: %v", payload)
+		ki, ok := p.KeygenInstances[keygenID(string(s.Protocol()))]
+		if !ok {
+			start, end, err := getStartEndIndexesFromKeygenID(keygenID(s.Protocol()))
+			if err != nil {
+				logging.Error(err.Error())
+				return
+			}
+			id, err := p.NewKeygen(p.suite, start, end)
+			if err != nil {
+				logging.Error(err.Error())
+				return
+			}
+			ki = p.KeygenInstances[id]
+		}
+		err = ki.OnKEYGENSend(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return
@@ -268,6 +288,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			logging.Error(err.Error())
 			return
 		}
+		logging.Debugf("got p2p echo: %v", payload)
 		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENEcho(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
@@ -280,6 +301,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			logging.Error(err.Error())
 			return
 		}
+		logging.Debugf("got p2p ready: %v", payload)
 		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENReady(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
@@ -320,11 +342,21 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			logging.Error(err.Error())
 			return false
 		}
-		// ki, ok := p.KeygenInstances[keygenID(bftMsg.Protocol)]
-		// if !ok {
-
-		// }
-		err = p.KeygenInstances[keygenID(bftMsg.Protocol)].OnInitiateKeygen(*payload, nodeIndex)
+		ki, ok := p.KeygenInstances[keygenID(bftMsg.Protocol)]
+		if !ok {
+			start, end, err := getStartEndIndexesFromKeygenID(keygenID(bftMsg.Protocol))
+			if err != nil {
+				logging.Error(err.Error())
+				return false
+			}
+			id, err := p.NewKeygen(p.suite, start, end)
+			if err != nil {
+				logging.Error(err.Error())
+				return false
+			}
+			ki = p.KeygenInstances[id]
+		}
+		err = ki.OnInitiateKeygen(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return false

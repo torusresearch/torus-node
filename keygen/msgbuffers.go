@@ -89,7 +89,7 @@ func (buf *KEYGENBuffer) RetrieveKEYGENSends(keyIndex big.Int, dealer big.Int) *
 func (buf *KEYGENBuffer) RetrieveKEYGENEchoes(keyIndex big.Int, dealer big.Int) map[string]*KEYGENEcho {
 	buf.Lock()
 	defer buf.Unlock()
-	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes))
+	logging.Debugf("RetrieveKEYGENEchos called with %v msgs", len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes))
 	return buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes
 }
 
@@ -103,7 +103,7 @@ func (buf *KEYGENBuffer) RetrieveKEYGENReadys(keyIndex big.Int, dealer big.Int) 
 func (buf *KEYGENBuffer) RetrieveKEYGENDKGComplete(nonce int, dealer big.Int) map[string]*KEYGENDKGComplete {
 	buf.Lock()
 	defer buf.Unlock()
-	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.ReceivedDKGCompletes[nonce]))
+	logging.Debugf("RetrieveKEYGENDKGCompletes called with %v msgs", len(buf.ReceivedDKGCompletes[nonce]))
 	return buf.ReceivedDKGCompletes[nonce]
 }
 

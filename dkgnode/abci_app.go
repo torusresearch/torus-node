@@ -106,7 +106,7 @@ func (app *ABCIApp) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
 // tx is either "key=value" or just arbitrary bytes
 func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
-	logging.Debugf("DELIVERINGTX %s", tx)
+	// logging.Debugf("DELIVERINGTX %s", tx)
 
 	//Validate transaction here
 	correct, tags, err := app.ValidateAndUpdateAndTagBFTTx(tx) // TODO: doesnt just validate now.. break out update from validate?

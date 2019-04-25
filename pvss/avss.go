@@ -104,6 +104,14 @@ func AVSSVerifyPoly(
 	bprime common.PrimaryPolynomial,
 ) bool {
 
+	// check that polynomial thresholds are the same and Commitment Matrix Lentgh
+	if a.Threshold != aprime.Threshold || a.Threshold != b.Threshold || a.Threshold != bprime.Threshold {
+		return false
+	}
+	if a.Threshold != len(C) || a.Threshold != len(C[0]) {
+		return false
+	}
+
 	// check that g^(a_l).h^(aprime_l) = product (C_jl)^(i^j)
 	for l := 0; l < len(a.Coeff); l++ {
 		gal := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(a.Coeff[l].Bytes()))

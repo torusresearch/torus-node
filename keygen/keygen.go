@@ -245,6 +245,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					committedSecrets := ki.Secrets[keyIndex.Text(16)]
 					ki.Store.StoreKEYGENSecret(*keyIndex, committedSecrets)
 					for k := range ki.NodeLog {
+
 						nodeIndex := big.Int{}
 						nodeIndex.SetString(k, 16)
 
@@ -694,10 +695,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	defer ki.Unlock()
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 	if !ok {
-		logging.Error("Keylog not found OnKEYGENSend")
-		logging.Errorf("for keyIndex: %s from nodeIndex %s ", msg.KeyIndex.Text(16), fromNodeIndex.Text(16))
-		logging.Errorf("Keylog store: %v", ki.KeyLog[msg.KeyIndex.Text(16)])
-		logging.Errorf("status of ")
+		return errors.New("Keylog not found for keygen send")
 	}
 	if ok && keyLog.SubshareState.Is(SKWaitingForSend) {
 		logging.Debug("parsing send")
@@ -922,48 +920,6 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 			}
 		}()
 	}
-
-	// ki.MsgBuffer.StoreKEYGENDKGComplete(msg, fromNodeIndex)
-
-	// Here we evaluate keygens from this set suffices
-	// completes := ki.MsgBuffer.RetrieveKEYGENDKGComplete(keygenShareCompletes.Nonce, fromNodeIndex)
-
-	// // at this point arrays should already be sorted
-	// // we get here if everything passes
-	// if len(completes) >= ki.Threshold+ki.NumMalNodes {
-	// 	// hash sort here
-	// 	hashCount := make(map[string]int)
-	// 	for _, dkgComplete := range completes {
-	// 		_, ok := hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)]
-	// 		if !ok {
-	// 			hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)] = 0
-	// 		}
-	// 		hashCount[fmt.Sprintf("%v", dkgComplete.NodeSet)]++
-	// 	}
-
-	// 	thresholdHit := false
-	// 	var nodeSet []string
-	// 	for str, count := range hashCount {
-	// 		if count >= ki.Threshold+ki.NumMalNodes {
-	// 			for _, dkgComplete := range completes {
-	// 				if fmt.Sprintf("%v", dkgComplete.NodeSet) == str {
-	// 					thresholdHit = true
-	// 					nodeSet = dkgComplete.NodeSet
-	// 					break
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-
-	// 	// define set
-	// 	if thresholdHit {
-	// 		for _, nodeIndex := range nodeSet {
-	// 			go func(nodeLog *NodeLog) {
-	// 				nodeLog.Event(ENSyncKEYGENComplete)
-	// 			}(ki.NodeLog[nodeIndex])
-	// 		}
-	// 	}
-	// }
 
 	// // gshr should be a point on the sum commitment matix
 	return nil

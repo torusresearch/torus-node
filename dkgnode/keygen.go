@@ -403,12 +403,14 @@ type KEYGENTransport struct {
 }
 
 func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.Int) error {
+	logging.Debugf("attempting sent KEYGENSend to index: %s ", nodeIndex.Text(16))
 	// cater to if sending to self
 	if nodeIndex.Cmp(kt.Protocol.suite.EthSuite.NodeIndex) == 0 {
 		err := kt.Protocol.KeygenInstances[keygenID(kt.ProtoName)].OnKEYGENSend(msg, nodeIndex)
 		if err != nil {
 			return errors.New("Could not send to self: " + err.Error())
 		}
+		logging.Debugf("success sent KEYGENSend to index: %s ", nodeIndex.Text(16))
 		return nil
 	}
 	plBytes, err := bijson.Marshal(msg)
@@ -419,6 +421,7 @@ func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.I
 	if err != nil {
 		return errors.New("Could not send KeygenP2PMsg: " + err.Error())
 	}
+	logging.Debugf("success sent KEYGENSend to index: %s ", nodeIndex.Text(16))
 	return nil
 }
 

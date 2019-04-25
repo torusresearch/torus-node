@@ -30,6 +30,8 @@ package dkgnode
 import (
 	// "fmt"
 	"io/ioutil"
+	"strconv"
+	"strings"
 	// "log"
 	"crypto/ecdsa"
 	"errors"
@@ -72,8 +74,21 @@ type keygenConstants struct {
 }
 
 type keygenID string // "startingIndex-endingIndex"
+//TODO : Change startingIndex and endingIndex in node to big.Int
 func getKeygenID(shareStartingIndex int, shareEndingIndex int) keygenID {
-	return keygenID(keygenConsts.RequestPrefix + string(shareStartingIndex) + "-" + string(shareEndingIndex))
+	return keygenID(keygenConsts.RequestPrefix + strconv.FormatInt(int64(shareStartingIndex), 16) + "-" + strconv.FormatInt(int64(shareEndingIndex), 16))
+}
+func getStartEndIndexesFromKeygenID(keygenID keygenID) (int, int, error) {
+	split := strings.Split(string(keygenID)[18:], "-")
+	startIndex, err := strconv.ParseInt(split[0], 16, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	endIndex, err := strconv.ParseInt(split[1], 16, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(startIndex), int(endIndex), nil
 }
 
 // KEYGENProtocol type
@@ -305,6 +320,10 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			logging.Error(err.Error())
 			return false
 		}
+		// ki, ok := p.KeygenInstances[keygenID(bftMsg.Protocol)]
+		// if !ok {
+
+		// }
 		err = p.KeygenInstances[keygenID(bftMsg.Protocol)].OnInitiateKeygen(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())

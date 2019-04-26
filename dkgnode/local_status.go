@@ -3,6 +3,7 @@ package dkgnode
 import (
 	"github.com/looplab/fsm"
 	"github.com/torusresearch/torus-public/logging"
+	"time"
 )
 
 // LocalStatusConstants: Constants for the Nodes Local Status
@@ -47,7 +48,12 @@ func SetupFSM(suite *Suite) {
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) { logging.Infof("STATUSTX: local status set from %s to %s", e.Src, e.Dst) },
 			"after_" + constants.Events.StartKeygen: func(e *fsm.Event) {
-				// update total number of available keys and epoch
+				//caters for if Keygen has already been instanciated
+				_, ok := suite.P2PSuite.KeygenProto.KeygenInstances[getKeygenID(e.Args[0].(int), e.Args[1].(int))]
+				if !ok {
+					suite.P2PSuite.KeygenProto.NewKeygen(suite, e.Args[0].(int), e.Args[1].(int))
+				}
+				time.Sleep(10 * time.Second)
 				go suite.P2PSuite.KeygenProto.InitiateKeygen(suite, e.Args[0].(int), e.Args[1].(int))
 			},
 			"after_" + constants.Events.KeygenComplete: func(e *fsm.Event) {

@@ -32,6 +32,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"sync"
 	// "log"
 	"crypto/ecdsa"
 	"errors"
@@ -99,6 +100,7 @@ type KEYGENProtocol struct {
 	requests        map[string]*P2PBasicMsg // used to access request data from response handlers
 	counters        map[string]*telemetry.Counter
 	MainChannel     chan string
+	sync.Mutex
 }
 
 type BFTKeygenMsg struct {
@@ -192,6 +194,7 @@ func (kp *KEYGENProtocol) InitiateKeygen(suite *Suite, shareStartingIndex int, s
 	keygenID := getKeygenID(shareStartingIndex, shareEndingIndex)
 
 	// Look if keygen instance exists
+	kp.Lock()
 	ki, ok := kp.KeygenInstances[keygenID]
 	if !ok {
 		keygenID, err := kp.NewKeygen(suite, shareStartingIndex, shareEndingIndex)
@@ -200,6 +203,7 @@ func (kp *KEYGENProtocol) InitiateKeygen(suite *Suite, shareStartingIndex int, s
 		}
 		ki = kp.KeygenInstances[keygenID]
 	}
+	kp.Unlock()
 	logging.Debugf("Keygen Initaited from %v to  %v", shareStartingIndex, shareEndingIndex)
 	//initiate Keygen
 	err := ki.InitiateKeygen()
@@ -262,6 +266,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 		logging.Debugf("got p2p send: %v", payload)
+		p.Lock()
 		ki, ok := p.KeygenInstances[keygenID(string(s.Protocol()))]
 		if !ok {
 			start, end, err := getStartEndIndexesFromKeygenID(keygenID(s.Protocol()))
@@ -276,6 +281,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			}
 			ki = p.KeygenInstances[id]
 		}
+		p.Unlock()
 		err = ki.OnKEYGENSend(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
@@ -342,6 +348,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			logging.Error(err.Error())
 			return false
 		}
+		p.Lock()
 		ki, ok := p.KeygenInstances[keygenID(bftMsg.Protocol)]
 		if !ok {
 			start, end, err := getStartEndIndexesFromKeygenID(keygenID(bftMsg.Protocol))
@@ -356,6 +363,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			}
 			ki = p.KeygenInstances[id]
 		}
+		p.Unlock()
 		err = ki.OnInitiateKeygen(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())

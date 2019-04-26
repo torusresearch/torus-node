@@ -123,7 +123,7 @@ func New() {
 	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
 
 	// we generate nodekey first cause we need it in node list TODO: find a better way
-	nodekey, err := p2p.LoadOrGenNodeKey(cfg.BasePath + "/config/node_key.json")
+	tmNodeKey, err := p2p.LoadOrGenNodeKey(cfg.BasePath + "/config/node_key.json")
 	if err != nil {
 		logging.Errorf("Node Key generation issue: %s", err)
 	}
@@ -141,7 +141,7 @@ func New() {
 			break
 		}
 		logging.Warning("Node is not whitelisted")
-		time.Sleep(4 * time.Second)
+		time.Sleep(4 * time.Second) // TODO(LEN): move out into config
 	}
 
 	if cfg.ShouldRegister && whitelisted {
@@ -156,9 +156,9 @@ func New() {
 		// 	externalAddr = suite.Config.P2PListenAddress
 		// }
 
-		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr))
+		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(tmNodeKey.ID(), externalAddr))
 		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(nodekey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
+		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(tmNodeKey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
 		if err != nil {
 			logging.Fatal(err.Error())
 		}

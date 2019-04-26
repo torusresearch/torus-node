@@ -668,7 +668,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 	if ki.NodeLog[nodeIndex.Text(16)].Is(SNStandby) {
 		// check length of commitment matrix is right
 		if len(msg.CommitmentMatrixes) != ki.NumOfKeys {
-			return errors.New("length of  commitment matrix is not correct")
+			return errors.New("length of commitment matrix is not correct")
 		}
 		// store commitment matrix
 		for i, commitmentMatrix := range msg.CommitmentMatrixes {

@@ -53,7 +53,7 @@ func SetupFSM(suite *Suite) {
 				if !ok {
 					suite.P2PSuite.KeygenProto.NewKeygen(suite, e.Args[0].(int), e.Args[1].(int))
 				}
-				time.Sleep(10 * time.Second)
+				time.Sleep(10 * time.Second) // TODO(Zen): Remove after testing
 				go suite.P2PSuite.KeygenProto.InitiateKeygen(suite, e.Args[0].(int), e.Args[1].(int))
 			},
 			"after_" + constants.Events.KeygenComplete: func(e *fsm.Event) {

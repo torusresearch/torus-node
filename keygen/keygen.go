@@ -690,7 +690,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 }
 
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
-	// logging.Debug("send in keygen")
+	logging.Debug("send in keygen")
 	ki.Lock()
 	defer ki.Unlock()
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
@@ -716,6 +716,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		keyLog = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 
 		// and send echo
+		logging.Debug("Triggered sending an echo")
 		go func(innerKeyLog *KEYGENLog) {
 			err := innerKeyLog.SubshareState.Event(EKSendEcho)
 			if err != nil {

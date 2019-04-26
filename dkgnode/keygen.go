@@ -33,6 +33,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	// "log"
 	"crypto/ecdsa"
 	"errors"
@@ -262,27 +263,29 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 		logging.Debugf("got p2p send: %v", payload)
-		p.Lock()
-		ki, ok := p.KeygenInstances[keygenID(string(s.Protocol()))]
-		if !ok {
-			start, end, err := getStartEndIndexesFromKeygenID(keygenID(s.Protocol()))
-			if err != nil {
-				logging.Error(err.Error())
-				return
-			}
-			id, err := p.NewKeygen(p.suite, start, end)
-			if err != nil {
-				logging.Error(err.Error())
-				return
-			}
-			ki = p.KeygenInstances[id]
-		}
-		p.Unlock()
+		ki := p.KeygenInstances[keygenID(string(s.Protocol()))]
+		// p.Lock()
+		// ki, ok := p.KeygenInstances[keygenID(string(s.Protocol()))]
+		// if !ok {
+		// 	start, end, err := getStartEndIndexesFromKeygenID(keygenID(s.Protocol()))
+		// 	if err != nil {
+		// 		logging.Error(err.Error())
+		// 		return
+		// 	}
+		// 	id, err := p.NewKeygen(p.suite, start, end)
+		// 	if err != nil {
+		// 		logging.Error(err.Error())
+		// 		return
+		// 	}
+		// 	ki = p.KeygenInstances[id]
+		// }
+		// p.Unlock()
 		err = ki.OnKEYGENSend(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return
 		}
+
 	case keygenConsts.Echo:
 		payload := &keygen.KEYGENEcho{}
 		err = bijson.Unmarshal(p2pMsg.Payload, payload)
@@ -550,10 +553,15 @@ func (kt *KEYGENTransport) prepAndSendKeygenMsg(pl []byte, msgType string, nodeI
 	// add the signature to the message
 	p2pMsg.Sign = signature
 
-	// send the p2pMsgonse
-	err = kt.Protocol.localHost.sendP2PMessage(nodeId, kt.ProtoName, p2pMsg)
-	if err != nil {
-		return errors.New("failed to send SendKEYGENSend " + err.Error())
+	// send the p2pMsgonse with a retry if it fails
+	// TODO: Implement backoff
+	for {
+		err = kt.Protocol.localHost.sendP2PMessage(nodeId, kt.ProtoName, p2pMsg)
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+		logging.Debugf("Retrying after failed to send SendKEYGENSend " + err.Error())
 	}
 	return nil
 }

@@ -2,9 +2,9 @@ package logging
 
 import (
 	"fmt"
+	"github.com/torusresearch/torus-public/sync"
 	"io"
 	"os"
-	"sync"
 	"time"
 )
 

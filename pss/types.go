@@ -3,10 +3,10 @@ package pss
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/torusresearch/torus-public/sync"
 	"math/big"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/intel-go/fastjson"
 	"github.com/torusresearch/torus-public/common"

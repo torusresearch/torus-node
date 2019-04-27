@@ -3,11 +3,11 @@ package keygen
 import (
 	"errors"
 	"fmt"
+	"github.com/torusresearch/torus-public/sync"
 	"math"
 	"math/big"
 	"sort"
 	"strconv"
-	"sync"
 
 	"github.com/torusresearch/torus-public/pvss"
 

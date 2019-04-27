@@ -1,8 +1,8 @@
 package keygen
 
 import (
+	"github.com/torusresearch/torus-public/sync"
 	"math/big"
-	"sync"
 
 	"github.com/torusresearch/torus-public/logging"
 )

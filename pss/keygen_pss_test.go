@@ -3,12 +3,12 @@ package pss
 import (
 	"errors"
 	"fmt"
+	"github.com/torusresearch/torus-public/sync"
 	"math/big"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 

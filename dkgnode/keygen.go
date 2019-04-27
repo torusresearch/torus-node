@@ -29,10 +29,10 @@ package dkgnode
 
 import (
 	// "fmt"
+	"github.com/torusresearch/torus-public/sync"
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	// "log"
 	"crypto/ecdsa"

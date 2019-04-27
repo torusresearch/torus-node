@@ -1,8 +1,8 @@
 package telemetry
 
 import (
-	"github.com/torusresearch/torus-public/sync"
 	"net/http"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

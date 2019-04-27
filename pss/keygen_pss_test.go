@@ -3,7 +3,7 @@ package pss
 import (
 	"errors"
 	"fmt"
-	"github.com/torusresearch/torus-public/sync"
+	"github.com/torusresearch/torus-public/idmutex"
 	"math/big"
 	"math/rand"
 	"runtime"
@@ -586,7 +586,7 @@ func MockEngine(engineState *MockEngineState, localTransportNodeDirectory *map[N
 }
 
 type MockEngineState struct {
-	sync.Mutex
+	idmutex.Mutex
 	PSSDecision map[SharingID]bool
 }
 

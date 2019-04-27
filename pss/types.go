@@ -3,7 +3,7 @@ package pss
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/torusresearch/torus-public/sync"
+	"github.com/torusresearch/torus-public/idmutex"
 	"math/big"
 	"strconv"
 	"strings"
@@ -198,7 +198,7 @@ type VID string
 
 type SharingID string
 type Sharing struct {
-	sync.Mutex
+	idmutex.Mutex
 	SharingID SharingID
 	Nodes     []common.Node
 	Epoch     int
@@ -219,7 +219,7 @@ type Recover struct {
 }
 
 type PSS struct {
-	sync.Mutex
+	idmutex.Mutex
 	PSSID    PSSID
 	Epoch    int
 	Si       big.Int
@@ -373,7 +373,7 @@ type NodeNetwork struct {
 }
 
 type PSSNode struct {
-	sync.Mutex
+	idmutex.Mutex
 	NodeDetails  NodeDetails
 	OldNodes     NodeNetwork
 	NewNodes     NodeNetwork

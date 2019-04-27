@@ -3,7 +3,7 @@ package keygen
 import (
 	"errors"
 	"fmt"
-	"github.com/torusresearch/torus-public/sync"
+	"github.com/torusresearch/torus-public/idmutex"
 	"math"
 	"math/big"
 	"sort"
@@ -127,7 +127,7 @@ type AVSSAuth interface {
 
 // Main Keygen Struct
 type KeygenInstance struct {
-	sync.Mutex
+	idmutex.Mutex
 	NodeIndex         big.Int
 	Threshold         int // in AVSS Paper this is k
 	NumMalNodes       int // in AVSS Paper this is t

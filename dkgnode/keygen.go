@@ -434,13 +434,13 @@ func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.I
 	logging.Debugf("attempting sent KEYGENSend to index: %s ", nodeIndex.Text(16))
 	// cater to if sending to self
 	if nodeIndex.Cmp(kt.Protocol.suite.EthSuite.NodeIndex) == 0 {
-		// go func() {
-		err := kt.Protocol.KeygenInstances[keygenID(kt.ProtoName)].OnKEYGENSend(msg, nodeIndex)
-		if err != nil {
-			logging.Error("Could not send to self: " + err.Error())
-		}
-		logging.Debugf("success sent KEYGENSend to index: %s ", nodeIndex.Text(16))
-		// }()
+		go func() {
+			err := kt.Protocol.KeygenInstances[keygenID(kt.ProtoName)].OnKEYGENSend(msg, nodeIndex)
+			if err != nil {
+				logging.Error("Could not send to self: " + err.Error())
+			}
+			logging.Debugf("success sent KEYGENSend to index: %s ", nodeIndex.Text(16))
+		}()
 		return nil
 	}
 	plBytes, err := bijson.Marshal(msg)
@@ -458,13 +458,13 @@ func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.I
 func (kt *KEYGENTransport) SendKEYGENEcho(msg keygen.KEYGENEcho, nodeIndex big.Int) error {
 	// cater to if sending to self
 	if nodeIndex.Cmp(kt.Protocol.suite.EthSuite.NodeIndex) == 0 {
-		// go func() {
-		err := kt.Protocol.KeygenInstances[keygenID(kt.ProtoName)].OnKEYGENEcho(msg, nodeIndex)
-		if err != nil {
-			logging.Error("Could not send to self: " + err.Error())
-		}
-		logging.Debugf("success sent KEYGENEcho to index: %s ", nodeIndex.Text(16))
-		// }()
+		go func() {
+			err := kt.Protocol.KeygenInstances[keygenID(kt.ProtoName)].OnKEYGENEcho(msg, nodeIndex)
+			if err != nil {
+				logging.Error("Could not send to self: " + err.Error())
+			}
+			logging.Debugf("success sent KEYGENEcho to index: %s ", nodeIndex.Text(16))
+		}()
 		return nil
 	}
 	plBytes, err := bijson.Marshal(msg)
@@ -481,13 +481,13 @@ func (kt *KEYGENTransport) SendKEYGENEcho(msg keygen.KEYGENEcho, nodeIndex big.I
 func (kt *KEYGENTransport) SendKEYGENReady(msg keygen.KEYGENReady, nodeIndex big.Int) error {
 	// cater to if sending to self
 	if nodeIndex.Cmp(kt.Protocol.suite.EthSuite.NodeIndex) == 0 {
-		// go func() {
-		err := kt.Protocol.KeygenInstances[keygenID(kt.ProtoName)].OnKEYGENReady(msg, nodeIndex)
-		if err != nil {
-			logging.Error("Could not send to self: " + err.Error())
-		}
-		logging.Debugf("success sent KEYGENReady to index: %s ", nodeIndex.Text(16))
-		// }()
+		go func() {
+			err := kt.Protocol.KeygenInstances[keygenID(kt.ProtoName)].OnKEYGENReady(msg, nodeIndex)
+			if err != nil {
+				logging.Error("Could not send to self: " + err.Error())
+			}
+			logging.Debugf("success sent KEYGENReady to index: %s ", nodeIndex.Text(16))
+		}()
 		return nil
 	}
 	plBytes, err := bijson.Marshal(msg)

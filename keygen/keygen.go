@@ -690,7 +690,6 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 }
 
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
-	logging.Debug("send in keygen")
 	ki.Lock()
 	defer ki.Unlock()
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
@@ -698,7 +697,6 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		return errors.New("Keylog not found for keygen send")
 	}
 	if ok && keyLog.SubshareState.Is(SKWaitingForSend) {
-		logging.Debug("parsing send")
 		// we verify keygen, if valid we log it here. Then we send an echo
 		if !pvss.AVSSVerifyPoly(
 			keyLog.C,
@@ -716,7 +714,6 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		keyLog = ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 
 		// and send echo
-		logging.Debug("Triggered sending an echo")
 		go func(innerKeyLog *KEYGENLog) {
 			err := innerKeyLog.SubshareState.Event(EKSendEcho)
 			if err != nil {
@@ -725,7 +722,6 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		}(keyLog)
 
 	} else {
-		logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " storing KEYGENSend")
 		ki.MsgBuffer.StoreKEYGENSend(msg, fromNodeIndex)
 	}
 	return nil
@@ -775,7 +771,7 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 			go func(innerKeyLog *KEYGENLog) {
 				err := innerKeyLog.SubshareState.Event(EKEchoReconstruct)
 				if err != nil {
-					logging.Error(err.Error())
+					logging.Debug(err.Error())
 				}
 			}(keyLog)
 			// }
@@ -820,7 +816,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 			go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
 				err := innerKeyLog.SubshareState.Event(EKTReachedSubshare, keyIndex, dealer)
 				if err != nil {
-					logging.Error(err.Error())
+					logging.Debug(err.Error())
 				}
 			}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
 			// }
@@ -831,7 +827,7 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 				go func(innerKeyLog *KEYGENLog) {
 					err := innerKeyLog.SubshareState.Event(EKAllReachedSubshare)
 					if err != nil {
-						logging.Error(err.Error())
+						logging.Debug(err.Error())
 					}
 				}(keyLog)
 				// }
@@ -917,7 +913,7 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 		go func() {
 			err := ki.State.Event(EIAllSubsharesDone)
 			if err != nil {
-				logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
+				logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
 			}
 		}()
 	}

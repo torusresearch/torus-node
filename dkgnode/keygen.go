@@ -145,7 +145,37 @@ func (kp *KEYGENProtocol) handleMainChannel() {
 	}
 }
 
+// NewKeygen instanciates a new keygenInstance that is assigned to keygenProto
+// Exported to be concurrent safe
 func (kp *KEYGENProtocol) NewKeygen(suite *Suite, shareStartingIndex int, shareEndingIndex int) (keygenID, error) {
+	kp.Lock()
+	defer kp.Unlock()
+	return kp.newKeygen(suite, shareStartingIndex, shareEndingIndex)
+}
+
+// NewKeygenSafe instanciates a new keygenInstance that is assigned to keygenProto
+// ensuring that any keygen that has already been initiated is not replaced
+func (kp *KEYGENProtocol) NewKeygenSafe(suite *Suite, id keygenID) error {
+	kp.Lock()
+	defer kp.Unlock()
+	_, ok := kp.KeygenInstances[id]
+	if !ok {
+		start, end, err := getStartEndIndexesFromKeygenID(id)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+		id, err = kp.newKeygen(kp.suite, start, end)
+		if err != nil {
+			logging.Error(err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
+// NewKeygen instanciates a new keygenInstance that is assigned to keygenProto
+func (kp *KEYGENProtocol) newKeygen(suite *Suite, shareStartingIndex int, shareEndingIndex int) (keygenID, error) {
 	logging.Debugf("NewKeygen from %v to  %v", shareStartingIndex, shareEndingIndex)
 
 	keygenID := getKeygenID(shareStartingIndex, shareEndingIndex)
@@ -195,15 +225,15 @@ func (kp *KEYGENProtocol) InitiateKeygen(suite *Suite, shareStartingIndex int, s
 	keygenID := getKeygenID(shareStartingIndex, shareEndingIndex)
 
 	// Look if keygen instance exists
-	kp.Lock()
-	ki, ok := kp.KeygenInstances[keygenID]
-	if !ok {
+	ki, err := kp.GetKeygenInstance(keygenID)
+	if err != nil {
 		logging.Fatal("Keygen instance should have already been created")
+		return err
 	}
-	kp.Unlock()
+
 	logging.Debugf("Keygen Initaited from %v to  %v", shareStartingIndex, shareEndingIndex)
 	//initiate Keygen
-	err := ki.InitiateKeygen()
+	err = ki.InitiateKeygen()
 	if err != nil {
 		logging.Errorf("error initiating keygen: ", err)
 		return err
@@ -212,8 +242,20 @@ func (kp *KEYGENProtocol) InitiateKeygen(suite *Suite, shareStartingIndex int, s
 	return nil
 }
 
+// NewKeygenSafe instanciates a new keygenInstance that is assigned to keygenProto
+// ensuring that any keygen that has already been initiated is not replaced
+func (kp *KEYGENProtocol) GetKeygenInstance(id keygenID) (*keygen.KeygenInstance, error) {
+	kp.Lock()
+	defer kp.Unlock()
+	inst, ok := kp.KeygenInstances[id]
+	if !ok {
+		return nil, errors.New("Keygen instance " + string(id) + "does not exist")
+	}
+	return inst, nil
+}
+
 // remote peer requests handler
-func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
+func (kp *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 	// get request data
 	p2pMsg := &P2PBasicMsg{}
 	buf, err := ioutil.ReadAll(s)
@@ -231,7 +273,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 		return
 	}
 
-	valid := p.localHost.authenticateMessage(p2pMsg)
+	valid := kp.localHost.authenticateMessage(p2pMsg)
 
 	if !valid {
 		logging.Error("Failed to authenticate message")
@@ -246,7 +288,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 		logging.Error("Failed to derive pk")
 		return
 	}
-	for _, nodeRef := range p.suite.EthSuite.NodeList {
+	for _, nodeRef := range kp.suite.EthSuite.NodeList {
 		if nodeRef.PeerID.MatchesPublicKey(pk) {
 			nodeIndex = *nodeRef.Index
 			break
@@ -263,23 +305,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 		logging.Debugf("got p2p send: %v", payload)
-		ki := p.KeygenInstances[keygenID(string(s.Protocol()))]
-		// p.Lock()
-		// ki, ok := p.KeygenInstances[keygenID(string(s.Protocol()))]
-		// if !ok {
-		// 	start, end, err := getStartEndIndexesFromKeygenID(keygenID(s.Protocol()))
-		// 	if err != nil {
-		// 		logging.Error(err.Error())
-		// 		return
-		// 	}
-		// 	id, err := p.NewKeygen(p.suite, start, end)
-		// 	if err != nil {
-		// 		logging.Error(err.Error())
-		// 		return
-		// 	}
-		// 	ki = p.KeygenInstances[id]
-		// }
-		// p.Unlock()
+		ki := kp.KeygenInstances[keygenID(string(s.Protocol()))]
 		err = ki.OnKEYGENSend(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
@@ -294,7 +320,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 		logging.Debugf("got p2p echo: %v", payload)
-		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENEcho(*payload, nodeIndex)
+		err = kp.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENEcho(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return
@@ -307,7 +333,7 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 			return
 		}
 		logging.Debugf("got p2p ready: %v", payload)
-		err = p.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENReady(*payload, nodeIndex)
+		err = kp.KeygenInstances[keygenID(string(s.Protocol()))].OnKEYGENReady(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return
@@ -315,9 +341,9 @@ func (p *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 	}
 }
 
-func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
+func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 	logging.Debugf("BFT MSG ID: ", bftMsg.Id)
-	valid := p.localHost.authenticateMessage(&bftMsg)
+	valid := kp.localHost.authenticateMessage(&bftMsg)
 
 	if !valid {
 		logging.Error("Failed to authenticate message")
@@ -332,7 +358,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 		logging.Error("Failed to derive pk")
 		return false
 	}
-	for _, nodeRef := range p.suite.EthSuite.NodeList {
+	for _, nodeRef := range kp.suite.EthSuite.NodeList {
 		if nodeRef.PeerID.MatchesPublicKey(pk) {
 			nodeIndex = *nodeRef.Index
 			break
@@ -347,22 +373,17 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			logging.Error(err.Error())
 			return false
 		}
-		p.Lock()
-		ki, ok := p.KeygenInstances[keygenID(bftMsg.Protocol)]
-		if !ok {
-			start, end, err := getStartEndIndexesFromKeygenID(keygenID(bftMsg.Protocol))
-			if err != nil {
-				logging.Error(err.Error())
-				return false
-			}
-			id, err := p.NewKeygen(p.suite, start, end)
-			if err != nil {
-				logging.Error(err.Error())
-				return false
-			}
-			ki = p.KeygenInstances[id]
+		err := kp.NewKeygenSafe(kp.suite, keygenID(bftMsg.Protocol))
+		if err != nil {
+			logging.Fatal(err.Error())
+			return false
 		}
-		p.Unlock()
+		ki, err := kp.GetKeygenInstance(keygenID(bftMsg.Protocol))
+		if err != nil {
+			logging.Fatal(err.Error())
+			return false
+		}
+
 		err = ki.OnInitiateKeygen(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
@@ -375,7 +396,7 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 			logging.Error(err.Error())
 			return false
 		}
-		err = p.KeygenInstances[keygenID(bftMsg.Protocol)].OnKEYGENDKGComplete(*payload, nodeIndex)
+		err = kp.KeygenInstances[keygenID(bftMsg.Protocol)].OnKEYGENDKGComplete(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
 			return false
@@ -385,16 +406,16 @@ func (p *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 	return true
 }
 
-func (ka *KEYGENProtocol) Sign(msg string) ([]byte, error) {
+func (kp *KEYGENProtocol) Sign(msg string) ([]byte, error) {
 
-	sig := ECDSASign([]byte(msg), ka.suite.EthSuite.NodePrivateKey)
+	sig := ECDSASign([]byte(msg), kp.suite.EthSuite.NodePrivateKey)
 	return sig.Raw, nil
 }
-func (ka *KEYGENProtocol) Verify(text string, nodeIndex big.Int, signature []byte) bool {
+func (kp *KEYGENProtocol) Verify(text string, nodeIndex big.Int, signature []byte) bool {
 	// Derive ID From Index
 	// TODO: this should be exported once nodelist becomes more modular
 	var nodePK ecdsa.PublicKey
-	for _, nodeRef := range ka.suite.EthSuite.NodeList {
+	for _, nodeRef := range kp.suite.EthSuite.NodeList {
 		if nodeRef.Index.Cmp(&nodeIndex) == 0 {
 			nodePK = *nodeRef.PublicKey
 			break

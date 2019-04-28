@@ -25,6 +25,7 @@ func (m *Mutex) Lock() {
 }
 
 func (m *Mutex) Unlock() {
+	m.accessor = 0
 	m.Mutex.Unlock()
 }
 

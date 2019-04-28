@@ -12,21 +12,20 @@ type goroutineID uint64
 
 type Mutex struct {
 	sync.Mutex
-	Accessors map[goroutineID]bool
+	accessor goroutineID
 }
 
 func (m *Mutex) Lock() {
-	currGoroutineID := getGoroutineID()
-	if m.Accessors[currGoroutineID] {
-		panic("goroutineID " + fmt.Sprint(currGoroutineID) + " already tried to lock this mutex. Deadlock.")
+	gID := getGoroutineID()
+	if m.accessor == gID {
+		panic("goroutineID " + fmt.Sprint(gID) + " already tried to lock this mutex. Deadlock.")
 	}
 	m.Mutex.Lock()
+	m.accessor = gID
 }
 
 func (m *Mutex) Unlock() {
-	currGoroutineID := getGoroutineID()
 	m.Mutex.Unlock()
-	delete(m.Accessors, currGoroutineID)
 }
 
 // if you use this for anything other than debugging you will go straight to hell

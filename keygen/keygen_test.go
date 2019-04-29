@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"os"
 	"runtime"
-	"strconv"
 	"runtime/pprof"
+	"strconv"
 	"testing"
 	"time"
 
@@ -85,7 +85,7 @@ func TestOptimisticKeygen(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
+			if msg == SIKeygenCompleted+"|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 		}
@@ -221,7 +221,7 @@ func TestTimeboundOne(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
+			if msg == SIKeygenCompleted+"|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 			if msg == "timeout" {
@@ -477,7 +477,7 @@ func TestEchoReconstruction(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
+			if msg == SIKeygenCompleted+"|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 			if msg == "timeout" {
@@ -582,7 +582,7 @@ func TestDKGCompleteSync(t *testing.T) {
 	for {
 		select {
 		case msg := <-comsChannel:
-			if msg == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys) {
+			if msg == SIKeygenCompleted+"|0|"+strconv.Itoa(numKeys) {
 				count++
 			}
 			if msg == "timeout" {
@@ -608,6 +608,9 @@ func TestDKGCompleteSync(t *testing.T) {
 			}
 		}
 		instance.Unlock()
+	}
+	if done {
+		t.Log(nodeList)
 	}
 	assert.True(t, !done)
 }

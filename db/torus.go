@@ -20,16 +20,6 @@ type TorusLDB struct {
 	db DB
 }
 
-type PublicKeyIndex struct {
-	Index     big.Int
-	Threshold int
-	// Authenticators
-}
-type KeyIndex struct {
-	PublicKeyIndex
-	Share big.Int // Or Si
-}
-
 // NewTorusLDB returns a leveldb implementation of TorusDB
 // NOTE: dbDirPath MUST be a directory
 func NewTorusLDB(dbDirPath string) (*TorusLDB, error) {

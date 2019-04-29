@@ -45,8 +45,8 @@ type DefaultBFTTxWrapper struct {
 }
 
 type AssignmentBFTTx struct {
-	Email string
-	Epoch uint //implemented to allow retries for assignments on the bft
+	Verifier   string
+	VerifierID string //implemented to allow retries for assignments on the bft
 }
 
 type StatusBFTTx struct {

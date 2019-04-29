@@ -90,7 +90,8 @@ type (
 		suite *Suite
 	}
 	SecretAssignParams struct {
-		Email string `json:"email"`
+		Verifier   string `json:verifier`
+		VerifierID string `json:"verifier_id"`
 	}
 	SecretAssignResult struct {
 		ShareIndex int    `json:"id"`

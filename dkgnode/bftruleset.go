@@ -62,15 +62,12 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			logging.Errorf("assignmentbfttx failed with error %s", err)
 			return false, &tags, err
 		}
-		assignmentTx := AssignmentTx.BFTTx.(*AssignmentBFTTx)
-		if assignmentTx.Epoch != app.state.Epoch { //check if epoch is correct
-			return false, &tags, errors.New("Epoch mismatch for tx")
-		}
 
 		if _, ok := app.state.EmailMapping[assignmentTx.Email]; ok { //check if user has been assigned before
 			logging.Errorf("assignmentbfttx failed with email already assigned")
 			return false, &tags, errors.New("Email " + assignmentTx.Email + " has already been assigned")
 		}
+
 		// assign user email to key index
 		if app.state.LastUnassignedIndex >= app.state.LastCreatedIndex {
 			return false, &tags, errors.New("Last assigned index is exceeding last created index")

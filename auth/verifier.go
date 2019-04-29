@@ -24,6 +24,7 @@ type VerifyMessage struct {
 
 // GeneralVerifier accepts an identifier string and returns an IdentityVerifier
 type GeneralVerifier interface {
+	ListVerifiers() []string
 	Verify(*fastjson.RawMessage) (bool, error)
 	Lookup(string) (Verifier, error)
 }
@@ -31,6 +32,17 @@ type GeneralVerifier interface {
 // DefaultGeneralVerifier is the defualt general verifier that is used
 type DefaultGeneralVerifier struct {
 	Verifiers map[string]Verifier
+}
+
+// ListVerifiers gets List of Registered Verifiers
+func (tgv *DefaultGeneralVerifier) ListVerifiers() []string {
+	list := make([]string, len(tgv.Verifiers))
+	count := 0
+	for k := range tgv.Verifiers {
+		list[count] = k
+		count++
+	}
+	return list
 }
 
 // Verify reroutes the json request to the appropriate sub-verifier within generalVerifier

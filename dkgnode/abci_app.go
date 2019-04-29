@@ -3,6 +3,7 @@ package dkgnode
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 
 	"github.com/looplab/fsm"
 	tmbtcec "github.com/tendermint/btcd/btcec"
@@ -22,18 +23,33 @@ var (
 	ProtocolVersion version.Protocol = 0x1
 )
 
+type KeyAssignmentPublic struct {
+	Index     big.Int
+	Threshold int
+	Verifiers map[string][]string // Verifier => VerifierID
+}
+type KeyAssignment struct {
+	KeyAssignmentPublic
+	Share big.Int // Or Si
+}
+
+type TorusID struct {
+	Index      int
+	KeyIndexes []big.Int
+}
+
 // Nothing in state should be a pointer
 // Remember to initialize mappings in NewABCIApp()
 type State struct {
-	Epoch               uint                    `json:"epoch"`
-	Height              int64                   `json:"height"`
-	AppHash             []byte                  `json:"app_hash"`
-	LastUnassignedIndex uint                    `json:"last_unassigned_index"`
-	LastCreatedIndex    uint                    `json:"last_created_index`
-	EmailMapping        map[string]uint         `json:"email_mapping"`
-	NodeStatus          map[uint]*fsm.FSM       `json:"node_status"` // Node(Index=0) status value for keygen_complete is State.Status[0]["keygen_complete"] = "Y"
-	ValidatorSet        []types.ValidatorUpdate `json:"-"`           // `json:"validator_set"`
-	UpdateValidators    bool                    `json:"-"`           // `json:"update_validators"`
+	Epoch               uint                            `json:"epoch"`
+	Height              int64                           `json:"height"`
+	AppHash             []byte                          `json:"app_hash"`
+	LastUnassignedIndex uint                            `json:"last_unassigned_index"`
+	LastCreatedIndex    uint                            `json:"last_created_index`
+	KeyMapping          map[string]KeyAssignmentPublic  `json:"key_mapping"`           // KeyIndex => KeyAssignmentPublic
+	VerifierToKeyIndex  map[string](map[string]TorusID) `json:"verifier_to_key_index"` // Verifier => VerifierID => KeyIndex
+	ValidatorSet        []types.ValidatorUpdate         `json:"-"`                     // `json:"validator_set"`
+	UpdateValidators    bool                            `json:"-"`                     // `json:"update_validators"`
 }
 
 type ABCITransaction struct {
@@ -80,7 +96,10 @@ type ABCIApp struct {
 
 func NewABCIApp(suite *Suite) *ABCIApp {
 	db := dbm.NewMemDB()
-
+	v := make(map[string](map[string]TorusID))
+	for i, ver := range suite.DefaultVerifier.ListVerifiers() {
+		v[ver] = make(map[string]TorusID)
+	}
 	abciApp := ABCIApp{
 		Suite: suite, db: db,
 		state: &State{
@@ -88,8 +107,8 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 			Height:              0,
 			LastUnassignedIndex: 0,
 			LastCreatedIndex:    0,
-			EmailMapping:        make(map[string]uint),
-			NodeStatus:          make(map[uint]*fsm.FSM),
+			KeyMapping:          make(map[string]KeyAssignmentPublic),
+			VerifierToKeyIndex:  v,
 		}}
 	return &abciApp
 }

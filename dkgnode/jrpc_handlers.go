@@ -226,51 +226,54 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 	}
 	logging.Debug("CHECKING IF EMAIL IS PROVIDED")
 	// no email provided TODO: email validation/ ddos protection
-	if p.Email == "" {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email is empty"}
+	if p.VerifierID == "" {
+		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "VerifierID is empty"}
 	}
 	logging.Debug("CHECKING IF CAN GET EMAIL ADDRESS")
 
-	// try to get get email index
-	logging.Debug("CHECKING IF ALREADY ASSIGNED")
-	previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
-	// already assigned
-	if ok {
-		//create users publicKey
-		logging.Debugf("previouslyAssignedIndex: %d", previouslyAssignedIndex)
-		finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
-		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret from previously assigned index, please try again err, " + err.Error()}
-		}
-
-		//form address eth
-		addr, err := common.PointToEthAddress(*finalUserPubKey)
-		if err != nil {
-			logging.Error("derived user pub key has issues with address")
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
-		}
-
-		return SecretAssignResult{
-			ShareIndex: int(previouslyAssignedIndex),
-			PubShareX:  finalUserPubKey.X.Text(16),
-			PubShareY:  finalUserPubKey.Y.Text(16),
-			Address:    addr.String(),
-		}, nil
-
-		// QUESTION(TEAM) -> THIS NEVER WAS REACHED, can you tell me why is it here?
-		// return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Email exists"}
+	// check if verifier is valid
+	_, err := h.suite.DefaultVerifier.Lookup(p.Verifier)
+	if err != nil {
+		return nil, &jsonrpc.Error{Code: 32602, Message: "Input error", Data: "Verifier not supported"}
 	}
 
+	// try to get get email index
+	logging.Debug("CHECKING IF ALREADY ASSIGNED")
+	// previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
+	// already assigned
+	// if ok {
+	// 	//create users publicKey
+	// 	logging.Debugf("previouslyAssignedIndex: %d", previouslyAssignedIndex)
+	// 	finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
+	// 	if err != nil {
+	// 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret from previously assigned index, please try again err, " + err.Error()}
+	// 	}
+
+	// 	//form address eth
+	// 	addr, err := common.PointToEthAddress(*finalUserPubKey)
+	// 	if err != nil {
+	// 		logging.Error("derived user pub key has issues with address")
+	// 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
+	// 	}
+
+	// 	return SecretAssignResult{
+	// 		ShareIndex: int(previouslyAssignedIndex),
+	// 		PubShareX:  finalUserPubKey.X.Text(16),
+	// 		PubShareY:  finalUserPubKey.Y.Text(16),
+	// 		Address:    addr.String(),
+	// 	}, nil
+	// }
+
 	//if all indexes have been assigned, bounce request. threshold at 20% TODO: Make  percentage variable
+	// TODO: Change this to be not parameter dependent
 	if h.suite.ABCIApp.state.LastCreatedIndex < h.suite.ABCIApp.state.LastUnassignedIndex+20 {
 		return nil, &jsonrpc.Error{Code: 32604, Message: "System is under heavy load for assignments, please try again later"}
 	}
 
 	logging.Debug("CHECKING IF REACHED NEW ASSIGNMENT")
 	// new assignment
-
 	// broadcast assignment transaction
-	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{Email: p.Email, Epoch: h.suite.ABCIApp.state.Epoch}})
+	hash, err := h.suite.BftSuite.BftRPC.Broadcast(DefaultBFTTxWrapper{&AssignmentBFTTx{VerifierID: p.VerifierID, Verifier: p.Verifier}})
 	if err != nil {
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Unable to broadcast: " + err.Error()}
 	}

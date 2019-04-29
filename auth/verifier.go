@@ -11,7 +11,7 @@ import (
 type Verifier interface {
 	GetIdentifier() string
 	CleanToken(string) string
-	VerifyRequestIdentity(*fastjson.RawMessage) (bool, error)
+	VerifyRequestIdentity(*fastjson.RawMessage) (bool, string, error)
 }
 
 // IdentityVerifier describes a common implementation shared among torus
@@ -25,7 +25,7 @@ type VerifyMessage struct {
 // GeneralVerifier accepts an identifier string and returns an IdentityVerifier
 type GeneralVerifier interface {
 	ListVerifiers() []string
-	Verify(*fastjson.RawMessage) (bool, error)
+	Verify(*fastjson.RawMessage) (bool, string, error)
 	Lookup(string) (Verifier, error)
 }
 
@@ -46,25 +46,26 @@ func (tgv *DefaultGeneralVerifier) ListVerifiers() []string {
 }
 
 // Verify reroutes the json request to the appropriate sub-verifier within generalVerifier
-func (tgv *DefaultGeneralVerifier) Verify(rawMessage *fastjson.RawMessage) (bool, error) {
+// Returns result, verifierID and error
+func (tgv *DefaultGeneralVerifier) Verify(rawMessage *fastjson.RawMessage) (bool, string, error) {
 	var verifyMessage VerifyMessage
 	if err := fastjson.Unmarshal(*rawMessage, &verifyMessage); err != nil {
-		return false, err
+		return false, "", err
 	}
 	v, err := tgv.Lookup(verifyMessage.VerifierIdentifier)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	cleanedToken := v.CleanToken(verifyMessage.Token)
 	jsonMap := make(map[string]interface{})
 	err = json.Unmarshal(*rawMessage, &jsonMap)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	jsonMap["token"] = cleanedToken
 	cleanedRawMessageBytes, err := fastjson.Marshal(jsonMap)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	cleanedRawMessage := fastjson.RawMessage(cleanedRawMessageBytes)
 	return v.VerifyRequestIdentity(&cleanedRawMessage)

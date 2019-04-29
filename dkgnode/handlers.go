@@ -86,18 +86,21 @@ type (
 		NodePubX  string `json:"nodepubx"`
 		NodePubY  string `json:"nodepuby"`
 	}
-	SecretAssignHandler struct {
+	KeyAssignHandler struct {
 		suite *Suite
 	}
-	SecretAssignParams struct {
+	KeyAssignParams struct {
 		Verifier   string `json:verifier`
 		VerifierID string `json:"verifier_id"`
 	}
-	SecretAssignResult struct {
-		ShareIndex int    `json:"id"`
-		PubShareX  string `json:"pubshareX"`
-		PubShareY  string `json:"pubshareY"`
-		Address    string `json:"address"`
+	KeyAssignItem struct {
+		KeyIndex  string `json:"key_index"`
+		PubShareX string `json:"pub_share_X"`
+		PubShareY string `json:"pub_share_Y"`
+		Address   string `json:"address"`
+	}
+	KeyAssignResult struct {
+		Keys []KeyAssignItem `json:"keys"`
 	}
 )
 
@@ -203,7 +206,7 @@ func setUpJRPCHandler(suite *Suite) (*jsonrpc.MethodRepository, error) {
 	if err := mr.RegisterMethod("ShareRequest", ShareRequestHandler{suite, time.Now}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
 		return nil, err
 	}
-	if err := mr.RegisterMethod("SecretAssign", SecretAssignHandler{suite}, SecretAssignParams{}, SecretAssignResult{}); err != nil {
+	if err := mr.RegisterMethod("SecretAssign", KeyAssignHandler{suite}, KeyAssignParams{}, KeyAssignResult{}); err != nil {
 		return nil, err
 	}
 	if err := mr.RegisterMethod("CommitmentRequest", CommitmentRequestHandler{suite, time.Now}, CommitmentRequestParams{}, CommitmentRequestResult{}); err != nil {

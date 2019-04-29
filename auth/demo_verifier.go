@@ -29,18 +29,18 @@ func (v *DemoVerifier) CleanToken(token string) string {
 }
 
 // VerifyRequestIdentity - verifies identity of user based on their token
-func (v *DemoVerifier) VerifyRequestIdentity(jsonToken *fastjson.RawMessage) (bool, error) {
+func (v *DemoVerifier) VerifyRequestIdentity(jsonToken *fastjson.RawMessage) (bool, string, error) {
 	var p DemoVerifierParams
 	if err := fastjson.Unmarshal(*jsonToken, &p); err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	p.IDToken = v.CleanToken(p.IDToken)
 
 	if p.IDToken != v.ExpectedKey {
-		return false, errors.New("invalid idtoken")
+		return false, "", errors.New("invalid idtoken")
 	}
 
 	v.Store[p.IDToken] = true
-	return true, nil
+	return true, p.Email, nil
 }

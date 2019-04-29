@@ -12,8 +12,8 @@ import (
 
 	"github.com/torusresearch/torus-public/secp256k1"
 
+	ethCmn "github.com/ethereum/go-ethereum/common"
 	"github.com/intel-go/fastjson"
-
 	"github.com/osamingo/jsonrpc"
 	cache "github.com/patrickmn/go-cache"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
@@ -101,6 +101,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 	// verify token validity against verifier
 	verified, err := h.suite.DefaultVerifier.Verify(params)
+
 	if err != nil {
 		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while verifying params" + err.Error()}
 	}
@@ -186,16 +187,16 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Expired token (> 60 seconds)"}
 	}
 
-	// Here we verify the identity of the user
-	identityVerified, err := h.suite.DefaultVerifier.Verify(params)
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "oauth is invalid, err: " + err.Error()}
-	}
-	if !identityVerified {
-		// TELEMETRY HERE?
-		// TODO: @zhen / @len -> what should be the error message?
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid identity", Data: "oauth is invalid, err: " + err.Error()}
-	}
+	// // Here we verify the identity of the user
+	// identityVerified, err := h.suite.DefaultVerifier.Verify(params)
+	// if err != nil {
+	// 	return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "oauth is invalid, err: " + err.Error()}
+	// }
+	// if !identityVerified {
+	// 	// TELEMETRY HERE?
+	// 	// TODO: @zhen / @len -> what should be the error message?
+	// 	return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid identity", Data: "oauth is invalid, err: " + err.Error()}
+	// }
 
 	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
 	if !found {
@@ -221,9 +222,9 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 }
 
 // assigns a user a secret, returns the same index if the user has been previously assigned
-func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+func (h KeyAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 	randomInt := rand.Int()
-	var p SecretAssignParams
+	var p KeyAssignParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
@@ -293,39 +294,29 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		break
 	}
 
-	// TODO: after ws response has returned as the secret mapping could have changed, should be initializable anywhere
-	tmpSecretMAPPING, found := h.suite.CacheSuite.CacheInstance.Get("Secret_MAPPING")
-	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get sec mapping here after ws reply"}
-	}
-	secretMapping := tmpSecretMAPPING.(map[int]SecretStore)
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
-		return nil, err
-	}
-
-	if secretMapping[int(assignedIndex)].Secret == nil {
-		logging.Debugf("LOOKUP: secretmapping %v", secretMapping)
-		logging.Debug("LOOKUP: SHOULD BE ERROR")
-		// return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve secret from secret mapping, please try again"}
-	}
-
-	//create users publicKey
-	finalUserPubKey, err := retrieveUserPubKey(h.suite, int(assignedIndex))
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not retrieve user public key through query, please try again, err " + err.Error()}
-	}
-
-	//form address eth
-	addr, err := common.PointToEthAddress(*finalUserPubKey)
-	if err != nil {
-		logging.Debug("derived user pub key has issues with address")
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
+	result := KeyAssignResult{}
+	publicKeys := make([]common.Point, 0)
+	addresses := make([]ethCmn.Address, 0)
+	for _, index := range keyIndexes {
+		_, _, pk, err := h.suite.DBSuite.Instance.RetrieveCompletedShare(index)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Could not find address to key index"}
+		}
+		publicKeys = append(publicKeys, *pk)
+		//form address eth
+		addr, err := common.PointToEthAddress(*pk)
+		if err != nil {
+			logging.Debug("derived user pub key has issues with address")
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
+		}
+		addresses = append(addresses, *addr)
+		result.Keys = append(result.Keys, KeyAssignItem{
+			KeyIndex:  index.Text(16),
+			PubShareX: pk.X.Text(16),
+			PubShareY: pk.Y.Text(16),
+			Address:   addr.String(),
+		})
 	}
 
-	return SecretAssignResult{
-		ShareIndex: int(assignedIndex),
-		PubShareX:  finalUserPubKey.X.Text(16),
-		PubShareY:  finalUserPubKey.Y.Text(16),
-		Address:    addr.String(),
-	}, nil
+	return result, nil
 }

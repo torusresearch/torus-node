@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/torusresearch/bijson"
+	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/keygen"
 )
 
@@ -56,8 +57,9 @@ func (t *TorusLDB) RetrieveKEYGENSecret(keyIndex big.Int) (*keygen.KEYGENSecrets
 }
 
 type completedShare struct {
-	Si      big.Int `json:"si"`
-	SiPrime big.Int `json:"si_prime"`
+	Si        big.Int      `json:"si"`
+	SiPrime   big.Int      `json:"si_prime"`
+	PublicKey common.Point `json:"public_key"`
 }
 
 func (c completedShare) MarshalBinary() ([]byte, error) {
@@ -78,11 +80,12 @@ func (c *completedShare) UnmarshalBinary(data []byte) error {
 
 }
 
-func (t *TorusLDB) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error {
+func (t *TorusLDB) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int, publicKey common.Point) error {
 	keyIndexBytes := keyIndex.Bytes()
 	marshalledShare, err := completedShare{
-		Si:      si,
-		SiPrime: siprime,
+		Si:        si,
+		SiPrime:   siprime,
+		PublicKey: publicKey,
 	}.MarshalBinary()
 	if err != nil {
 		return err
@@ -92,7 +95,7 @@ func (t *TorusLDB) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big
 	return nil
 }
 
-func (t *TorusLDB) RetrieveCompletedShare(keyIndex big.Int) (*big.Int, *big.Int, error) {
+func (t *TorusLDB) RetrieveCompletedShare(keyIndex big.Int) (*big.Int, *big.Int, *common.Point, error) {
 	keyIndexBytes := keyIndex.Bytes()
 	completedShareKey := append(keyIndexBytes, completedShareKeyBytes)
 
@@ -100,8 +103,8 @@ func (t *TorusLDB) RetrieveCompletedShare(keyIndex big.Int) (*big.Int, *big.Int,
 	var retrievedShare completedShare
 	err := retrievedShare.UnmarshalBinary(res)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return &retrievedShare.Si, &retrievedShare.SiPrime, nil
+	return &retrievedShare.Si, &retrievedShare.SiPrime, &retrievedShare.PublicKey, nil
 }

@@ -61,51 +61,51 @@ func (g *GoogleVerifier) CleanToken(token string) string {
 }
 
 // VerifyRequestIdentity - verifies identity of user based on their token
-func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *fastjson.RawMessage) (bool, error) {
+func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *fastjson.RawMessage) (bool, string, error) {
 	var p GoogleVerifierParams
 	if err := fastjson.Unmarshal(*rawPayload, &p); err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	p.IDToken = g.CleanToken(p.IDToken)
 
 	if p.Email == "" || p.IDToken == "" {
-		return false, errors.New("invalid payload parameters")
+		return false, "", errors.New("invalid payload parameters")
 	}
 
 	resp, err := g.client.Get("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" + p.IDToken)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	var body GoogleAuthResponse
 	err = fastjson.Unmarshal(b, &body)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	// Check if auth token has been signed within declared parameter
 	timeSignedInt, err := strconv.Atoi(body.Iat)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	timeSigned := time.Unix(int64(timeSignedInt), 0)
 	if timeSigned.Add(g.Timeout).Before(time.Now()) {
-		return false, errors.New("timesigned is more than 60 seconds ago " + timeSigned.String())
+		return false, "", errors.New("timesigned is more than 60 seconds ago " + timeSigned.String())
 	}
 
 	if strings.Compare(g.clientID, body.Azp) != 0 {
-		return false, errors.New("azip is not clientID " + body.Azp + " " + g.clientID)
+		return false, "", errors.New("azip is not clientID " + body.Azp + " " + g.clientID)
 	}
 	if strings.Compare(p.Email, body.Email) != 0 {
-		return false, errors.New("email not equal to body.email " + p.Email + " " + body.Email)
+		return false, "", errors.New("email not equal to body.email " + p.Email + " " + body.Email)
 	}
 
-	return true, nil
+	return true, p.Email, nil
 }
 
 // NewDefaultGoogleVerifier - Constructor for the default google verifier

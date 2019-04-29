@@ -125,13 +125,18 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 	return nil
 }
 
-//gets assigned index and returns users public key
+// retrieveUserPubKey gets assigned index and returns users public key
+// DEPREICATED
 func retrieveUserPubKey(suite *Suite, keyIndex big.Int) (*common.Point, error) {
 
 	resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index<="+keyIndex.Text(16)+" AND "+"share_index>="+keyIndex.Text(16), false, 10, 10)
 	if err != nil {
 		return nil, err
 	}
+	// resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index<="+keyIndex.Text(16)+" AND "+"share_index>="+keyIndex.Text(16), false, 10, 10)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	logging.Debugf("SEARCH RESULT NUMBER %d", resultPubPolys.TotalCount)
 
 	//create users publicKey

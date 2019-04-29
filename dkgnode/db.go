@@ -3,10 +3,11 @@ package dkgnode
 import (
 	"errors"
 	"github.com/patrickmn/go-cache"
+	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/db"
 	"github.com/torusresearch/torus-public/keygen"
-	// "github.com/torusresearch/torus-public/logging"
 	"math/big"
+	// "github.com/torusresearch/torus-public/logging"
 	"time"
 )
 
@@ -27,8 +28,9 @@ type TorusDB interface {
 	// StoreSecretMapping() error
 	// GetSecretMapping() error
 
-	StoreKEYGENSecret(keyIndex big.Int, secret keygen.KEYGENSecrets) error
-	StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error
+	RetrieveCompletedShare(keyIndex big.Int) (*big.Int, *big.Int, *common.Point, error)
+
+	keygen.AVSSKeygenStorage
 }
 
 type DBSuite struct {

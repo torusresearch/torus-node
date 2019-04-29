@@ -59,7 +59,6 @@ type KEYGENShareComplete struct {
 }
 
 type KEYGENDKGComplete struct {
-	Nonce           int
 	Proofs          []KEYGENShareComplete
 	NodeSet         []string                                    // sorted nodeIndexes in Set
 	ReadySignatures map[string](map[string](map[string][]byte)) // Keyindex => DealerIndex => NodeIndex (Who signed)
@@ -145,7 +144,7 @@ type KeygenInstance struct {
 	MsgBuffer         KEYGENBuffer
 	Auth              AVSSAuth
 	FinalNodeSet      []string
-	Nonce             int
+	DKGCompleteCount  int
 	ComChannel        chan string
 }
 
@@ -180,9 +179,9 @@ const (
 // KEYGEN Events (EK)
 const (
 	// Internal Events
-	EIAllInitiateKeygen     = "all_initiate_keygen"
-	EIAllSubsharesDone      = "all_subshares_done"
-	EISentKeygenDKGComplete = "sent_keygen_dkg_complete"
+	EIAllInitiateKeygen       = "all_initiate_keygen"
+	EIAllSubsharesDone        = "all_subshares_done"
+	EIGotAllKeygenDKGComplete = "got_all_keygen_dkg_complete"
 
 	// For node log events
 	ENInitiateKeygen      = "initiate_keygen"
@@ -212,7 +211,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
-	ki.Nonce = 0
+	ki.DKGCompleteCount = 0
 	ki.NodeLog = make(map[string]*NodeLog)
 	ki.UnqualifiedNodes = make(map[string]*NodeLog)
 	ki.Transport = transport
@@ -227,8 +226,8 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 		SIWaitingInitiateKeygen,
 		fsm.Events{
 			{Name: EIAllInitiateKeygen, Src: []string{SIWaitingInitiateKeygen}, Dst: SIRunningKeygen},
-			{Name: EIAllSubsharesDone, Src: []string{SIWaitingToFinishUpKeygen, SIRunningKeygen}, Dst: SIKeygenCompleted},
-			{Name: EISentKeygenDKGComplete, Src: []string{SIRunningKeygen}, Dst: SIWaitingToFinishUpKeygen},
+			{Name: EIAllSubsharesDone, Src: []string{SIRunningKeygen}, Dst: SIWaitingToFinishUpKeygen},
+			{Name: EIGotAllKeygenDKGComplete, Src: []string{SIWaitingToFinishUpKeygen}, Dst: SIKeygenCompleted},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) {
@@ -245,7 +244,6 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					committedSecrets := ki.Secrets[keyIndex.Text(16)]
 					ki.Store.StoreKEYGENSecret(*keyIndex, committedSecrets)
 					for k := range ki.NodeLog {
-
 						nodeIndex := big.Int{}
 						nodeIndex.SetString(k, 16)
 
@@ -268,71 +266,83 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 			"after_" + EIAllSubsharesDone: func(e *fsm.Event) {
 				ki.Lock()
 				defer ki.Unlock()
+				// create qualified set
+				var nodeSet []string
 				if len(ki.FinalNodeSet) == 0 {
-					// create qualified set
-					var nodeSet []string
 					for nodeIndex, log := range ki.NodeLog {
 						if log.Is(SNQualifiedNode) {
 							nodeSet = append(nodeSet, nodeIndex)
 						}
 					}
 					sort.SliceStable(nodeSet, func(i, j int) bool { return nodeSet[i] < nodeSet[j] })
-
-					// Here we prepare KEYGENShareComplete
-					keygenShareCompletes := make([]KEYGENShareComplete, ki.NumOfKeys)
-					for i := 0; i < ki.NumOfKeys; i++ {
-						keyIndex := big.Int{}
-						keyIndex.SetInt64(int64(i)).Add(&keyIndex, &ki.StartIndex)
-						// form  Si
-						si := big.NewInt(int64(0))
-						siprime := big.NewInt(int64(0))
-						count := 0
-						for _, nodeIndex := range nodeSet {
-							// add up subshares for qualified set
-							count++
-							v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
-							si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
-							siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
-						}
-						// logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Count for KEYGENComplete: %v", count)
-						c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
-						keygenShareCompletes[i] = KEYGENShareComplete{
-							KeyIndex: keyIndex,
-							c:        c,
-							u1:       u1,
-							u2:       u2,
-							gsi:      gs,
-							gsihr:    gshr,
-						}
-					}
-
-					tempReadySigMap := make(map[string](map[string](map[string][]byte)))
-					// prepare keygen Ready signatures
-					for keyIndex, keylog := range ki.KeyLog {
-						tempReadySigMap[keyIndex] = make(map[string](map[string][]byte))
-						for _, dealerIndex := range nodeSet {
-							tempReadySigMap[keyIndex][dealerIndex] = make(map[string][]byte)
-							for sigIndex, ready := range keylog[dealerIndex].ReceivedReadys {
-								tempReadySigMap[keyIndex][dealerIndex][sigIndex] = ready.ReadySig
-							}
-						}
-					}
-
-					// broadcast keygen
-					err := ki.Transport.BroadcastKEYGENDKGComplete(KEYGENDKGComplete{Nonce: ki.Nonce, NodeSet: nodeSet, Proofs: keygenShareCompletes, ReadySignatures: tempReadySigMap})
-					if err != nil {
-						logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENDKGComplete: %s", err)
-					}
 				} else {
-					// End keygen.
+					nodeSet = ki.FinalNodeSet
+				}
+
+				// Here we prepare KEYGENShareComplete
+				keygenShareCompletes := make([]KEYGENShareComplete, ki.NumOfKeys)
+				for i := 0; i < ki.NumOfKeys; i++ {
+					keyIndex := big.Int{}
+					keyIndex.SetInt64(int64(i)).Add(&keyIndex, &ki.StartIndex)
+					// form  Si
+					si := big.NewInt(int64(0))
+					siprime := big.NewInt(int64(0))
+					count := 0
+					for _, nodeIndex := range nodeSet {
+						// add up subshares for qualified set
+						count++
+						v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
+						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
+						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
+					}
+					// logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Count for KEYGENComplete: %v", count)
+					c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
+					keygenShareCompletes[i] = KEYGENShareComplete{
+						KeyIndex: keyIndex,
+						c:        c,
+						u1:       u1,
+						u2:       u2,
+						gsi:      gs,
+						gsihr:    gshr,
+					}
+				}
+
+				tempReadySigMap := make(map[string](map[string](map[string][]byte)))
+				// prepare keygen Ready signatures
+				for keyIndex, keylog := range ki.KeyLog {
+					tempReadySigMap[keyIndex] = make(map[string](map[string][]byte))
+					for _, dealerIndex := range nodeSet {
+						tempReadySigMap[keyIndex][dealerIndex] = make(map[string][]byte)
+						for sigIndex, ready := range keylog[dealerIndex].ReceivedReadys {
+							tempReadySigMap[keyIndex][dealerIndex][sigIndex] = ready.ReadySig
+						}
+					}
+				}
+
+				// broadcast keygen
+				err := ki.Transport.BroadcastKEYGENDKGComplete(KEYGENDKGComplete{NodeSet: nodeSet, Proofs: keygenShareCompletes, ReadySignatures: tempReadySigMap})
+				if err != nil {
+					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENDKGComplete: %s", err)
+				}
+
+				go func() {
+					err := ki.State.Event(EIAllSubsharesDone)
+					if err != nil {
+						logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
+					}
+				}()
+
+			},
+			"enter_" + SIWaitingToFinishUpKeygen: func(e *fsm.Event) {
+				// End keygen
+				if ki.DKGCompleteCount >= ki.Threshold {
 					go func() {
-						err := ki.State.Event(EIAllSubsharesDone)
+						err := ki.State.Event(EIGotAllKeygenDKGComplete)
 						if err != nil {
-							logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
+							logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIGotAllKeygenDKGComplete, err)
 						}
 					}()
 				}
-
 			},
 			"enter_" + SIKeygenCompleted: func(e *fsm.Event) {
 				// To wrap things up we first store Secrets and respective Key Shares
@@ -845,12 +855,17 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 	if len(msg.Proofs) != ki.NumOfKeys {
 		return errors.New("length of proofs is not correct")
 	}
-	if len(msg.NodeSet) < ki.Threshold+ki.NumMalNodes {
-		return errors.New("Nodeset not large enough")
+	if len(ki.FinalNodeSet) == 0 {
+		if len(msg.NodeSet) < ki.Threshold+ki.NumMalNodes {
+			return errors.New("Nodeset not large enough")
+		}
+		// return errors.New("Broadcast already accepted")
+	} else {
+		if !testEqualStringArr(ki.FinalNodeSet, msg.NodeSet) {
+			return errors.New("Broadcast already accepted with different final nodeset")
+		}
 	}
-	if len(ki.FinalNodeSet) != 0 {
-		return errors.New("Broadcast already accepted")
-	}
+
 	// verify shareCompletes
 	for i, keygenShareCom := range msg.Proofs {
 		// ensure valid keyindex
@@ -905,15 +920,19 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 		}
 	}
 
-	// define set
-	ki.FinalNodeSet = msg.NodeSet
+	ki.DKGCompleteCount++
 
-	// End keygen if we sent the/a broadcast
-	if ki.State.Is(SIWaitingToFinishUpKeygen) {
+	if len(ki.FinalNodeSet) == 0 {
+		// define set
+		ki.FinalNodeSet = msg.NodeSet
+	}
+
+	// End keygen
+	if ki.DKGCompleteCount == ki.Threshold {
 		go func() {
-			err := ki.State.Event(EIAllSubsharesDone)
+			err := ki.State.Event(EIGotAllKeygenDKGComplete)
 			if err != nil {
-				logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
+				logging.Debugf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIGotAllKeygenDKGComplete, err)
 			}
 		}()
 	}

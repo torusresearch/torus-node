@@ -868,7 +868,7 @@ func (transport *mockLaggingTransport) BroadcastInitiateKeygen(commitmentMatrixe
 }
 
 func (transport *mockLaggingTransport) BroadcastKEYGENDKGComplete(keygenShareCompletes KEYGENDKGComplete) error {
-	if keygenShareCompletes.Nonce != 0 && keygenShareCompletes.Nonce != 1 {
+	if transport.nodeIndex.Cmp(big.NewInt(int64(1))) != 0 {
 		for _, instance := range *transport.nodeKegenInstances {
 			go func(ins *KeygenInstance, cm KEYGENDKGComplete, tns big.Int) {
 				err := ins.OnKEYGENDKGComplete(cm, tns)

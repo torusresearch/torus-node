@@ -66,16 +66,16 @@ func (buf *KEYGENBuffer) StoreKEYGENReady(msg KEYGENReady, from big.Int) error {
 	return nil
 }
 
-func (buf *KEYGENBuffer) StoreKEYGENDKGComplete(msg KEYGENDKGComplete, from big.Int) error {
-	buf.Lock()
-	defer buf.Unlock()
-	_, ok := buf.ReceivedDKGCompletes[msg.Nonce]
-	if !ok {
-		buf.ReceivedDKGCompletes[msg.Nonce] = make(map[string]*KEYGENDKGComplete)
-	}
-	buf.ReceivedDKGCompletes[msg.Nonce][from.Text(16)] = &msg
-	return nil
-}
+// func (buf *KEYGENBuffer) StoreKEYGENDKGComplete(msg KEYGENDKGComplete, from big.Int) error {
+// 	buf.Lock()
+// 	defer buf.Unlock()
+// 	_, ok := buf.ReceivedDKGCompletes[msg.Nonce]
+// 	if !ok {
+// 		buf.ReceivedDKGCompletes[msg.Nonce] = make(map[string]*KEYGENDKGComplete)
+// 	}
+// 	buf.ReceivedDKGCompletes[msg.Nonce][from.Text(16)] = &msg
+// 	return nil
+// }
 
 //TODO: Handle failed message
 // Retrieve from the message buffer and iterate over messages

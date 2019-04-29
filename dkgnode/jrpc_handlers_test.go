@@ -153,7 +153,7 @@ func TestShareRequest(t *testing.T) {
 	}
 
 	mockClient := &mocks.Client{}
-	mockClient.On("ABCIQuery", "GetEmailIndex", mock.Anything).Return(&core_types.ResultABCIQuery{
+	mockClient.On("ABCIQuery", "GetIndexesFromEmail", mock.Anything).Return(&core_types.ResultABCIQuery{
 		Response: abci.ResponseQuery{
 			Value: []byte("1"),
 		},

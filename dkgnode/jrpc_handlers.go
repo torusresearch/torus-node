@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -12,10 +13,12 @@ import (
 	"github.com/torusresearch/torus-public/secp256k1"
 
 	"github.com/intel-go/fastjson"
+
 	"github.com/osamingo/jsonrpc"
 	cache "github.com/patrickmn/go-cache"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 )
@@ -199,7 +202,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
 	}
 	siMapping := tmpSi.(map[int]SiStore)
-	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.ID))
+	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(p.ID))
 	if err != nil {
 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}
 	}
@@ -239,30 +242,6 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 	// try to get get email index
 	logging.Debug("CHECKING IF ALREADY ASSIGNED")
-	// previouslyAssignedIndex, ok := h.suite.ABCIApp.state.EmailMapping[p.Email]
-	// already assigned
-	// if ok {
-	// 	//create users publicKey
-	// 	logging.Debugf("previouslyAssignedIndex: %d", previouslyAssignedIndex)
-	// 	finalUserPubKey, err := retrieveUserPubKey(h.suite, int(previouslyAssignedIndex))
-	// 	if err != nil {
-	// 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve secret from previously assigned index, please try again err, " + err.Error()}
-	// 	}
-
-	// 	//form address eth
-	// 	addr, err := common.PointToEthAddress(*finalUserPubKey)
-	// 	if err != nil {
-	// 		logging.Error("derived user pub key has issues with address")
-	// 		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
-	// 	}
-
-	// 	return SecretAssignResult{
-	// 		ShareIndex: int(previouslyAssignedIndex),
-	// 		PubShareX:  finalUserPubKey.X.Text(16),
-	// 		PubShareY:  finalUserPubKey.Y.Text(16),
-	// 		Address:    addr.String(),
-	// 	}, nil
-	// }
 
 	//if all indexes have been assigned, bounce request. threshold at 20% TODO: Make  percentage variable
 	// TODO: Change this to be not parameter dependent
@@ -286,7 +265,7 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 
 	logging.Debugf("CHECKING IF GOT RESPONSES %d", randomInt)
 	// wait for block to be committed
-	var assignedIndex uint
+	var keyIndexes []big.Int
 	responseCh, err := h.suite.BftSuite.RegisterQuery(query.String(), 1)
 	if err != nil {
 		logging.Debugf("BFTWS: could not register query, %s", query.String())
@@ -298,17 +277,17 @@ func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		if gjson.GetBytes(e, "query").String() != query.String() {
 			continue
 		}
-		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetEmailIndex", []byte(p.Email))
+		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(p.VerifierID))
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment: " + err.Error()}
 		}
 		if string(res.Response.Value) == "" {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned"}
 		}
-		assignedIndex64, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
-		assignedIndex = uint(assignedIndex64)
+
+		err = bijson.Unmarshal(res.Response.Value, keyIndexes)
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to parse uint for returned assignment index: " + fmt.Sprint(res) + " Error: " + err.Error()}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not parse keyindex list"}
 		}
 		logging.Debugf("EXITING RESPONSES LISTENER %d", randomInt)
 		break

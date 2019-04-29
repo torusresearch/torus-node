@@ -162,12 +162,12 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			return false, nil, err
 		}
 		bftMsg := wrapper.BFTTx.(*BFTKeygenMsg)
-		if !app.Suite.P2PSuite.KeygenProto.onBFTMsg(*bftMsg) {
+		ok, tags := app.Suite.P2PSuite.KeygenProto.onBFTMsg(*bftMsg)
+		if !ok {
 			return false, nil, errors.New("BFTMsg not accepted")
 		}
-		tags = []common.KVPair{
-			{Key: []byte("bftmsg"), Value: []byte("1")},
-		}
+		tags = append(tags, common.KVPair{Key: []byte("keygen_msg"), Value: []byte("1")})
+
 		return true, &tags, nil
 	}
 

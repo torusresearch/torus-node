@@ -1,32 +1,5 @@
 package dkgnode
 
-/* All useful imports */
-// import (
-// 	"crypto/ecdsa"
-// 	"encoding/hex"
-// 	"encoding/json"
-// 	"fmt"
-// 	"io/ioutil"
-
-// 	"strings"
-// 	"time"
-
-// 	"github.com/Rican7/retry"
-// 	"github.com/Rican7/retry/backoff"
-// 	"github.com/Rican7/retry/strategy"
-// 	tmconfig "github.com/tendermint/tendermint/config"
-// 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
-// 	tmnode "github.com/tendermint/tendermint/node"
-// 	"github.com/tendermint/tendermint/p2p"
-// 	"github.com/tendermint/tendermint/privval"
-// 	tmtypes "github.com/tendermint/tendermint/types"
-
-// 	"github.com/torusresearch/torus-public/keygen"
-// 	"github.com/torusresearch/torus-public/logging"
-// 	"github.com/torusresearch/torus-public/pvss"
-// 	"github.com/torusresearch/torus-public/telemetry"
-// )
-
 import (
 	// "fmt"
 	"io/ioutil"
@@ -43,6 +16,7 @@ import (
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
+	tmcmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/torusresearch/bijson"
 	// "github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/keygen"
@@ -341,13 +315,14 @@ func (kp *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 	}
 }
 
-func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
+func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) (bool, []tmcmn.KVPair) {
 	logging.Debugf("BFT MSG ID: ", bftMsg.Id)
 	valid := kp.localHost.authenticateMessage(&bftMsg)
+	var tags []tmcmn.KVPair
 
 	if !valid {
 		logging.Error("Failed to authenticate message")
-		return false
+		return false, nil
 	}
 
 	// Derive NodeIndex From PK
@@ -356,7 +331,7 @@ func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 	pk, err := crypto.UnmarshalPublicKey(bftMsg.GetNodePubKey())
 	if err != nil {
 		logging.Error("Failed to derive pk")
-		return false
+		return false, nil
 	}
 	for _, nodeRef := range kp.suite.EthSuite.NodeList {
 		if nodeRef.PeerID.MatchesPublicKey(pk) {
@@ -371,39 +346,52 @@ func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) bool {
 		err = bijson.Unmarshal(bftMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
-			return false
+			return false, nil
 		}
 		err := kp.NewKeygenSafe(kp.suite, keygenID(bftMsg.Protocol))
 		if err != nil {
 			logging.Fatal(err.Error())
-			return false
+			return false, nil
 		}
 		ki, err := kp.GetKeygenInstance(keygenID(bftMsg.Protocol))
 		if err != nil {
 			logging.Fatal(err.Error())
-			return false
+			return false, nil
 		}
 
 		err = ki.OnInitiateKeygen(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
-			return false
+			return false, nil
 		}
+
 	case keygenConsts.Complete:
 		payload := &keygen.KEYGENDKGComplete{}
 		err = bijson.Unmarshal(bftMsg.Payload, payload)
 		if err != nil {
 			logging.Error(err.Error())
-			return false
+			return false, nil
 		}
-		err = kp.KeygenInstances[keygenID(bftMsg.Protocol)].OnKEYGENDKGComplete(*payload, nodeIndex)
+		ki, err := kp.GetKeygenInstance(keygenID(bftMsg.Protocol))
+		if err != nil {
+			logging.Fatal(err.Error())
+			return false, nil
+		}
+
+		err = ki.OnKEYGENDKGComplete(*payload, nodeIndex)
 		if err != nil {
 			logging.Error(err.Error())
-			return false
+			return false, nil
+		}
+		end := big.NewInt(int64(0))
+		end.Add(&ki.StartIndex, big.NewInt(int64(ki.NumOfKeys)))
+		tags = []tmcmn.KVPair{
+			{Key: []byte("start_key_index"), Value: []byte(ki.StartIndex.Text(16))},
+			{Key: []byte("end_key_index"), Value: []byte(end.Text(16))},
 		}
 	}
 
-	return true
+	return true, tags
 }
 
 func (kp *KEYGENProtocol) Sign(msg string) ([]byte, error) {

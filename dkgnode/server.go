@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/osamingo/jsonrpc"
@@ -127,9 +126,9 @@ func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
 }
 
 //gets assigned index and returns users public key
-func retrieveUserPubKey(suite *Suite, assignedIndex int) (*common.Point, error) {
+func retrieveUserPubKey(suite *Suite, keyIndex big.Int) (*common.Point, error) {
 
-	resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index<="+strconv.Itoa(assignedIndex)+" AND "+"share_index>="+strconv.Itoa(assignedIndex), false, 10, 10)
+	resultPubPolys, err := suite.BftSuite.BftRPC.TxSearch("share_index<="+keyIndex.Text(16)+" AND "+"share_index>="+keyIndex.Text(16), false, 10, 10)
 	if err != nil {
 		return nil, err
 	}

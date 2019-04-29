@@ -116,6 +116,7 @@ type AVSSKeygenTransport interface {
 
 // To store necessary shares and secrets
 type AVSSKeygenStorage interface {
+	StorePublicKey(keyIndex big.Int)
 	StoreKEYGENSecret(keyIndex big.Int, secret KEYGENSecrets) error
 	StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error
 }
@@ -127,25 +128,25 @@ type AVSSAuth interface {
 // Main Keygen Struct
 type KeygenInstance struct {
 	sync.Mutex
-	NodeIndex         big.Int
-	Threshold         int // in AVSS Paper this is k
-	NumMalNodes       int // in AVSS Paper this is t
-	TotalNodes        int // in AVSS Paper this is n
-	State             *fsm.FSM
-	NodeLog           map[string]*NodeLog                // nodeindex => fsm equivilent to qualified set
-	UnqualifiedNodes  map[string]*NodeLog                // nodeindex => fsm equivilent to unqualified set
-	KeyLog            map[string](map[string]*KEYGENLog) // keyindex => nodeindex => log
-	Secrets           map[string]KEYGENSecrets           // keyindex => KEYGENSecrets
-	StartIndex        big.Int
-	NumOfKeys         int
-	SubsharesComplete int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
-	Transport         AVSSKeygenTransport
-	Store             AVSSKeygenStorage
-	MsgBuffer         KEYGENBuffer
-	Auth              AVSSAuth
-	FinalNodeSet      []string
-	DKGCompleteCount  int
-	ComChannel        chan string
+	NodeIndex            big.Int
+	Threshold            int // in AVSS Paper this is k
+	NumMalNodes          int // in AVSS Paper this is t
+	TotalNodes           int // in AVSS Paper this is n
+	State                *fsm.FSM
+	NodeLog              map[string]*NodeLog                // nodeindex => fsm equivilent to qualified set
+	UnqualifiedNodes     map[string]*NodeLog                // nodeindex => fsm equivilent to unqualified set
+	KeyLog               map[string](map[string]*KEYGENLog) // keyindex => nodeindex => log
+	Secrets              map[string]KEYGENSecrets           // keyindex => KEYGENSecrets
+	StartIndex           big.Int
+	NumOfKeys            int
+	SubsharesComplete    int // We keep a count of number of subshares that are fully complete to avoid checking on every iteration
+	Transport            AVSSKeygenTransport
+	Store                AVSSKeygenStorage
+	MsgBuffer            KEYGENBuffer
+	Auth                 AVSSAuth
+	FinalNodeSet         []string                      // Final Nodeset Decided by the first valid DKGComplete
+	ReceivedDKGCompleted map[string]*KEYGENDKGComplete // KeyIndex => KEYGENDKGComplete
+	ComChannel           chan string
 }
 
 const retryDelay = 2
@@ -211,7 +212,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 	ki.StartIndex = startingIndex
 	ki.NumOfKeys = numOfKeys
 	ki.SubsharesComplete = 0
-	ki.DKGCompleteCount = 0
+	ki.ReceivedDKGCompleted = make(map[string]*KEYGENDKGComplete)
 	ki.NodeLog = make(map[string]*NodeLog)
 	ki.UnqualifiedNodes = make(map[string]*NodeLog)
 	ki.Transport = transport
@@ -242,7 +243,6 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 				for i := int(startingIndex.Int64()); i < numOfKeys+int(startingIndex.Int64()); i++ {
 					keyIndex := big.NewInt(int64(i))
 					committedSecrets := ki.Secrets[keyIndex.Text(16)]
-					ki.Store.StoreKEYGENSecret(*keyIndex, committedSecrets)
 					for k := range ki.NodeLog {
 						nodeIndex := big.Int{}
 						nodeIndex.SetString(k, 16)
@@ -335,7 +335,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 			},
 			"enter_" + SIWaitingToFinishUpKeygen: func(e *fsm.Event) {
 				// End keygen
-				if ki.DKGCompleteCount >= ki.Threshold {
+				if len(ki.ReceivedDKGCompleted) >= ki.Threshold {
 					go func() {
 						err := ki.State.Event(EIGotAllKeygenDKGComplete)
 						if err != nil {
@@ -352,10 +352,10 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					// form  Si
 					si := big.NewInt(int64(0))
 					siprime := big.NewInt(int64(0))
-					count := 0
+
 					for _, nodeIndex := range ki.FinalNodeSet {
 						// add up subshares for qualified set
-						count++
+
 						v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
 						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
 						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
@@ -365,6 +365,18 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 						// TODO: Handle error in channel?
 						logging.Error("error storing share: " + err.Error())
 					}
+					// Derive Public Key
+					var pk big.Int
+					points := make([]common.Point, 0)
+					count := 0
+					for _, dkgComplete := range ki.ReceivedDKGCompleted {
+						count++
+						points = append(points, dkgComplete.Proofs[i].gsi)
+						if count == ki.Threshold {
+							break
+						}
+					}
+					pk = *pvss.LagrangeScalarCP(points, 0)
 					err = ki.Store.StoreKEYGENSecret(keyIndex, ki.Secrets[keyIndex.Text(16)])
 					if err != nil {
 						// TODO: Handle error in channel?
@@ -920,7 +932,7 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 		}
 	}
 
-	ki.DKGCompleteCount++
+	ki.ReceivedDKGCompleted[fromNodeIndex.Text(16)] = &msg
 
 	if len(ki.FinalNodeSet) == 0 {
 		// define set
@@ -928,7 +940,7 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 	}
 
 	// End keygen
-	if ki.DKGCompleteCount == ki.Threshold {
+	if len(ki.ReceivedDKGCompleted) == ki.Threshold {
 		go func() {
 			err := ki.State.Event(EIGotAllKeygenDKGComplete)
 			if err != nil {

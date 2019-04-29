@@ -467,3 +467,15 @@ func LagrangeScalar(shares []common.PrimaryShare, target int) *big.Int {
 	secret.Mod(secret, secp256k1.GeneratorOrder)
 	return secret
 }
+
+// LagrangeCurvePts finds the ^0 coefficient for points given in points an indexes given
+func LagrangeCurvePts(indexes []int, points []common.Point) *common.Point {
+	var sm [][]common.Point
+	for i := 0; i < len(points); i++ {
+		var temp []common.Point
+		temp = append(temp, points[i])
+		sm = append(sm, temp)
+	}
+	poly := LagrangePolys(indexes, sm)
+	return &poly[0]
+}

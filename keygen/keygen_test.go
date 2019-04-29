@@ -887,7 +887,7 @@ type mockKeygenStore struct {
 func (ks *mockKeygenStore) StoreKEYGENSecret(keyIndex big.Int, secret KEYGENSecrets) error {
 	return nil
 }
-func (ks *mockKeygenStore) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error {
+func (ks *mockKeygenStore) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int, publicKey common.Point) error {
 	return nil
 }
 

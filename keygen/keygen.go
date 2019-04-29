@@ -116,9 +116,8 @@ type AVSSKeygenTransport interface {
 
 // To store necessary shares and secrets
 type AVSSKeygenStorage interface {
-	StorePublicKey(keyIndex big.Int)
 	StoreKEYGENSecret(keyIndex big.Int, secret KEYGENSecrets) error
-	StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int) error
+	StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int, publicKey common.Point) error
 }
 type AVSSAuth interface {
 	Sign(msg string) ([]byte, error)
@@ -360,23 +359,29 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 						si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
 						siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
 					}
-					err := ki.Store.StoreCompletedShare(keyIndex, *si, *siprime)
-					if err != nil {
-						// TODO: Handle error in channel?
-						logging.Error("error storing share: " + err.Error())
-					}
+
 					// Derive Public Key
-					var pk big.Int
+					var pk common.Point
 					points := make([]common.Point, 0)
+					indexes := make([]int, 0)
 					count := 0
-					for _, dkgComplete := range ki.ReceivedDKGCompleted {
+					for fromNodeIndex, dkgComplete := range ki.ReceivedDKGCompleted {
 						count++
 						points = append(points, dkgComplete.Proofs[i].gsi)
+						tmp := big.Int{}
+						tmp.SetString(fromNodeIndex, 16)
+						indexes = append(indexes, int(tmp.Int64()))
 						if count == ki.Threshold {
 							break
 						}
 					}
-					pk = *pvss.LagrangeScalarCP(points, 0)
+					pk = *pvss.LagrangeCurvePts(indexes, points)
+
+					err := ki.Store.StoreCompletedShare(keyIndex, *si, *siprime, pk)
+					if err != nil {
+						// TODO: Handle error in channel?
+						logging.Error("error storing share: " + err.Error())
+					}
 					err = ki.Store.StoreKEYGENSecret(keyIndex, ki.Secrets[keyIndex.Text(16)])
 					if err != nil {
 						// TODO: Handle error in channel?

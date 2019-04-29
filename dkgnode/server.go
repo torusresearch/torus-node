@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
@@ -26,13 +27,18 @@ func setUpServer(suite *Suite, port string) *http.Server {
 		logging.Fatalf("%s", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/jrpc", mr)
-	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
-	mux.HandleFunc("/healthz", GETHealthz)
+	router := mux.NewRouter().StrictSlash(true)
+
+	router.Handle("/jrpc", mr)
+	router.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	router.HandleFunc("/healthz", GETHealthz)
+
+	router.Use(augmentRequestMiddleware)
+	router.Use(loggingMiddleware)
+	router.Use(telemetryMiddleware)
 
 	addr := fmt.Sprintf(":%s", port)
-	handler := cors.Default().Handler(mux)
+	handler := cors.Default().Handler(router)
 
 	server := &http.Server{
 		Addr:    addr,

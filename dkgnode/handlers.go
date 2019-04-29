@@ -12,6 +12,11 @@ import (
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
+const PingMethod = "Ping"
+const ShareRequestMethod = "ShareRequest"
+const SecretAssignMethod = "SecretAssignMethod"
+const CommitmentRequestMethod = "CommitmentRequestMethod"
+
 type (
 	PingHandler struct {
 		ethSuite *EthSuite
@@ -196,16 +201,16 @@ func (c *CommitmentRequestResultData) FromString(data string) (bool, error) {
 func setUpJRPCHandler(suite *Suite) (*jsonrpc.MethodRepository, error) {
 	mr := jsonrpc.NewMethodRepository()
 
-	if err := mr.RegisterMethod("Ping", PingHandler{suite.EthSuite}, PingParams{}, PingResult{}); err != nil {
+	if err := mr.RegisterMethod(PingMethod, PingHandler{suite.EthSuite}, PingParams{}, PingResult{}); err != nil {
 		return nil, err
 	}
-	if err := mr.RegisterMethod("ShareRequest", ShareRequestHandler{suite, time.Now}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
+	if err := mr.RegisterMethod(ShareRequestMethod, ShareRequestHandler{suite, time.Now}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
 		return nil, err
 	}
-	if err := mr.RegisterMethod("SecretAssign", SecretAssignHandler{suite}, SecretAssignParams{}, SecretAssignResult{}); err != nil {
+	if err := mr.RegisterMethod(SecretAssignMethod, SecretAssignHandler{suite}, SecretAssignParams{}, SecretAssignResult{}); err != nil {
 		return nil, err
 	}
-	if err := mr.RegisterMethod("CommitmentRequest", CommitmentRequestHandler{suite, time.Now}, CommitmentRequestParams{}, CommitmentRequestResult{}); err != nil {
+	if err := mr.RegisterMethod(CommitmentRequestMethod, CommitmentRequestHandler{suite, time.Now}, CommitmentRequestParams{}, CommitmentRequestResult{}); err != nil {
 		return nil, err
 	}
 

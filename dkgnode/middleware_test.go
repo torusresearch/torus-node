@@ -30,7 +30,7 @@ func checkContextHandler(t *testing.T) func(http.ResponseWriter, *http.Request) 
 }
 
 func TestBasicMiddlewareSetup(t *testing.T) {
-	targetPort := "8088"
+	targetPort := "1234"
 	basicRouter := mux.NewRouter().StrictSlash(true)
 
 	basicRouter.Use(augmentRequestMiddleware)

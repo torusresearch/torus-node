@@ -7,19 +7,34 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/gorilla/context"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/telemetry"
 )
 
+func augmentRequestMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// set RPC method
+		method := getJRPCMethod(r)
+		context.Set(r, "JRPCMethod", method)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logging.Info(fmt.Sprintf("%s requested %s", r.RemoteAddr, r.RequestURI))
+		methodStr := context.Get(r, "JRPCMethod")
+		if methodStr != "" {
+			methodStr = fmt.Sprintf(" with jrpc method: %s", methodStr)
+		}
+		logging.Info(fmt.Sprintf("%s requested %s%s", r.RemoteAddr, r.RequestURI, methodStr))
 		next.ServeHTTP(w, r)
 	})
 }
 
 type jRPCRequeust struct {
-	method string `json:"method"`
+	Method string `json:"method"`
 }
 
 // getJRPCMethod grabs the `method` field from the request body and returns it
@@ -35,7 +50,7 @@ func getJRPCMethod(r *http.Request) string {
 		return ""
 	}
 
-	return j.method
+	return j.Method
 }
 
 func telemetryMiddleware(next http.Handler) http.Handler {
@@ -45,8 +60,7 @@ func telemetryMiddleware(next http.Handler) http.Handler {
 	secretAssignCounter := telemetry.NewCounter("secret_assign_method_count", "counts the number of requests received for SecretAssign jrpc method")
 	commitmentRequestCounter := telemetry.NewCounter("commitment_request_method_count", "counts the number of requests received for CommitmentRequest jrpc method")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Call the next handler, which can be another middleware in the chain, or the final handler.
-		method := getJRPCMethod(r)
+		method := context.Get(r, "JRPCMethod")
 		switch method {
 		case PingMethod:
 			pingCounter.Inc()
@@ -54,7 +68,6 @@ func telemetryMiddleware(next http.Handler) http.Handler {
 			shareRequestCounter.Inc()
 		case SecretAssignMethod:
 			secretAssignCounter.Inc()
-
 		case CommitmentRequestMethod:
 			commitmentRequestCounter.Inc()
 		case "":
@@ -70,8 +83,13 @@ func telemetryMiddleware(next http.Handler) http.Handler {
 
 func authenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logging.Info(r.RequestURI)
-		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		// NOTE: Always use absolute paths
+		// TODO: Should be moved into a seperate router
+		if r.URL.Path == "/healthz" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 

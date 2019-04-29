@@ -48,10 +48,7 @@ func TestBasicMiddlewareSetup(t *testing.T) {
 	}
 
 	go func() {
-		err := server.ListenAndServe()
-		if err != nil {
-			t.Fatal(err)
-		}
+		_ = server.ListenAndServe()
 	}()
 
 	idleConnsClosed := make(chan struct{})

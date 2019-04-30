@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/jsonrpc"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
@@ -54,12 +55,12 @@ type (
 		NodePubKeyY string
 	}
 	ShareRequestParams struct {
-		Item []ShareRequestItem
+		Item []bijson.RawMessage
 	}
 	ShareRequestItem struct {
 		Token              string          `json:"token"`
 		NodeSignatures     []NodeSignature `json:"nodesignatures"`
-		VerifierIdentifier string          `json:verifieridentifier`
+		VerifierIdentifier string          `json:"verifieridentifier"`
 	}
 	ShareRequestResult struct {
 		Keys []KeyAssignment

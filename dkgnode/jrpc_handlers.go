@@ -3,7 +3,6 @@ package dkgnode
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"strconv"
@@ -97,24 +96,33 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
-
 	allKeyIndexes := make(map[string]*big.Int)   // String keyindex => keyindex
-	allValidVerifierIDs := make(map[string]bool) // verifier+ | + verifierIDs => bool
-	for _, parsedVerifierParams := range p.Item {
-		// For Each VerifierItem we check its validity
-		rawVerifierParams, err := bijson.Marshal(parsedVerifierParams)
+	allValidVerifierIDs := make(map[string]bool) // verifier + | + verifierIDs => bool
+
+	// For Each VerifierItem we check its validity
+	for _, rawItem := range p.Item {
+		var parsedVerifierParams ShareRequestItem
+		err := bijson.Unmarshal(rawItem, &parsedVerifierParams)
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while serializing params" + err.Error()}
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occurred while parsing sharerequestitem"}
 		}
-		tmp := bijson.RawMessage(rawVerifierParams)
-		// verify token validity against verifier
-		verified, verifierID, err := h.suite.DefaultVerifier.Verify(&tmp)
+
+		// verify token validity against verifier, do not pass along nodesignatures
+		jsonMap := make(map[string]interface{})
+		bijson.Unmarshal(rawItem, &jsonMap)
+		delete(jsonMap, "nodesignatures")
+		redactedRawItem, err := bijson.Marshal(jsonMap)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while marshalling" + err.Error()}
+		}
+		verified, verifierID, err := h.suite.DefaultVerifier.Verify((*bijson.RawMessage)(&redactedRawItem))
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while verifying params" + err.Error()}
 		}
 		if !verified {
 			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Could not verify params"}
 		}
+
 		// Validate signatures
 		var validSignatures []ValidatedNodeSignature
 		for i := 0; i < len(parsedVerifierParams.NodeSignatures); i++ {
@@ -125,7 +133,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 					*nodeRef.Index,
 				})
 			} else {
-				fmt.Println(err)
+				logging.Error("Could not validate signatures" + err.Error())
 			}
 		}
 		// Check if we have threshold number of signatures
@@ -178,10 +186,8 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		}
 
 		// verify that hash of token = tokenCommitment
-		var cleanedToken = verifier.CleanToken(parsedVerifierParams.Token)
+		cleanedToken := verifier.CleanToken(parsedVerifierParams.Token)
 		if hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))) != commonTokenCommitment {
-			fmt.Println("hex", hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))))
-			fmt.Println("tokcom", commonTokenCommitment)
 			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Token commitment and token are not compatible"}
 		}
 
@@ -195,12 +201,12 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		}
 
 		// Get back list of indexes
-		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(verifierID))
+		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromVerifierID", []byte(verifierID)) // TODO: len
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}
 		}
 		var keyIndexes []big.Int
-		err = bijson.Unmarshal(res.Response.Value, keyIndexes)
+		err = bijson.Unmarshal(res.Response.Value, &keyIndexes)
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not parse keyindex list"}
 		}
@@ -209,37 +215,39 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		for _, index := range keyIndexes {
 			allKeyIndexes[index.Text(16)] = &index
 		}
+
 		allValidVerifierIDs[parsedVerifierParams.VerifierIdentifier+"|"+verifierID] = true
 	}
 
 	response := ShareRequestResult{}
 	for _, index := range allKeyIndexes {
-		si, _, _, err := h.suite.DBSuite.Instance.RetrieveCompletedShare(*index)
-		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve completed share"}
-		}
 
+		// TODO: move code out into another function
 		// check if we have enough validTokens according to Access Structure
-		pubKeyAss := h.suite.ABCIApp.state.KeyMapping[index.Text(16)]
+		pubKeyAccessStructure := h.suite.ABCIApp.state.KeyMapping[index.Text(16)]
 		validCount := 0
-		for verifier, verifierIDs := range pubKeyAss.Verifiers {
+		for verifieridentifier, verifierIDs := range pubKeyAccessStructure.Verifiers {
 			for _, verifierID := range verifierIDs {
 				// check aganist all validVerifierIDs
 				for verifierStrings := range allValidVerifierIDs {
-					if verifier+"|"+verifierID == verifierStrings {
+					if verifieridentifier+"|"+verifierID == verifierStrings {
 						validCount++
 					}
 				}
 			}
 		}
+		si, _, _, err := h.suite.DBSuite.Instance.RetrieveCompletedShare(*index)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve completed share"}
+		}
 
-		keyAssignment := KeyAssignment{
-			KeyAssignmentPublic: pubKeyAss,
-		}
-		if validCount >= pubKeyAss.Threshold { // if we have enough authenticators we return Si
+		if validCount >= pubKeyAccessStructure.Threshold { // if we have enough authenticators we return Si
+			keyAssignment := KeyAssignment{
+				KeyAssignmentPublic: pubKeyAccessStructure,
+			}
 			keyAssignment.Share = *si
+			response.Keys = append(response.Keys, keyAssignment)
 		}
-		response.Keys = append(response.Keys, keyAssignment)
 	}
 
 	return response, nil
@@ -302,7 +310,7 @@ func (h KeyAssignHandler) ServeJSONRPC(c context.Context, params *bijson.RawMess
 		if gjson.GetBytes(e, "query").String() != query.String() {
 			continue
 		}
-		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(p.VerifierID))
+		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromVerifierID", []byte(p.VerifierID))
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment: " + err.Error()}
 		}

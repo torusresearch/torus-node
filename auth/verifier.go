@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"encoding/json"
 	"errors"
 
 	"github.com/torusresearch/bijson"
@@ -11,7 +10,7 @@ import (
 type Verifier interface {
 	GetIdentifier() string
 	CleanToken(string) string
-	VerifyRequestIdentity(*bijson.RawMessage) (bool, string, error)
+	VerifyRequestIdentity(*bijson.RawMessage) (verified bool, verifierID string, err error)
 }
 
 // IdentityVerifier describes a common implementation shared among torus
@@ -25,7 +24,7 @@ type VerifyMessage struct {
 // GeneralVerifier accepts an identifier string and returns an IdentityVerifier
 type GeneralVerifier interface {
 	ListVerifiers() []string
-	Verify(*bijson.RawMessage) (bool, string, error)
+	Verify(*bijson.RawMessage) (verified bool, verifierID string, err error)
 	Lookup(string) (Verifier, error)
 }
 
@@ -57,18 +56,10 @@ func (tgv *DefaultGeneralVerifier) Verify(rawMessage *bijson.RawMessage) (bool, 
 		return false, "", err
 	}
 	cleanedToken := v.CleanToken(verifyMessage.Token)
-	jsonMap := make(map[string]interface{})
-	err = json.Unmarshal(*rawMessage, &jsonMap)
-	if err != nil {
-		return false, "", err
+	if cleanedToken != verifyMessage.Token {
+		return false, "", errors.New("Cleaned token is different from original token")
 	}
-	jsonMap["token"] = cleanedToken
-	cleanedRawMessageBytes, err := bijson.Marshal(jsonMap)
-	if err != nil {
-		return false, "", err
-	}
-	cleanedRawMessage := bijson.RawMessage(cleanedRawMessageBytes)
-	return v.VerifyRequestIdentity(&cleanedRawMessage)
+	return v.VerifyRequestIdentity(rawMessage)
 }
 
 // Lookup returns the appropriate verifier

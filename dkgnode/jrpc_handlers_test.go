@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
@@ -12,10 +11,11 @@ import (
 
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
 
-	"github.com/torusresearch/torus-public/mocks"
-
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/torusresearch/torus-public/auth"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/keygen"
+	"github.com/torusresearch/torus-public/mocks"
 	"github.com/torusresearch/torus-public/secp256k1"
 
 	cache "github.com/patrickmn/go-cache"
@@ -153,9 +153,10 @@ func TestShareRequest(t *testing.T) {
 	}
 
 	mockClient := &mocks.Client{}
-	mockClient.On("ABCIQuery", "GetIndexesFromEmail", mock.Anything).Return(&core_types.ResultABCIQuery{
+	byt, _ := bijson.Marshal([]big.Int{*big.NewInt(int64(1))})
+	mockClient.On("ABCIQuery", "GetIndexesFromVerifierID", mock.Anything).Return(&core_types.ResultABCIQuery{
 		Response: abci.ResponseQuery{
-			Value: []byte("1"),
+			Value: byt,
 		},
 	}, nil)
 	// bundle collated node responses and send it to a node to get back your share
@@ -165,6 +166,8 @@ func TestShareRequest(t *testing.T) {
 		Index: 1,
 		Value: userSecretShare,
 	}
+
+	keyMapping := make(map[string]KeyAssignmentPublic)
 
 	h := ShareRequestHandler{
 		TimeNow: time.Now,
@@ -182,8 +185,25 @@ func TestShareRequest(t *testing.T) {
 					mockClient,
 				},
 			},
+			DBSuite: &DBSuite{
+				Instance: TestTorusDB{
+					UserSecretShare: *userSecretShare,
+				},
+			},
+			ABCIApp: &ABCIApp{
+				state: &State{
+					KeyMapping: keyMapping,
+				},
+			},
 		},
 	}
+	keyMapping["1"] = KeyAssignmentPublic{
+		Index:     *big.NewInt(int64(1)),
+		PublicKey: common.Point{},
+		Threshold: 1,
+		Verifiers: make(map[string][]string),
+	}
+	keyMapping["1"].Verifiers["testmockverifier"] = []string{"test@tor.us"}
 	h.suite.CacheSuite.CacheInstance.Set("Si_MAPPING", siStore, 10*time.Minute)
 
 	var nodeSignatures []NodeSignature
@@ -197,27 +217,57 @@ func TestShareRequest(t *testing.T) {
 		})
 	}
 
-	req := ShareRequestParams{
-		ID:                 "test@tor.us",
+	tsri := &TestShareRequestItem{
+		Email:              "test@tor.us",
 		Token:              "eyJhbGciOiJSUzI1NiIsImtpZCI6ImE0MzEzZTdmZDFlOWUyYTRkZWQzYjI5MmQyYTdmNGU1MTk1NzQzMDgiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiODc2NzMzMTA1MTE2LWkwaGozczUzcWlpbzVrOTVwcnBmbWowaHAwZ21ndG9yLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiODc2NzMzMTA1MTE2LWkwaGozczUzcWlpbzVrOTVwcnBmbWowaHAwZ21ndG9yLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTEwMDc0Mjc5MTYxNzk0NDY1MTYxIiwiZW1haWwiOiJ0cm9uc2t5dHJvbGxAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImF0X2hhc2giOiJUUXRsdlkwb2hSd1lfdm9qQ3lfSEpnIiwibmFtZSI6InRyb25za3l0cm9sbCIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vLUZzU2g1RXpVeHJNL0FBQUFBQUFBQUFJL0FBQUFBQUFBQUJ3L29CRkNSdWQ4X1JrL3M5Ni1jL3Bob3RvLmpwZyIsImdpdmVuX25hbWUiOiJ0cm9uc2t5dHJvbGwiLCJsb2NhbGUiOiJlbiIsImlhdCI6MTU1Mzc4MzY2NSwiZXhwIjoxNTUzNzg3MjY1LCJqdGkiOiIxNGQ0Njc5Yjg5M2ZiNjQzZDhkNDc0Y2Q4MjJkZDgwMzcwMTEzZjMwIn0.kAYUhG2diwNVYMgOUu3ZS-QDy62MDkKPk2jcPwdrcZWbF7w3rwGwrhgoAFiBmXwQ9Xbf8xXNGFGrF7M0Ixp7I6A5mJbwu69R0z2Ul9piyF5JYAS8nPEdHVJ5XbWnoEXrwppr1_JiIGTWrooglHp-EVbLFiMJHeZi0dTWJGJL0QvCSDlY227a8rGsTKC0xmT9YToybSS4dv5pgxQ5dUOfx7UX6XykMy2M_0Z1owqFy_ZMWd4qIAw-9u54tRJ3Vr6yOB3psdgNoJYxrzTGe55TF_9cAv3pqst-pxj_0Y91r7J5x7ZIrmCG-O_D7xtqzWY71nmUhyf2dNaIQiQcbJG1NQ",
 		NodeSignatures:     nodeSignatures,
 		VerifierIdentifier: "testmockverifier",
 	}
-	byt, _ := bijson.Marshal(req)
+
+	byt, _ = bijson.Marshal(tsri)
+	req := ShareRequestParams{
+		Item: []bijson.RawMessage{byt},
+	}
+	byt, _ = bijson.Marshal(req)
 	reqJSON := bijson.RawMessage(byt)
 	response, err := h.ServeJSONRPC(context.Background(), &reqJSON)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatal(err.Error())
 	}
 	shareRequestResult := response.(ShareRequestResult)
-	assert.Equal(t, shareRequestResult.HexShare, userSecretShare.Text(16))
+	assert.Equal(t, shareRequestResult.Keys[0].Share.Text(16), userSecretShare.Text(16))
+}
+
+type TestTorusDB struct {
+	UserSecretShare big.Int
+}
+
+func (t TestTorusDB) RetrieveCompletedShare(keyIndex big.Int) (*big.Int, *big.Int, *common.Point, error) {
+	return &t.UserSecretShare, nil, nil, nil
+}
+func (t TestTorusDB) StoreKEYGENSecret(keyIndex big.Int, secret keygen.KEYGENSecrets) error {
+	return nil
+}
+func (t TestTorusDB) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int, publicKey common.Point) error {
+	return nil
+}
+
+type TestShareRequestItem struct {
+	Email              string          `json:"email"`
+	Token              string          `json:"token"`
+	NodeSignatures     []NodeSignature `json:"nodesignatures"`
+	VerifierIdentifier string          `json:"verifieridentifier"`
 }
 
 type TestMockDefaultVerifier struct {
 }
 
-func (TestMockDefaultVerifier) Verify(*bijson.RawMessage) (bool, error) {
-	return true, nil
+func (TestMockDefaultVerifier) ListVerifiers() []string {
+	return []string{"testmockverifier"}
+}
+
+func (TestMockDefaultVerifier) Verify(*bijson.RawMessage) (bool, string, error) {
+	return true, "test@tor.us", nil
 }
 func (t TestMockDefaultVerifier) Lookup(string) (auth.Verifier, error) {
 	return TestMockVerifier{}, nil
@@ -232,8 +282,8 @@ func (TestMockVerifier) CleanToken(s string) string {
 func (TestMockVerifier) GetIdentifier() string {
 	return "testmockverifier"
 }
-func (TestMockVerifier) VerifyRequestIdentity(*bijson.RawMessage) (bool, error) {
-	return true, nil
+func (TestMockVerifier) VerifyRequestIdentity(*bijson.RawMessage) (bool, string, error) {
+	return true, "test@tor.us", nil
 }
 
 type TestMockClient interface {

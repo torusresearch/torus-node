@@ -177,8 +177,8 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 	logging.Debugf("QUERY TO ABCIAPP %s %s", reqQuery.Data, string(reqQuery.Data))
 	switch reqQuery.Path {
 
-	case "GetIndexesFromEmail":
-		logging.Debug("GOT A QUERY FOR GetIndexesFromEmail")
+	case "GetIndexesFromVerifierID":
+		logging.Debug("GOT A QUERY FOR GetIndexesFromVerifierID")
 		verifierRef, found := app.state.VerifierToKeyIndex["google"]
 		if !found {
 			logging.Debug("verifier not found for query")

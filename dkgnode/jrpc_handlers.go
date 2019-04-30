@@ -11,16 +11,16 @@ import (
 
 	"github.com/torusresearch/torus-public/secp256k1"
 
-	"github.com/intel-go/fastjson"
-	"github.com/osamingo/jsonrpc"
 	cache "github.com/patrickmn/go-cache"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
+	"github.com/torusresearch/bijson"
+	"github.com/torusresearch/jsonrpc"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 )
 
-func (h CommitmentRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+func (h CommitmentRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawMessage) (interface{}, *jsonrpc.Error) {
 	var p CommitmentRequestParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (h CommitmentRequestHandler) ServeJSONRPC(c context.Context, params *fastjs
 	return res, nil
 }
 
-func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+func (h PingHandler) ServeJSONRPC(c context.Context, params *bijson.RawMessage) (interface{}, *jsonrpc.Error) {
 
 	var p PingParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
@@ -90,7 +90,7 @@ func (h PingHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage
 
 // checks id for assignment and then the auth token for verification
 // returns the node's share of the user's key
-func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawMessage) (interface{}, *jsonrpc.Error) {
 	var p ShareRequestParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -218,7 +218,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 }
 
 // assigns a user a secret, returns the same index if the user has been previously assigned
-func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+func (h SecretAssignHandler) ServeJSONRPC(c context.Context, params *bijson.RawMessage) (interface{}, *jsonrpc.Error) {
 	randomInt := rand.Int()
 	var p SecretAssignParams
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {

@@ -123,8 +123,6 @@ github.com/huin/goupnp/soap
 github.com/huin/goupnp/ssdp
 # github.com/imdario/mergo v0.3.7
 github.com/imdario/mergo
-# github.com/intel-go/fastjson v0.0.0-20170329170629-f846ae58a1ab
-github.com/intel-go/fastjson
 # github.com/ipfs/go-cid v0.0.1
 github.com/ipfs/go-cid
 # github.com/ipfs/go-ipfs-util v0.0.1
@@ -278,8 +276,6 @@ github.com/multiformats/go-multistream
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
-# github.com/osamingo/jsonrpc v0.0.0-20171209064156-92d51847b98f
-github.com/osamingo/jsonrpc
 # github.com/patrickmn/go-cache v2.1.0+incompatible
 github.com/patrickmn/go-cache
 # github.com/pborman/uuid v1.2.0
@@ -392,6 +388,8 @@ github.com/tidwall/match
 github.com/tidwall/pretty
 # github.com/torusresearch/bijson v0.0.0-20190412111544-04b14d25087c
 github.com/torusresearch/bijson
+# github.com/torusresearch/jsonrpc v0.0.0-20190430032056-28092f3397fa
+github.com/torusresearch/jsonrpc
 # github.com/tsenart/vegeta v6.3.0+incompatible
 github.com/tsenart/vegeta/lib
 # github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc

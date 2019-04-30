@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/intel-go/fastjson"
+	"github.com/torusresearch/bijson"
 )
 
 type DemoVerifier struct {
@@ -29,9 +29,9 @@ func (v *DemoVerifier) CleanToken(token string) string {
 }
 
 // VerifyRequestIdentity - verifies identity of user based on their token
-func (v *DemoVerifier) VerifyRequestIdentity(jsonToken *fastjson.RawMessage) (bool, error) {
+func (v *DemoVerifier) VerifyRequestIdentity(jsonToken *bijson.RawMessage) (bool, error) {
 	var p DemoVerifierParams
-	if err := fastjson.Unmarshal(*jsonToken, &p); err != nil {
+	if err := bijson.Unmarshal(*jsonToken, &p); err != nil {
 		return false, err
 	}
 

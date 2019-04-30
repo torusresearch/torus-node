@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/osamingo/jsonrpc"
+	"github.com/torusresearch/jsonrpc"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 

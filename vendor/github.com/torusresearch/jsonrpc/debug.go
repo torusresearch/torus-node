@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/alecthomas/jsonschema"
-	"github.com/intel-go/fastjson"
+	"github.com/torusresearch/bijson"
 )
 
 // A MethodReference is a reference of JSON-RPC method.
@@ -17,7 +17,7 @@ type MethodReference struct {
 }
 
 // ServeDebug views registered method list.
-func (mr *MethodRepository) ServeDebug(w http.ResponseWriter, r *http.Request) {
+func (mr *MethodRepository) ServeDebug(w http.ResponseWriter, r *http.Request) { // nolint: unparam
 	ms := mr.Methods()
 	if len(ms) == 0 {
 		w.WriteHeader(http.StatusNotFound)
@@ -28,7 +28,7 @@ func (mr *MethodRepository) ServeDebug(w http.ResponseWriter, r *http.Request) {
 		l = append(l, makeMethodReference(k, md))
 	}
 	w.Header().Set(contentTypeKey, contentTypeValue)
-	if err := fastjson.NewEncoder(w).Encode(l); err != nil {
+	if err := bijson.NewEncoder(w).Encode(l); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

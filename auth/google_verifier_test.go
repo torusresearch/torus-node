@@ -5,12 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/intel-go/fastjson"
+	"github.com/torusresearch/bijson"
 )
 
 func TestEmptyEmailVerifier(t *testing.T) {
 	payload := "{\"email\":\"\",\"idToken\":\"\"}"
-	rawMsg := fastjson.RawMessage([]byte(payload))
+	rawMsg := bijson.RawMessage([]byte(payload))
 	var v Verifier
 	v = &GoogleVerifier{}
 	assert.Equal(t, v.GetIdentifier(), "google")

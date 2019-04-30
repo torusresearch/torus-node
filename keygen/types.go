@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/intel-go/fastjson"
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
@@ -285,12 +285,12 @@ type PSSMessage struct {
 	Data   []byte `json:"data"`
 }
 
-func (pssMessage *PSSMessage) JSON() *fastjson.RawMessage {
-	json, err := fastjson.Marshal(pssMessage)
+func (pssMessage *PSSMessage) JSON() *bijson.RawMessage {
+	json, err := bijson.Marshal(pssMessage)
 	if err != nil {
 		return nil
 	} else {
-		res := fastjson.RawMessage(json)
+		res := bijson.RawMessage(json)
 		return &res
 	}
 }

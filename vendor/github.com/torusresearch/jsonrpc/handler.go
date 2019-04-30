@@ -2,14 +2,15 @@ package jsonrpc
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
-	"github.com/intel-go/fastjson"
+	"github.com/torusresearch/bijson"
 )
 
 // Handler links a method of JSON-RPC request.
 type Handler interface {
-	ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (result interface{}, err *Error)
+	ServeJSONRPC(c context.Context, params *bijson.RawMessage) (result interface{}, err *Error)
 }
 
 // ServeHTTP provides basic JSON-RPC handling.
@@ -17,12 +18,16 @@ func (mr *MethodRepository) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	rs, batch, err := ParseRequest(r)
 	if err != nil {
-		SendResponse(w, []*Response{
+		err := SendResponse(w, []*Response{
 			{
 				Version: Version,
 				Error:   err,
 			},
 		}, false)
+		if err != nil {
+			fmt.Fprint(w, "Failed to encode error objects")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -32,6 +37,7 @@ func (mr *MethodRepository) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := SendResponse(w, resp, batch); err != nil {
+		fmt.Fprint(w, "Failed to encode result objects")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }

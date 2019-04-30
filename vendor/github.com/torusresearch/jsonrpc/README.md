@@ -2,9 +2,9 @@
 
 [![Travis branch](https://img.shields.io/travis/osamingo/jsonrpc/master.svg)](https://travis-ci.org/osamingo/jsonrpc)
 [![codecov](https://codecov.io/gh/osamingo/jsonrpc/branch/master/graph/badge.svg)](https://codecov.io/gh/osamingo/jsonrpc)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/e820b394cdbd47103165/test_coverage)](https://codeclimate.com/github/osamingo/jsonrpc/test_coverage)
 [![Go Report Card](https://goreportcard.com/badge/osamingo/jsonrpc)](https://goreportcard.com/report/osamingo/jsonrpc)
 [![codebeat badge](https://codebeat.co/badges/cbd0290d-200b-4693-80dc-296d9447c35b)](https://codebeat.co/projects/github-com-osamingo-jsonrpc)
+[![Maintainability](https://api.codeclimate.com/v1/badges/e820b394cdbd47103165/maintainability)](https://codeclimate.com/github/osamingo/jsonrpc/maintainability)
 [![GoDoc](https://godoc.org/github.com/osamingo/jsonrpc?status.svg)](https://godoc.org/github.com/osamingo/jsonrpc)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/osamingo/jsonrpc/master/LICENSE)
 
@@ -30,13 +30,9 @@ $ go get -u github.com/osamingo/jsonrpc
 package main
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"log"
 	"net/http"
-	"net/http/httptest"
-	"os"
 
 	"github.com/intel-go/fastjson"
 	"github.com/osamingo/jsonrpc"
@@ -49,6 +45,12 @@ type (
 	}
 	EchoResult struct {
 		Message string `json:"message"`
+	}
+
+	PositionalHandler struct{}
+	PositionalParams  []int
+	PositionalResult  struct {
+		Message []int `json:"message"`
 	}
 )
 
@@ -64,6 +66,18 @@ func (h EchoHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage
 	}, nil
 }
 
+func (h PositionalHandler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *Error) {
+
+	var p PositionalParams
+	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+
+	return PositionalResult{
+		Message: p,
+	}, nil
+}
+
 func main() {
 
 	mr := jsonrpc.NewMethodRepository()
@@ -72,25 +86,76 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	if err := mr.RegisterMethod("Main.Positional", PositionalHandler{}, PositionalParams{}, PositionalResult{}); err != nil {
+		log.Fatalln(err)
+	}
+
 	http.Handle("/jrpc", mr)
 	http.HandleFunc("/jrpc/debug", mr.ServeDebug)
 
-	srv := httptest.NewServer(http.DefaultServeMux)
-	defer srv.Close()
-
-	resp, err := http.Post(srv.URL+"/jrpc", "application/json", bytes.NewBufferString(`{
-	  "jsonrpc": "2.0",
-      "method": "Main.Echo",
-      "params": {
-        "name": "John Doe"
-      },
-      "id": "243a718a-2ebb-4e32-8cc8-210c39e8a14b"
-    }`))
-	if err != nil {
+	if err := http.ListenAndServe(":8080", http.DefaultServeMux); err != nil {
 		log.Fatalln(err)
 	}
-	defer resp.Body.Close()
-	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+}
+```
+
+#### Advanced
+
+```go
+package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/osamingo/jsonrpc"
+)
+
+type (
+	HandleParamsResulter interface {
+		jsonrpc.Handler
+		Name() string
+		Params() interface{}
+		Result() interface{}
+	}
+	Servicer interface {
+		MethodName(HandleParamsResulter) string
+		Handlers() []HandleParamsResulter
+	}
+	UserService struct {
+		SignUpHandler HandleParamsResulter
+		SignInHandler HandleParamsResulter
+	}
+)
+
+func (us *UserService) MethodName(h HandleParamsResulter) string {
+	return "UserService." + h.Name()
+}
+
+func (us *UserService) Handlers() []HandleParamsResulter {
+	return []HandleParamsResulter{us.SignUpHandler, us.SignInHandler}
+}
+
+func NewUserService() *UserService {
+	return &UserService{
+	// Initialize handlers
+	}
+}
+
+func main() {
+
+	mr := jsonrpc.NewMethodRepository()
+
+	for _, s := range []Servicer{NewUserService()} {
+		for _, h := range s.Handlers() {
+			mr.RegisterMethod(s.MethodName(h), h, h.Params(), h.Result())
+		}
+	}
+
+	http.Handle("/jrpc", mr)
+	http.HandleFunc("/jrpc/debug", mr.ServeDebug)
+
+	if err := http.ListenAndServe(":8080", http.DefaultServeMux); err != nil {
 		log.Fatalln(err)
 	}
 }
@@ -133,6 +198,39 @@ Date: Mon, 28 Nov 2016 13:48:13 GMT
 }
 ```
 
+#### Invoke the Positional method
+
+```
+POST /jrpc HTTP/1.1
+Accept: */*
+Content-Length: 133
+Content-Type: application/json
+Host: localhost:8080
+User-Agent: curl/7.61.1
+
+{
+  "jsonrpc": "2.0",
+  "method": "Main.Positional",
+  "params": [3,1,1,3,5,3],
+  "id": "243a718a-2ebb-4e32-8cc8-210c39e8a14b"
+}
+
+HTTP/1.1 200 OK
+Content-Length: 97
+Content-Type: application/json
+Date: Mon, 05 Nov 2018 11:23:35 GMT
+
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "message": [3,1,1,3,5,3]
+  },
+  "id": "243a718a-2ebb-4e32-8cc8-210c39e8a14b"
+}
+
+```
+
+
 #### Access to debug handler
 
 ```
@@ -142,8 +240,6 @@ Accept-Encoding: gzip, deflate
 Connection: keep-alive
 Host: localhost:8080
 User-Agent: HTTPie/0.9.6
-
-
 
 HTTP/1.1 200 OK
 Content-Length: 408

@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/intel-go/fastjson"
+	"github.com/torusresearch/bijson"
 )
 
 // Verifier describes verification of a token, without checking for token uniqueness
 type Verifier interface {
 	GetIdentifier() string
 	CleanToken(string) string
-	VerifyRequestIdentity(*fastjson.RawMessage) (bool, error)
+	VerifyRequestIdentity(*bijson.RawMessage) (bool, error)
 }
 
 // IdentityVerifier describes a common implementation shared among torus
@@ -24,7 +24,7 @@ type VerifyMessage struct {
 
 // GeneralVerifier accepts an identifier string and returns an IdentityVerifier
 type GeneralVerifier interface {
-	Verify(*fastjson.RawMessage) (bool, error)
+	Verify(*bijson.RawMessage) (bool, error)
 	Lookup(string) (Verifier, error)
 }
 
@@ -34,9 +34,9 @@ type DefaultGeneralVerifier struct {
 }
 
 // Verify reroutes the json request to the appropriate sub-verifier within generalVerifier
-func (tgv *DefaultGeneralVerifier) Verify(rawMessage *fastjson.RawMessage) (bool, error) {
+func (tgv *DefaultGeneralVerifier) Verify(rawMessage *bijson.RawMessage) (bool, error) {
 	var verifyMessage VerifyMessage
-	if err := fastjson.Unmarshal(*rawMessage, &verifyMessage); err != nil {
+	if err := bijson.Unmarshal(*rawMessage, &verifyMessage); err != nil {
 		return false, err
 	}
 	v, err := tgv.Lookup(verifyMessage.VerifierIdentifier)
@@ -50,11 +50,11 @@ func (tgv *DefaultGeneralVerifier) Verify(rawMessage *fastjson.RawMessage) (bool
 		return false, err
 	}
 	jsonMap["token"] = cleanedToken
-	cleanedRawMessageBytes, err := fastjson.Marshal(jsonMap)
+	cleanedRawMessageBytes, err := bijson.Marshal(jsonMap)
 	if err != nil {
 		return false, err
 	}
-	cleanedRawMessage := fastjson.RawMessage(cleanedRawMessageBytes)
+	cleanedRawMessage := bijson.RawMessage(cleanedRawMessageBytes)
 	return v.VerifyRequestIdentity(&cleanedRawMessage)
 }
 

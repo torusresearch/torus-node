@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/intel-go/fastjson"
+	"github.com/torusresearch/bijson"
 )
 
 // GoogleAuthResponse - expected response body from google endpoint when checking submitted token
@@ -61,9 +61,9 @@ func (g *GoogleVerifier) CleanToken(token string) string {
 }
 
 // VerifyRequestIdentity - verifies identity of user based on their token
-func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *fastjson.RawMessage) (bool, error) {
+func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *bijson.RawMessage) (bool, error) {
 	var p GoogleVerifierParams
-	if err := fastjson.Unmarshal(*rawPayload, &p); err != nil {
+	if err := bijson.Unmarshal(*rawPayload, &p); err != nil {
 		return false, err
 	}
 
@@ -83,7 +83,7 @@ func (g *GoogleVerifier) VerifyRequestIdentity(rawPayload *fastjson.RawMessage) 
 		return false, err
 	}
 	var body GoogleAuthResponse
-	err = fastjson.Unmarshal(b, &body)
+	err = bijson.Unmarshal(b, &body)
 	if err != nil {
 		return false, err
 	}

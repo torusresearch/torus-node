@@ -8,10 +8,11 @@ import (
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
+	tmcmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/version"
 	"github.com/torusresearch/bijson"
+	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
@@ -25,6 +26,7 @@ var (
 
 type KeyAssignmentPublic struct {
 	Index     big.Int
+	PublicKey common.Point
 	Threshold int
 	Verifiers map[string][]string // Verifier => VerifierID
 }
@@ -98,7 +100,7 @@ type ABCIApp struct {
 func NewABCIApp(suite *Suite) *ABCIApp {
 	db := dbm.NewMemDB()
 	v := make(map[string](map[string]TorusID))
-	for i, ver := range suite.DefaultVerifier.ListVerifiers() {
+	for _, ver := range suite.DefaultVerifier.ListVerifiers() {
 		v[ver] = make(map[string]TorusID)
 	}
 	abciApp := ABCIApp{
@@ -141,7 +143,7 @@ func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	}
 
 	if tags == nil {
-		tags = new([]common.KVPair)
+		tags = new([]tmcmn.KVPair)
 	}
 
 	return types.ResponseDeliverTx{Code: code.CodeTypeOK, Tags: *tags}

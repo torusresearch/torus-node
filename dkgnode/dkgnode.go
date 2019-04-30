@@ -83,6 +83,13 @@ func New() {
 		log.Fatal(err)
 	}
 
+	// We can use a flag here to change the default verifier
+	// In the future we should allow a range of verifiers
+	suite.DefaultVerifier = auth.NewGeneralVerifier(googleIdentityVerifier{
+		auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
+		&suite,
+	})
+
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
 	err = SetupEth(&suite)
@@ -107,13 +114,6 @@ func New() {
 	SetupBft(&suite)
 	// setup local caching
 	SetupCache(&suite)
-
-	// We can use a flag here to change the default verifier
-	// In the future we should allow a range of verifiers
-	suite.DefaultVerifier = auth.NewGeneralVerifier(googleIdentityVerifier{
-		auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
-		&suite,
-	})
 
 	//build folders for tendermint logs
 	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)

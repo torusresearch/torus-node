@@ -49,15 +49,17 @@ type (
 		NodePubKeyY string
 	}
 	ShareRequestParams struct {
-		ID                 string          `json:"id"`
+		Item []ShareRequestItem
+	}
+	ShareRequestItem struct {
 		Token              string          `json:"token"`
 		NodeSignatures     []NodeSignature `json:"nodesignatures"`
 		VerifierIdentifier string          `json:verifieridentifier`
 	}
 	ShareRequestResult struct {
-		Index    int    `json:"index"`
-		HexShare string `json:"hexshare"`
+		Keys []KeyAssignment
 	}
+
 	CommitmentRequestHandler struct {
 		suite   *Suite
 		TimeNow func() time.Time

@@ -99,126 +99,151 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *fastjson.Ra
 		return nil, err
 	}
 
-	// verify token validity against verifier
-	verified, err := h.suite.DefaultVerifier.Verify(params)
-
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while verifying params" + err.Error()}
-	}
-	if !verified {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Could not verify params"}
-	}
-	// Validate signatures
-	var validSignatures []ValidatedNodeSignature
-	for i := 0; i < len(p.NodeSignatures); i++ {
-		nodeRef, err := p.NodeSignatures[i].NodeValidation(h.suite)
-		if err == nil {
-			validSignatures = append(validSignatures, ValidatedNodeSignature{
-				p.NodeSignatures[i],
-				*nodeRef.Index,
-			})
-		} else {
-			fmt.Println(err)
+	allKeyIndexes := make(map[string]*big.Int)   // String keyindex => keyindex
+	allValidVerifierIDs := make(map[string]bool) // verifier+ | + verifierIDs => bool
+	for _, parsedVerifierParams := range p.Item {
+		// For Each VerifierItem we check its validity
+		rawVerifierParams, err := bijson.Marshal(parsedVerifierParams)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while serializing params" + err.Error()}
 		}
-	}
-	// Check if we have threshold number of signatures
-	if len(validSignatures) < h.suite.Config.Threshold {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures. Only " + strconv.Itoa(len(validSignatures)) + "valid signatures found."}
-	}
-	// Find common data string, and filter valid signatures on the wrong data
-	// this is to prevent nodes from submitting valid signatures on wrong data
-	commonDataMap := make(map[string]int)
-	for i := 0; i < len(validSignatures); i++ {
-		var commitmentRequestResultData CommitmentRequestResultData
-		commitmentRequestResultData.FromString(validSignatures[i].Data)
-		stringData := commitmentRequestResultData.MessagePrefix + "|" +
-			commitmentRequestResultData.TokenCommitment + "|" +
-			commitmentRequestResultData.Timestamp + "|" +
-			commitmentRequestResultData.VerifierIdentifier
-		commonDataMap[stringData]++
-	}
-	var commonDataString string
-	var commonDataCount int
-	for k, v := range commonDataMap {
-		if v > commonDataCount {
-			commonDataString = k
+		tmp := fastjson.RawMessage(rawVerifierParams)
+		// verify token validity against verifier
+		verified, verifierID, err := h.suite.DefaultVerifier.Verify(&tmp)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while verifying params" + err.Error()}
 		}
-	}
-	var validCommonSignatures []ValidatedNodeSignature
-	for i := 0; i < len(validSignatures); i++ {
-		var commitmentRequestResultData CommitmentRequestResultData
-		commitmentRequestResultData.FromString(validSignatures[i].Data)
-		stringData := commitmentRequestResultData.MessagePrefix + "|" +
-			commitmentRequestResultData.TokenCommitment + "|" +
-			commitmentRequestResultData.Timestamp + "|" +
-			commitmentRequestResultData.VerifierIdentifier
-		if stringData == commonDataString {
-			validCommonSignatures = append(validCommonSignatures, validSignatures[i])
+		if !verified {
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Could not verify params"}
 		}
-	}
-	if len(validCommonSignatures) < h.suite.Config.Threshold {
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures on the same data, " + strconv.Itoa(len(validCommonSignatures)) + " valid signatures."}
-	}
-	var commonData = strings.Split(commonDataString, "|")
-	var commonTokenCommitment = commonData[1]
-	var commonTimestamp = commonData[2]
-	var commonVerifierIdentifier = commonData[3]
+		// Validate signatures
+		var validSignatures []ValidatedNodeSignature
+		for i := 0; i < len(parsedVerifierParams.NodeSignatures); i++ {
+			nodeRef, err := parsedVerifierParams.NodeSignatures[i].NodeValidation(h.suite)
+			if err == nil {
+				validSignatures = append(validSignatures, ValidatedNodeSignature{
+					parsedVerifierParams.NodeSignatures[i],
+					*nodeRef.Index,
+				})
+			} else {
+				fmt.Println(err)
+			}
+		}
+		// Check if we have threshold number of signatures
+		if len(validSignatures) < h.suite.Config.Threshold {
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures. Only " + strconv.Itoa(len(validSignatures)) + "valid signatures found."}
+		}
+		// Find common data string, and filter valid signatures on the wrong data
+		// this is to prevent nodes from submitting valid signatures on wrong data
+		commonDataMap := make(map[string]int)
+		for i := 0; i < len(validSignatures); i++ {
+			var commitmentRequestResultData CommitmentRequestResultData
+			commitmentRequestResultData.FromString(validSignatures[i].Data)
+			stringData := commitmentRequestResultData.MessagePrefix + "|" +
+				commitmentRequestResultData.TokenCommitment + "|" +
+				commitmentRequestResultData.Timestamp + "|" +
+				commitmentRequestResultData.VerifierIdentifier
+			commonDataMap[stringData]++
+		}
+		var commonDataString string
+		var commonDataCount int
+		for k, v := range commonDataMap {
+			if v > commonDataCount {
+				commonDataString = k
+			}
+		}
+		var validCommonSignatures []ValidatedNodeSignature
+		for i := 0; i < len(validSignatures); i++ {
+			var commitmentRequestResultData CommitmentRequestResultData
+			commitmentRequestResultData.FromString(validSignatures[i].Data)
+			stringData := commitmentRequestResultData.MessagePrefix + "|" +
+				commitmentRequestResultData.TokenCommitment + "|" +
+				commitmentRequestResultData.Timestamp + "|" +
+				commitmentRequestResultData.VerifierIdentifier
+			if stringData == commonDataString {
+				validCommonSignatures = append(validCommonSignatures, validSignatures[i])
+			}
+		}
+		if len(validCommonSignatures) < h.suite.Config.Threshold {
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Not enough valid signatures on the same data, " + strconv.Itoa(len(validCommonSignatures)) + " valid signatures."}
+		}
+		var commonData = strings.Split(commonDataString, "|")
+		var commonTokenCommitment = commonData[1]
+		var commonTimestamp = commonData[2]
+		var commonVerifierIdentifier = commonData[3]
 
-	// Lookup verifier
-	verifier, err := h.suite.DefaultVerifier.Lookup(commonVerifierIdentifier)
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: err.Error()}
+		// Lookup verifier
+		verifier, err := h.suite.DefaultVerifier.Lookup(commonVerifierIdentifier)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: err.Error()}
+		}
+
+		// verify that hash of token = tokenCommitment
+		var cleanedToken = verifier.CleanToken(parsedVerifierParams.Token)
+		if hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))) != commonTokenCommitment {
+			fmt.Println("hex", hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))))
+			fmt.Println("tokcom", commonTokenCommitment)
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Token commitment and token are not compatible"}
+		}
+
+		// verify token timestamp
+		sec, err := strconv.ParseInt(commonTimestamp, 10, 64)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not parse timestamp"}
+		}
+		if h.TimeNow().After(time.Unix(sec+60, 0)) {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Expired token (> 60 seconds)"}
+		}
+
+		// Get back list of indexes
+		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(verifierID))
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}
+		}
+		var keyIndexes []big.Int
+		err = bijson.Unmarshal(res.Response.Value, keyIndexes)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not parse keyindex list"}
+		}
+
+		// Add to overall list and valid verifierIDs
+		for _, index := range keyIndexes {
+			allKeyIndexes[index.Text(16)] = &index
+		}
+		allValidVerifierIDs[parsedVerifierParams.VerifierIdentifier+"|"+verifierID] = true
 	}
 
-	// verify that hash of token = tokenCommitment
-	var cleanedToken = verifier.CleanToken(p.Token)
-	if hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))) != commonTokenCommitment {
-		fmt.Println("hex", hex.EncodeToString(secp256k1.Keccak256([]byte(cleanedToken))))
-		fmt.Println("tokcom", commonTokenCommitment)
-		return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Token commitment and token are not compatible"}
+	response := ShareRequestResult{}
+	for _, index := range allKeyIndexes {
+		si, _, _, err := h.suite.DBSuite.Instance.RetrieveCompletedShare(*index)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not retrieve completed share"}
+		}
+
+		// check if we have enough validTokens according to Access Structure
+		pubKeyAss := h.suite.ABCIApp.state.KeyMapping[index.Text(16)]
+		validCount := 0
+		for verifier, verifierIDs := range pubKeyAss.Verifiers {
+			for _, verifierID := range verifierIDs {
+				// check aganist all validVerifierIDs
+				for verifierStrings := range allValidVerifierIDs {
+					if verifier+"|"+verifierID == verifierStrings {
+						validCount++
+					}
+				}
+			}
+		}
+
+		keyAssignment := KeyAssignment{
+			KeyAssignmentPublic: pubKeyAss,
+		}
+		if validCount >= pubKeyAss.Threshold { // if we have enough authenticators we return Si
+			keyAssignment.Share = *si
+		}
+		response.Keys = append(response.Keys, keyAssignment)
 	}
 
-	// verify token timestamp
-	sec, err := strconv.ParseInt(commonTimestamp, 10, 64)
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not parse timestamp"}
-	}
-	if h.TimeNow().After(time.Unix(sec+60, 0)) {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Expired token (> 60 seconds)"}
-	}
-
-	// // Here we verify the identity of the user
-	// identityVerified, err := h.suite.DefaultVerifier.Verify(params)
-	// if err != nil {
-	// 	return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid params", Data: "oauth is invalid, err: " + err.Error()}
-	// }
-	// if !identityVerified {
-	// 	// TELEMETRY HERE?
-	// 	// TODO: @zhen / @len -> what should be the error message?
-	// 	return nil, &jsonrpc.Error{Code: 32602, Message: "Invalid identity", Data: "oauth is invalid, err: " + err.Error()}
-	// }
-
-	tmpSi, found := h.suite.CacheSuite.CacheInstance.Get("Si_MAPPING")
-	if !found {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get si mapping here, not found"}
-	}
-	siMapping := tmpSi.(map[int]SiStore)
-	res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(p.ID))
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}
-	}
-
-	userIndex, err := strconv.ParseUint(string(res.Response.Value), 10, 64)
-	if err != nil {
-		return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Cannot parse uint for user index here: " + err.Error()}
-	}
-
-	tmpInt := siMapping[int(userIndex)].Value
-
-	return ShareRequestResult{
-		Index:    siMapping[int(userIndex)].Index,
-		HexShare: tmpInt.Text(16),
-	}, nil
+	return response, nil
 }
 
 // assigns a user a secret, returns the same index if the user has been previously assigned

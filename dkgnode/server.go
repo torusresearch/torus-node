@@ -9,11 +9,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/osamingo/jsonrpc"
+	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
-	// tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
-	// "github.com/tidwall/gjson"
+	"github.com/torusresearch/jsonrpc"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
@@ -25,13 +24,18 @@ func setUpServer(suite *Suite, port string) *http.Server {
 		logging.Fatalf("%s", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/jrpc", mr)
-	mux.HandleFunc("/jrpc/debug", mr.ServeDebug)
-	mux.HandleFunc("/healthz", GETHealthz)
+	router := mux.NewRouter().StrictSlash(true)
+
+	router.Handle("/jrpc", mr)
+	router.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	router.HandleFunc("/healthz", GETHealthz)
+
+	router.Use(augmentRequestMiddleware)
+	router.Use(loggingMiddleware)
+	router.Use(telemetryMiddleware)
 
 	addr := fmt.Sprintf(":%s", port)
-	handler := cors.Default().Handler(mux)
+	handler := cors.Default().Handler(router)
 
 	server := &http.Server{
 		Addr:    addr,

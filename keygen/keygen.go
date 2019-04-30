@@ -324,13 +324,6 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not BroadcastKEYGENDKGComplete: %s", err)
 				}
 
-				go func() {
-					err := ki.State.Event(EIAllSubsharesDone)
-					if err != nil {
-						logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
-					}
-				}()
-
 			},
 			"enter_" + SIWaitingToFinishUpKeygen: func(e *fsm.Event) {
 				// End keygen

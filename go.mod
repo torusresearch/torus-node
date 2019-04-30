@@ -24,8 +24,10 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
 	github.com/google/uuid v1.1.1
+	github.com/gorilla/context v1.1.1
+	github.com/gorilla/mux v1.7.0
 	github.com/huin/goupnp v1.0.0 // indirect
-	github.com/intel-go/fastjson v0.0.0-20170329170629-f846ae58a1ab
+	github.com/intel-go/fastjson v0.0.0-20170329170629-f846ae58a1ab // indirect
 	github.com/jackpal/gateway v1.0.5 // indirect
 	github.com/jinzhu/copier v0.0.0-20180308034124-7e38e58719c3
 	github.com/jmhodges/levigo v1.0.0 // indirect
@@ -44,7 +46,7 @@ require (
 	github.com/mr-tron/base58 v1.1.1 // indirect
 	github.com/multiformats/go-multiaddr v0.0.2
 	github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32 // indirect
-	github.com/osamingo/jsonrpc v0.0.0-20171209064156-92d51847b98f
+	github.com/osamingo/jsonrpc v0.0.0-20190422110855-4eab63bf79a0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
@@ -60,6 +62,7 @@ require (
 	github.com/tidwall/match v1.0.1 // indirect
 	github.com/tidwall/pretty v0.0.0-20180105212114-65a9db5fad51 // indirect
 	github.com/torusresearch/bijson v0.0.0-20190412111544-04b14d25087c
+	github.com/torusresearch/jsonrpc v0.0.0-20190430032056-28092f3397fa
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect

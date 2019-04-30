@@ -115,6 +115,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		if !verified {
 			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Could not verify params"}
 		}
+
 		// Validate signatures
 		var validSignatures []ValidatedNodeSignature
 		for i := 0; i < len(parsedVerifierParams.NodeSignatures); i++ {
@@ -195,7 +196,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		}
 
 		// Get back list of indexes
-		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(verifierID))
+		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromVerifierID", []byte(verifierID)) // TODO: len
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Could not get email index here: " + err.Error()}
 		}
@@ -303,7 +304,7 @@ func (h KeyAssignHandler) ServeJSONRPC(c context.Context, params *bijson.RawMess
 		if gjson.GetBytes(e, "query").String() != query.String() {
 			continue
 		}
-		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromEmail", []byte(p.VerifierID))
+		res, err := h.suite.BftSuite.BftRPC.ABCIQuery("GetIndexesFromVerifierID", []byte(p.VerifierID))
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment: " + err.Error()}
 		}

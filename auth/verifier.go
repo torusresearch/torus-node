@@ -11,7 +11,7 @@ import (
 type Verifier interface {
 	GetIdentifier() string
 	CleanToken(string) string
-	VerifyRequestIdentity(*bijson.RawMessage) (bool, string, error)
+	VerifyRequestIdentity(*bijson.RawMessage) (verified bool, verifierID string, err error)
 }
 
 // IdentityVerifier describes a common implementation shared among torus
@@ -25,7 +25,7 @@ type VerifyMessage struct {
 // GeneralVerifier accepts an identifier string and returns an IdentityVerifier
 type GeneralVerifier interface {
 	ListVerifiers() []string
-	Verify(*bijson.RawMessage) (bool, string, error)
+	Verify(*bijson.RawMessage) (verified bool, verifierID string, err error)
 	Lookup(string) (Verifier, error)
 }
 

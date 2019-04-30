@@ -2,9 +2,6 @@ package keygen
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/torusresearch/torus-public/pvss"
-	"github.com/torusresearch/torus-public/secp256k1"
 	"log"
 	"math/big"
 	"os"
@@ -13,6 +10,10 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/torusresearch/torus-public/pvss"
+	"github.com/torusresearch/torus-public/secp256k1"
 
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
@@ -481,10 +482,12 @@ func TestEchoReconstruction(t *testing.T) {
 				count++
 			}
 			if msg == "timeout" {
+				t.Log("We're timing out")
 				done = true
 			}
 		}
 		if count >= len(nodeList) || done { // accounted for here
+
 			break
 		}
 	}

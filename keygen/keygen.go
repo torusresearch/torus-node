@@ -3,21 +3,17 @@ package keygen
 import (
 	"errors"
 	"fmt"
-	"github.com/torusresearch/torus-public/idmutex"
 	"math"
 	"math/big"
 	"sort"
 	"strconv"
-
 	"time"
 
-	"github.com/torusresearch/torus-public/pvss"
-
-	"github.com/torusresearch/torus-public/logging"
-
 	"github.com/looplab/fsm"
-
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/idmutex"
+	"github.com/torusresearch/torus-public/logging"
+	"github.com/torusresearch/torus-public/pvss"
 )
 
 // Below are the stated Keygen Types necessary for Communication between nodes

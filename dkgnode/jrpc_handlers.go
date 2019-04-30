@@ -97,18 +97,18 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
-
 	allKeyIndexes := make(map[string]*big.Int)   // String keyindex => keyindex
-	allValidVerifierIDs := make(map[string]bool) // verifier+ | + verifierIDs => bool
-	for _, parsedVerifierParams := range p.Item {
+	allValidVerifierIDs := make(map[string]bool) // verifier + | + verifierIDs => bool
+	for _, rawItem := range p.Item {
 		// For Each VerifierItem we check its validity
-		rawVerifierParams, err := bijson.Marshal(parsedVerifierParams)
+		var parsedVerifierParams ShareRequestItem
+		err := bijson.Unmarshal(rawItem, &parsedVerifierParams)
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while serializing params" + err.Error()}
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occurred while parsing sharerequestitem"}
 		}
-		tmp := bijson.RawMessage(rawVerifierParams)
+
 		// verify token validity against verifier
-		verified, verifierID, err := h.suite.DefaultVerifier.Verify(&tmp)
+		verified, verifierID, err := h.suite.DefaultVerifier.Verify(&rawItem)
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occured while verifying params" + err.Error()}
 		}
@@ -209,6 +209,7 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		for _, index := range keyIndexes {
 			allKeyIndexes[index.Text(16)] = &index
 		}
+
 		allValidVerifierIDs[parsedVerifierParams.VerifierIdentifier+"|"+verifierID] = true
 	}
 
@@ -220,9 +221,9 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		}
 
 		// check if we have enough validTokens according to Access Structure
-		pubKeyAss := h.suite.ABCIApp.state.KeyMapping[index.Text(16)]
+		pubKeyAccessStructure := h.suite.ABCIApp.state.KeyMapping[index.Text(16)]
 		validCount := 0
-		for verifier, verifierIDs := range pubKeyAss.Verifiers {
+		for verifier, verifierIDs := range pubKeyAccessStructure.Verifiers {
 			for _, verifierID := range verifierIDs {
 				// check aganist all validVerifierIDs
 				for verifierStrings := range allValidVerifierIDs {
@@ -234,9 +235,9 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 		}
 
 		keyAssignment := KeyAssignment{
-			KeyAssignmentPublic: pubKeyAss,
+			KeyAssignmentPublic: pubKeyAccessStructure,
 		}
-		if validCount >= pubKeyAss.Threshold { // if we have enough authenticators we return Si
+		if validCount >= pubKeyAccessStructure.Threshold { // if we have enough authenticators we return Si
 			keyAssignment.Share = *si
 		}
 		response.Keys = append(response.Keys, keyAssignment)

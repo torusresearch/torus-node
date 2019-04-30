@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/osamingo/jsonrpc"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tidwall/gjson"
+	"github.com/torusresearch/jsonrpc"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tendermint/tendermint/rpc/core/types"
+	core_types "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/torusresearch/torus-public/mocks"
 
@@ -18,8 +18,8 @@ import (
 	"github.com/torusresearch/torus-public/auth"
 	"github.com/torusresearch/torus-public/secp256k1"
 
-	"github.com/intel-go/fastjson"
 	cache "github.com/patrickmn/go-cache"
+	"github.com/torusresearch/bijson"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -63,8 +63,8 @@ func TestCommitmentRequest(t *testing.T) {
 		"1553777319",
 		"google",
 	}
-	byt, _ := fastjson.Marshal(commitmentRequestParams)
-	rawMessage := fastjson.RawMessage(byt)
+	byt, _ := bijson.Marshal(commitmentRequestParams)
+	rawMessage := bijson.RawMessage(byt)
 	response, rpcErr := h.ServeJSONRPC(context.Background(), &rawMessage)
 	if rpcErr != nil {
 		assert.Fail(t, "Initial token request failed with error: "+rpcErr.Error())
@@ -142,8 +142,8 @@ func TestShareRequest(t *testing.T) {
 			strconv.Itoa(int(time.Now().Unix())),
 			"google",
 		}
-		byt, _ := fastjson.Marshal(commitmentRequestParams)
-		rawMessage := fastjson.RawMessage(byt)
+		byt, _ := bijson.Marshal(commitmentRequestParams)
+		rawMessage := bijson.RawMessage(byt)
 		response, rpcErr := h.ServeJSONRPC(context.Background(), &rawMessage)
 		if rpcErr != nil {
 			assert.Fail(t, "Initial token request failed with error: "+rpcErr.Error())
@@ -203,8 +203,8 @@ func TestShareRequest(t *testing.T) {
 		NodeSignatures:     nodeSignatures,
 		VerifierIdentifier: "testmockverifier",
 	}
-	byt, _ := fastjson.Marshal(req)
-	reqJSON := fastjson.RawMessage(byt)
+	byt, _ := bijson.Marshal(req)
+	reqJSON := bijson.RawMessage(byt)
 	response, err := h.ServeJSONRPC(context.Background(), &reqJSON)
 	if err != nil {
 		fmt.Println(err)
@@ -216,7 +216,7 @@ func TestShareRequest(t *testing.T) {
 type TestMockDefaultVerifier struct {
 }
 
-func (TestMockDefaultVerifier) Verify(*fastjson.RawMessage) (bool, error) {
+func (TestMockDefaultVerifier) Verify(*bijson.RawMessage) (bool, error) {
 	return true, nil
 }
 func (t TestMockDefaultVerifier) Lookup(string) (auth.Verifier, error) {
@@ -232,7 +232,7 @@ func (TestMockVerifier) CleanToken(s string) string {
 func (TestMockVerifier) GetIdentifier() string {
 	return "testmockverifier"
 }
-func (TestMockVerifier) VerifyRequestIdentity(*fastjson.RawMessage) (bool, error) {
+func (TestMockVerifier) VerifyRequestIdentity(*bijson.RawMessage) (bool, error) {
 	return true, nil
 }
 

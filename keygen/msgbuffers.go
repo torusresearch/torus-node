@@ -1,15 +1,15 @@
 package keygen
 
 import (
+	"github.com/torusresearch/torus-public/idmutex"
 	"math/big"
-	"sync"
 
 	"github.com/torusresearch/torus-public/logging"
 )
 
 // Here we store by Key index to allow for faster fetching (less iteration) when accessing the buffer
 type KEYGENBuffer struct {
-	sync.Mutex
+	idmutex.Mutex
 	Buffer               map[string](map[string]*KEYGENMsgLog)   // keyIndex => nodeIndex => buffer
 	ReceivedDKGCompletes map[int](map[string]*KEYGENDKGComplete) // From int (array ) to M big.Int (in hex) to DKGComplete
 }

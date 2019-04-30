@@ -2,9 +2,9 @@ package logging
 
 import (
 	"fmt"
+	"github.com/torusresearch/torus-public/idmutex"
 	"io"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -60,7 +60,7 @@ type Logger interface {
 type logger struct {
 	Out io.Writer
 
-	mu    sync.Mutex
+	mu    idmutex.Mutex
 	Level LogLevel // Only log messages with LogLevel > Level stored here
 }
 

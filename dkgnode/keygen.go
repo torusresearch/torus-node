@@ -2,10 +2,10 @@ package dkgnode
 
 import (
 	// "fmt"
+	"github.com/torusresearch/torus-public/idmutex"
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	// "log"
 	"crypto/ecdsa"
@@ -75,7 +75,7 @@ type KEYGENProtocol struct {
 	requests        map[string]*P2PBasicMsg // used to access request data from response handlers
 	counters        map[string]*telemetry.Counter
 	MainChannel     chan string
-	sync.Mutex
+	idmutex.Mutex
 }
 
 type BFTKeygenMsg struct {

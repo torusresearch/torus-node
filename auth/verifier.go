@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"encoding/json"
 	"errors"
 
 	"github.com/torusresearch/bijson"
@@ -57,18 +56,10 @@ func (tgv *DefaultGeneralVerifier) Verify(rawMessage *bijson.RawMessage) (bool, 
 		return false, "", err
 	}
 	cleanedToken := v.CleanToken(verifyMessage.Token)
-	jsonMap := make(map[string]interface{})
-	err = json.Unmarshal(*rawMessage, &jsonMap)
-	if err != nil {
-		return false, "", err
+	if cleanedToken != verifyMessage.Token {
+		return false, "", errors.New("Cleaned token is different from original token")
 	}
-	jsonMap["token"] = cleanedToken
-	cleanedRawMessageBytes, err := bijson.Marshal(jsonMap)
-	if err != nil {
-		return false, "", err
-	}
-	cleanedRawMessage := bijson.RawMessage(cleanedRawMessageBytes)
-	return v.VerifyRequestIdentity(&cleanedRawMessage)
+	return v.VerifyRequestIdentity(rawMessage)
 }
 
 // Lookup returns the appropriate verifier

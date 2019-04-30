@@ -58,10 +58,9 @@ type (
 		Item []bijson.RawMessage
 	}
 	ShareRequestItem struct {
-		VerifierID         string          `json:"verifierid"`
 		Token              string          `json:"token"`
 		NodeSignatures     []NodeSignature `json:"nodesignatures"`
-		VerifierIdentifier string          `json:verifieridentifier`
+		VerifierIdentifier string          `json:"verifieridentifier"`
 	}
 	ShareRequestResult struct {
 		Keys []KeyAssignment

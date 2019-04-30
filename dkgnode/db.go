@@ -28,7 +28,7 @@ type TorusDB interface {
 	// StoreSecretMapping() error
 	// GetSecretMapping() error
 
-	RetrieveCompletedShare(keyIndex big.Int) (*big.Int, *big.Int, *common.Point, error)
+	RetrieveCompletedShare(keyIndex big.Int) (Si *big.Int, Siprime *big.Int, PublicKey *common.Point, err error)
 
 	keygen.AVSSKeygenStorage
 }

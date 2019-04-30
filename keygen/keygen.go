@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/looplab/fsm"
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/idmutex"
 	"github.com/torusresearch/torus-public/logging"
@@ -49,11 +50,11 @@ type KEYGENInitiate struct {
 
 type KEYGENShareComplete struct {
 	KeyIndex big.Int
-	c        big.Int
-	u1       big.Int
-	u2       big.Int
-	gsi      common.Point
-	gsihr    common.Point
+	C        big.Int
+	U1       big.Int
+	U2       big.Int
+	Gsi      common.Point
+	Gsihr    common.Point
 }
 
 type KEYGENDKGComplete struct {
@@ -166,12 +167,11 @@ const (
 	SNUnqualifiedNode          = "unqualified_node"
 
 	// State - KeyLog
-	SKWaitingForSend     = "waiting_for_sends"
-	SKWaitingForEchos    = "waiting_for_echos"
-	SKWaitingForReadys   = "waiting_for_readys"
-	SKValidSubshare      = "valid_subshare"
-	SKPerfectSubshare    = "perfect_subshare"
-	SKEchoReconstructing = "echo_reconstructing"
+	SKWaitingForSend   = "waiting_for_sends"
+	SKWaitingForEchos  = "waiting_for_echos"
+	SKWaitingForReadys = "waiting_for_readys"
+	SKValidSubshare    = "valid_subshare"
+	SKPerfectSubshare  = "perfect_subshare"
 )
 
 // KEYGEN Events (EK)
@@ -193,9 +193,7 @@ const (
 	// Events - KeyLog
 	EKSendEcho           = "send_echo"
 	EKSendReady          = "send_ready"
-	EKTReachedSubshare   = "t_reached_subshare"
 	EKAllReachedSubshare = "all_reached_subshare"
-	EKEchoReconstruct    = "echo_reconstruct"
 )
 
 func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, transport AVSSKeygenTransport, store AVSSKeygenStorage, auth AVSSAuth, comChannel chan string) (*KeygenInstance, error) {
@@ -296,11 +294,11 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					c, u1, u2, gs, gshr := pvss.GenerateNIZKPKWithCommitments(*si, *siprime)
 					keygenShareCompletes[i] = KEYGENShareComplete{
 						KeyIndex: keyIndex,
-						c:        c,
-						u1:       u1,
-						u2:       u2,
-						gsi:      gs,
-						gsihr:    gshr,
+						C:        c,
+						U1:       u1,
+						U2:       u2,
+						Gsi:      gs,
+						Gsihr:    gshr,
 					}
 				}
 
@@ -325,11 +323,11 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 				go func() {
 					// TODO: This theoritically should never need to happen as it is a BFT msg
 					// but we implement this retry to pass the tests?
-					time.Sleep(time.Second * 2)
+					time.Sleep(time.Second * 1)
 					if !ki.State.Is(SIKeygenCompleted) {
 						err := ki.State.Event(EIAllSubsharesDone)
 						if err != nil {
-							logging.Errorf("NODE"+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
+							logging.Debugf("NODE "+ki.NodeIndex.Text(16)+" Node %s Could not %s. Err: %s", EIAllSubsharesDone, err)
 						}
 
 					}
@@ -371,7 +369,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					count := 0
 					for fromNodeIndex, dkgComplete := range ki.ReceivedDKGCompleted {
 						count++
-						points = append(points, dkgComplete.Proofs[i].gsi)
+						points = append(points, dkgComplete.Proofs[i].Gsi)
 						tmp := big.Int{}
 						tmp.SetString(fromNodeIndex, 16)
 						indexes = append(indexes, int(tmp.Int64()))
@@ -463,10 +461,8 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 					SKWaitingForSend,
 					fsm.Events{
 						{Name: EKSendEcho, Src: []string{SKWaitingForSend}, Dst: SKWaitingForEchos},
-						{Name: EKSendReady, Src: []string{SKWaitingForEchos, SKEchoReconstructing}, Dst: SKWaitingForReadys},
-						{Name: EKTReachedSubshare, Src: []string{SKWaitingForReadys}, Dst: SKValidSubshare},
-						{Name: EKAllReachedSubshare, Src: []string{SKWaitingForReadys, SKValidSubshare}, Dst: SKPerfectSubshare},
-						{Name: EKEchoReconstruct, Src: []string{SKWaitingForSend}, Dst: SKEchoReconstructing},
+						{Name: EKSendReady, Src: []string{SKWaitingForSend, SKWaitingForEchos}, Dst: SKWaitingForReadys},
+						{Name: EKAllReachedSubshare, Src: []string{SKWaitingForReadys}, Dst: SKPerfectSubshare},
 					},
 					fsm.Callbacks{
 						"enter_state": func(e *fsm.Event) {
@@ -525,21 +521,15 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 									logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not sent KEYGENReady %s", err)
 								}
 							}
-						},
-						"after_" + EKTReachedSubshare: func(e *fsm.Event) {
-							ki.Lock()
-							defer ki.Unlock()
-							// to accomodate for when EKTReachedSubshare gets called after EKAllReachedSubshare
+
+							// TODO: Solve Concurrency Janky issues for when EKAllReachedSubshare occurs before EKSendReady
 							if len(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedReadys) == ki.Threshold+ki.NumMalNodes {
-								// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
-								// if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
 								go func(innerKeyLog *KEYGENLog) {
 									err := innerKeyLog.SubshareState.Event(EKAllReachedSubshare)
 									if err != nil {
-										logging.Error(err.Error())
+										logging.Debug(err.Error())
 									}
 								}(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)])
-								// }
 							}
 						},
 						"after_" + EKAllReachedSubshare: func(e *fsm.Event) {
@@ -570,59 +560,6 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 								}(ki.State)
 							}
 						},
-						"after_" + EKEchoReconstruct: func(e *fsm.Event) {
-							ki.Lock()
-							defer ki.Unlock()
-							count := 0
-							// prepare for derivation of polynomial
-							aiyPoints := make([]common.Point, ki.Threshold)
-							aiprimeyPoints := make([]common.Point, ki.Threshold)
-							bixPoints := make([]common.Point, ki.Threshold)
-							biprimexPoints := make([]common.Point, ki.Threshold)
-
-							for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedEchoes {
-								if count < ki.Threshold {
-									fromNodeInt := big.Int{}
-									fromNodeInt.SetString(k, 16)
-									aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
-									aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
-									bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
-									biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
-								}
-								count++
-							}
-
-							aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
-							aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
-							bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
-							biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
-							ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
-								KeyIndex: *index,
-								AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
-								AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
-								BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
-								BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
-							}
-
-							correctPoly := pvss.AVSSVerifyPoly(
-								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
-								ki.NodeIndex,
-								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
-								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
-								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
-								ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
-							)
-							if !correctPoly {
-								logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
-							}
-							// Now we send our readys
-							go func(keyLog *KEYGENLog) {
-								err := keyLog.SubshareState.Event(EKSendReady)
-								if err != nil {
-									logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not change subshare state: %s", err)
-								}
-							}(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)])
-						},
 						// Below functions are for the state machines to catch up on previously sent messages using
 						// MsgBuffer We dont need to lock as msg buffer should do so
 						"enter_" + SKWaitingForSend: func(e *fsm.Event) {
@@ -646,6 +583,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 								intNodeIndex.SetString(from, 16)
 								go (ki).OnKEYGENReady(*ready, intNodeIndex)
 							}
+
 						},
 					},
 				),
@@ -788,21 +726,57 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 		if ki.Threshold <= len(keyLog.ReceivedEchoes) && ratio <= len(keyLog.ReceivedEchoes) {
 			// since threshoold and above
 
-			// we etiher send ready
+			// First we interpolate valid keygenEchos to keygenSend
+			// prepare for derivation of polynomial
+			index := &msg.KeyIndex
+			nodeIndex := msg.Dealer
+			aiyPoints := make([]common.Point, ki.Threshold)
+			aiprimeyPoints := make([]common.Point, ki.Threshold)
+			bixPoints := make([]common.Point, ki.Threshold)
+			biprimexPoints := make([]common.Point, ki.Threshold)
+			count := 0
+
+			for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedEchoes {
+				if count < ki.Threshold {
+					fromNodeInt := big.Int{}
+					fromNodeInt.SetString(k, 16)
+					aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
+					aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
+					bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
+					biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
+				}
+				count++
+			}
+
+			aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
+			aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
+			bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
+			biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
+			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
+				KeyIndex: *index,
+				AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
+				AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
+				BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
+				BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
+			}
+
+			correctPoly := pvss.AVSSVerifyPoly(
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
+				ki.NodeIndex,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
+			)
+			if !correctPoly {
+				logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
+			}
+
 			// if keyLog.SubshareState.Is(SKWaitingForEchos) {
 			go func(innerKeyLog *KEYGENLog) {
 				err := innerKeyLog.SubshareState.Event(EKSendReady)
 				if err != nil {
 					logging.Error(err.Error())
-				}
-			}(keyLog)
-			// }
-			// Or here we cater for reconstruction in the case of malcious nodes refusing to send KEYGENSend
-			// if keyLog.SubshareState.Is(SKWaitingForSend) {
-			go func(innerKeyLog *KEYGENLog) {
-				err := innerKeyLog.SubshareState.Event(EKEchoReconstruct)
-				if err != nil {
-					logging.Debug(err.Error())
 				}
 			}(keyLog)
 			// }
@@ -842,28 +816,73 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 		keyLog.ReceivedReadys[fromNodeIndex.Text(16)] = msg
 
 		// if we've reached the required number of readys
-		if ki.Threshold <= len(keyLog.ReceivedReadys) {
-			// if keyLog.SubshareState.Is(SKWaitingForReadys) {
-			go func(innerKeyLog *KEYGENLog, keyIndex string, dealer string) {
-				err := innerKeyLog.SubshareState.Event(EKTReachedSubshare, keyIndex, dealer)
+		if ki.Threshold == len(keyLog.ReceivedReadys) {
+			// First we interpolate valid keygenEchos to keygenSend
+			// prepare for derivation of polynomial
+			index := &msg.KeyIndex
+			nodeIndex := msg.Dealer
+			aiyPoints := make([]common.Point, ki.Threshold)
+			aiprimeyPoints := make([]common.Point, ki.Threshold)
+			bixPoints := make([]common.Point, ki.Threshold)
+			biprimexPoints := make([]common.Point, ki.Threshold)
+			count := 0
+
+			for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedReadys {
+				if count < ki.Threshold {
+					fromNodeInt := big.Int{}
+					fromNodeInt.SetString(k, 16)
+					aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
+					aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
+					bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
+					biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
+				}
+				count++
+			}
+
+			aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
+			aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
+			bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
+			biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
+			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
+				KeyIndex: *index,
+				AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
+				AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
+				BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
+				BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
+			}
+
+			correctPoly := pvss.AVSSVerifyPoly(
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
+				ki.NodeIndex,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
+				ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
+			)
+			if !correctPoly {
+				logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
+			}
+
+			go func(innerKeyLog *KEYGENLog) {
+				err := innerKeyLog.SubshareState.Event(EKSendReady)
+				if err != nil {
+					logging.Error(err.Error())
+				}
+			}(keyLog)
+		}
+
+		if len(keyLog.ReceivedReadys) == ki.Threshold+ki.NumMalNodes {
+			// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
+			// if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
+			go func(innerKeyLog *KEYGENLog) {
+				err := innerKeyLog.SubshareState.Event(EKAllReachedSubshare)
 				if err != nil {
 					logging.Debug(err.Error())
 				}
-			}(keyLog, msg.KeyIndex.Text(16), msg.Dealer.Text(16))
+			}(keyLog)
 			// }
-
-			if len(keyLog.ReceivedReadys) == ki.Threshold+ki.NumMalNodes {
-				// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
-				// if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
-				go func(innerKeyLog *KEYGENLog) {
-					err := innerKeyLog.SubshareState.Event(EKAllReachedSubshare)
-					if err != nil {
-						logging.Debug(err.Error())
-					}
-				}(keyLog)
-				// }
-			}
 		}
+
 	} else {
 		ki.MsgBuffer.StoreKEYGENReady(msg, fromNodeIndex)
 	}
@@ -898,7 +917,7 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 			return errors.New("Faulty key index on OnKEYGENDKGComplete")
 		}
 		// by first verifying NIZKPK Proof
-		if !pvss.VerifyNIZKPK(keygenShareCom.c, keygenShareCom.u1, keygenShareCom.u2, keygenShareCom.gsi, keygenShareCom.gsihr) {
+		if !pvss.VerifyNIZKPK(keygenShareCom.C, keygenShareCom.U1, keygenShareCom.U2, keygenShareCom.Gsi, keygenShareCom.Gsihr) {
 			return errors.New("Faulty NIZKPK Proof on OnKEYGENDKGComplete")
 		}
 
@@ -920,7 +939,7 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 		}
 
 		// test commmitment
-		if !pvss.AVSSVerifyShareCommitment(sumCommitments, fromNodeIndex, keygenShareCom.gsihr) {
+		if !pvss.AVSSVerifyShareCommitment(sumCommitments, fromNodeIndex, keygenShareCom.Gsihr) {
 			return errors.New("Faulty Share Commitment OnKEYGENDKGComplete")
 		}
 
@@ -928,6 +947,8 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 		for keyIndex, key := range msg.ReadySignatures {
 			for dealerIndex, dealer := range key {
 				if len(dealer) < ki.Threshold+ki.NumMalNodes {
+					b, _ := bijson.MarshalIndent(msg, "", "\t")
+					fmt.Println("From: ", fromNodeIndex.Text(16), string(b))
 					return errors.New("Not enough ready statements")
 				}
 				for signerIndex, sig := range dealer {

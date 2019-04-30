@@ -73,11 +73,9 @@ func TestOptimisticKeygen(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		go func(nIndex big.Int) {
 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
-			defer func() {
-				if err != nil {
-					t.Logf("Initiate Keygen error: %s", err)
-				}
-			}()
+			if err != nil {
+				t.Fatalf("Initiate Keygen error: %s", err)
+			}
 		}(nodeIndex)
 	}
 
@@ -179,11 +177,9 @@ func TestTimeboundOne(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		go func(nIndex big.Int) {
 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
-			defer func() {
-				if err != nil {
-					t.Logf("Initiate Keygen error: %s", err)
-				}
-			}()
+			if err != nil {
+				t.Fatalf("Initiate Keygen error: %s", err)
+			}
 		}(nodeIndex)
 	}
 
@@ -414,7 +410,7 @@ func TestEchoReconstruction(t *testing.T) {
 	comsChannel := make(chan string)
 	numOfNodes := 5
 	threshold := 3
-	malNodes := 0
+	malNodes := 1
 	numKeys := 1
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
@@ -452,7 +448,7 @@ func TestEchoReconstruction(t *testing.T) {
 		auth := nodeAuth{nodeIndex, pubKeys, privKeys}
 		v.Auth = &auth
 		transport := mockTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances}
-		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 {
+		if nodeIndex.Cmp(big.NewInt(int64(1))) == 0 { // node 1 ignores node 2
 			v.Transport = &mockEvilTransport{nodeIndex: nodeIndex, nodeKegenInstances: &nodeKegenInstances, ignore: nodeList[1]}
 		} else {
 			v.Transport = &transport
@@ -465,11 +461,9 @@ func TestEchoReconstruction(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		go func(nIndex big.Int) {
 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
-			defer func() {
-				if err != nil {
-					t.Logf("Initiate Keygen error: %s", err)
-				}
-			}()
+			if err != nil {
+				t.Fatalf("Initiate Keygen error: %s", err)
+			}
 		}(nodeIndex)
 	}
 
@@ -486,8 +480,7 @@ func TestEchoReconstruction(t *testing.T) {
 				done = true
 			}
 		}
-		if count >= len(nodeList) || done { // accounted for here
-
+		if count == len(nodeList) || done { // accounted for here
 			break
 		}
 	}
@@ -573,11 +566,9 @@ func TestDKGCompleteSync(t *testing.T) {
 	for _, nodeIndex := range nodeList {
 		go func(nIndex big.Int) {
 			err := nodeKegenInstances[nIndex.Text(16)].InitiateKeygen()
-			defer func() {
-				if err != nil {
-					t.Logf("Initiate Keygen error: %s", err)
-				}
-			}()
+			if err != nil {
+				t.Fatalf("Initiate Keygen error: %s", err)
+			}
 		}(nodeIndex)
 	}
 	// wait till nodes are done (w/o malicious node)

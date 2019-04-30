@@ -409,8 +409,8 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 				{Name: ENInitiateKeygen, Src: []string{SNStandby}, Dst: SNKeygening},
 				{Name: ENValidShares, Src: []string{SNKeygening}, Dst: SNQualifiedNode},
 				{Name: ENFailedRoundOne, Src: []string{SNStandby}, Dst: SNUnqualifiedNode},
-				{Name: ENFailedRoundTwo, Src: []string{SNStandby, SNKeygening}, Dst: SNUnqualifiedNode},
-				{Name: ENSyncKEYGENComplete, Src: []string{SNKeygening, SNQualifiedNode}, Dst: SNSyncedShareComplete},
+				// {Name: ENFailedRoundTwo, Src: []string{SNStandby, SNKeygening}, Dst: SNUnqualifiedNode},
+				// {Name: ENSyncKEYGENComplete, Src: []string{SNKeygening, SNQualifiedNode}, Dst: SNSyncedShareComplete},
 			},
 			fsm.Callbacks{
 				"enter_state": func(e *fsm.Event) {
@@ -465,7 +465,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 						{Name: EKSendEcho, Src: []string{SKWaitingForSend}, Dst: SKWaitingForEchos},
 						{Name: EKSendReady, Src: []string{SKWaitingForEchos, SKEchoReconstructing}, Dst: SKWaitingForReadys},
 						{Name: EKTReachedSubshare, Src: []string{SKWaitingForReadys}, Dst: SKValidSubshare},
-						{Name: EKAllReachedSubshare, Src: []string{SKValidSubshare}, Dst: SKPerfectSubshare},
+						{Name: EKAllReachedSubshare, Src: []string{SKWaitingForReadys, SKValidSubshare}, Dst: SKPerfectSubshare},
 						{Name: EKEchoReconstruct, Src: []string{SKWaitingForSend}, Dst: SKEchoReconstructing},
 					},
 					fsm.Callbacks{
@@ -530,7 +530,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 							ki.Lock()
 							defer ki.Unlock()
 							// to accomodate for when EKTReachedSubshare gets called after EKAllReachedSubshare
-							if len(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedReadys) == len(ki.NodeLog) {
+							if len(ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedReadys) == ki.Threshold+ki.NumMalNodes {
 								// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
 								// if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
 								go func(innerKeyLog *KEYGENLog) {

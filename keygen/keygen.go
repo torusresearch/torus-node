@@ -292,7 +292,7 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 
 func (ki *KeygenInstance) prepareAndSendKEYGENSend() error {
 	// send all KEGENSends to  respective nodes
-	logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " Sending KEYGENSends")
+	// logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " Sending KEYGENSends")
 	for i := int(ki.StartIndex.Int64()); i < ki.NumOfKeys+int(ki.StartIndex.Int64()); i++ {
 		keyIndex := big.NewInt(int64(i))
 		committedSecrets := ki.Secrets[keyIndex.Text(16)]
@@ -591,7 +591,6 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 }
 
 func (ki *KeygenInstance) finalizeSubshare(nodeIndex big.Int) {
-	logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " finalize subshare")
 	// Add to counts
 	ki.SubsharesComplete++
 	ki.NodeLog[nodeIndex.Text(16)]++

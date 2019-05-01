@@ -654,8 +654,8 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 	for i, commitmentMatrix := range msg.CommitmentMatrixes {
 		index := big.NewInt(int64(i))
 		index.Add(index, &ki.StartIndex)
-		if len(commitmentMatrix) != ki.Threshold-1 || len(commitmentMatrix[0]) != ki.Threshold-1 {
-			return errors.New("commitment matrix not the same threshold")
+		if len(commitmentMatrix) != ki.Threshold || len(commitmentMatrix[0]) != ki.Threshold {
+			return fmt.Errorf("commitment matrix not the same threshold, expected: %v, got: %v", ki.Threshold, len(commitmentMatrix))
 		}
 		//reject commitment matrix if we have stored it before
 		if ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C != nil {

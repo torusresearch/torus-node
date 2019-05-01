@@ -2,15 +2,18 @@ package dkgnode
 
 import (
 	// "fmt"
-	"github.com/torusresearch/torus-public/idmutex"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/torusresearch/torus-public/idmutex"
+
 	// "log"
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
+
 	// uuid "github.com/google/uuid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	inet "github.com/libp2p/go-libp2p-net"
@@ -18,6 +21,7 @@ import (
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	tmcmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/torusresearch/bijson"
+
 	// "github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/keygen"
 	"github.com/torusresearch/torus-public/logging"
@@ -37,6 +41,11 @@ var keygenConsts = keygenConstants{
 	// bft keygen msg types
 	Initiate: "keygeninitiate",
 	Complete: "keygendkgcomplete",
+}
+
+type KEYGENTransport struct {
+	Protocol  *KEYGENProtocol
+	ProtoName protocol.ID
 }
 
 type keygenConstants struct {
@@ -377,6 +386,7 @@ func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) (bool, []tmcmn.KVPair) {
 			logging.Fatal(err.Error())
 			return false, nil
 		}
+		// logging.Debugf("DKGComplete: %s", string(bftMsg.Payload))
 
 		err = ki.OnKEYGENDKGComplete(*payload, nodeIndex)
 		if err != nil {
@@ -411,11 +421,6 @@ func (kp *KEYGENProtocol) Verify(text string, nodeIndex big.Int, signature []byt
 	}
 
 	return ECDSAVerifyFromRaw(text, nodePK, signature)
-}
-
-type KEYGENTransport struct {
-	Protocol  *KEYGENProtocol
-	ProtoName protocol.ID
 }
 
 func (kt *KEYGENTransport) SendKEYGENSend(msg keygen.KEYGENSend, nodeIndex big.Int) error {
@@ -521,7 +526,7 @@ func (kt *KEYGENTransport) BroadcastKEYGENDKGComplete(msg keygen.KEYGENDKGComple
 	if err != nil {
 		return errors.New("Could not marshal: " + err.Error())
 	}
-	tempP2P := kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Initiate)
+	tempP2P := kt.Protocol.localHost.NewP2PMessage(HashToString(plBytes), false, plBytes, keygenConsts.Complete)
 	bftMsg := BFTKeygenMsg{
 		P2PBasicMsg: *tempP2P,
 		Protocol:    string(kt.ProtoName),

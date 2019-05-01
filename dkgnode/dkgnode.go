@@ -284,7 +284,6 @@ func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
 			}
 		}
 	}
-
 }
 
 func ProvideGenDoc(doc *tmtypes.GenesisDoc) tmnode.GenesisDocProvider {

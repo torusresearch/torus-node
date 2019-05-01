@@ -68,15 +68,15 @@ type KEYGENDKGComplete struct {
 
 // KeyIndex => NodeIndex => KEYGENLog
 type KEYGENLog struct {
-	KeyIndex               big.Int
-	NodeIndex              big.Int
-	C                      [][]common.Point               // big.Int (in hex) to Commitment matrix
-	ReceivedSend           *KEYGENSend                    // Polynomials for respective commitment matrix.
-	ReceivedEchoes         map[string]KEYGENEcho          // From(M) big.Int (in hex) to Echo
-	ReceivedReadys         map[string]KEYGENReady         // From(M) big.Int (in hex) to Ready
-	ReceivedShareCompletes map[string]KEYGENShareComplete // From(M) big.Int (in hex) to ShareComplete
-	SentEcho               bool                           // Tracking of sent ready
-	SentReady              bool                           // Tracking of sent ready
+	KeyIndex       big.Int
+	NodeIndex      big.Int
+	C              [][]common.Point       // big.Int (in hex) to Commitment matrix
+	ReceivedSend   *KEYGENSend            // Polynomials for respective commitment matrix.
+	ReceivedEchoes map[string]KEYGENEcho  // From(M) big.Int (in hex) to Echo
+	ReceivedReadys map[string]KEYGENReady // From(M) big.Int (in hex) to Ready
+	// ReceivedShareCompletes map[string]KEYGENShareComplete // From(M) big.Int (in hex) to ShareComplete
+	SentEcho  bool // Tracking of sent ready
+	SentReady bool // Tracking of sent ready
 }
 
 // KeyIndex => KEYGENSecrets
@@ -198,11 +198,11 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 				KeyIndex:  *index,
 				NodeIndex: nodeIndex,
 				// C:                      commitmentMatrix,
-				ReceivedEchoes:         make(map[string]KEYGENEcho),          // From(M) big.Int (in hex) to Echo
-				ReceivedReadys:         make(map[string]KEYGENReady),         // From(M) big.Int (in hex) to Ready
-				ReceivedShareCompletes: make(map[string]KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
-				SentEcho:               false,
-				SentReady:              false,
+				ReceivedEchoes: make(map[string]KEYGENEcho),  // From(M) big.Int (in hex) to Echo
+				ReceivedReadys: make(map[string]KEYGENReady), // From(M) big.Int (in hex) to Ready
+				// ReceivedShareCompletes: make(map[string]KEYGENShareComplete), // From(M) big.Int (in hex) to ShareComplete
+				SentEcho:  false,
+				SentReady: false,
 			}
 		}
 	}
@@ -790,7 +790,6 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 		ki.endKeygen()
 	}
 
-	// // gshr should be a point on the sum commitment matix
 	return nil
 }
 
@@ -807,6 +806,7 @@ func (ki *KeygenInstance) endKeygen() {
 			ki.Lock()
 			defer ki.Unlock()
 			time.Sleep(retryEndingKeygen * time.Second)
+			// if not retry later
 			ki.endKeygen()
 		}()
 		return

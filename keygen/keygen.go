@@ -370,12 +370,10 @@ func (ki *KeygenInstance) prepareAndSendKEYGENSend() error {
 func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " got keygen send")
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 	if !ok {
 		return errors.New("Keylog not found for keygen send")
 	}
-	// if ok && keyLog.SubshareState.Is(SKWaitingForSend) {
 	// we verify keygen, if valid we log it here. Then we send an echo
 	if !pvss.AVSSVerifyPoly(
 		keyLog.C,
@@ -401,9 +399,6 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 		}
 	}
 
-	// } else {
-	// 	ki.MsgBuffer.StoreKEYGENSend(msg, fromNodeIndex)
-	// }
 	return nil
 }
 
@@ -439,8 +434,6 @@ func (ki *KeygenInstance) prepareAndSendKEYGENEchoFor(keyIndex big.Int, nodeInde
 func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " got keygen echo")
-	// if ki.State.Is(SIRunningKeygen) {
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 	if !ok {
 		return errors.New("Keylog not found OnKEYGENEcho")
@@ -519,9 +512,6 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 			logging.Errorf("NODE"+ki.NodeIndex.Text(16)+"Could not sent KEYGENReady %s", err)
 		}
 	}
-	// } else {
-	// 	ki.MsgBuffer.StoreKEYGENEcho(msg, fromNodeIndex)
-	// }
 	return nil
 }
 
@@ -566,7 +556,6 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	if !ki.Auth.Verify(readyPrefix+msg.KeyIndex.Text(16)+msg.Dealer.Text(16), fromNodeIndex, msg.ReadySig) {
 		return errors.New("Ready Signature is not right")
 	}
-	// if ki.State.Is(SIRunningKeygen) {
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 	if !ok {
 		return errors.New("Keylog not found OnKEYGENReady")
@@ -645,15 +634,6 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 
 	if len(keyLog.ReceivedReadys) == ki.Threshold+ki.NumMalNodes {
 		ki.finalizeSubshare(msg.Dealer)
-		// keyLog.SubshareState.Is(SKWaitingForReadys) is to cater for when KEYGENReady is logged too fast and it isnt enough to call OnKEYGENReady twice?
-		// // if keyLog.SubshareState.Is(SKValidSubshare) || keyLog.SubshareState.Is(SKWaitingForReadys) {
-		// go func(innerKeyLog *KEYGENLog) {
-		// 	err := innerKeyLog.SubshareState.Event(EKAllReachedSubshare)
-		// 	if err != nil {
-		// 		logging.Debug(err.Error())
-		// 	}
-		// }(keyLog)
-		// }
 	}
 
 	return nil
@@ -744,7 +724,6 @@ func (ki *KeygenInstance) prepareAndSendKEYGENDKGComplete() {
 func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " got dkg complete")
 	if len(msg.Proofs) != ki.NumOfKeys {
 		return errors.New("length of proofs is not correct")
 	}

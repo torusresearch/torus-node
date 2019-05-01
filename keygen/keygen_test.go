@@ -35,7 +35,7 @@ func TestOptimisticKeygen(t *testing.T) {
 	numOfNodes := 9
 	threshold := 5
 	malNodes := 2
-	numKeys := 5
+	numKeys := 3
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	pubKeys := make(map[string]*common.Point)
@@ -129,7 +129,7 @@ func TestTimeboundOne(t *testing.T) {
 	numOfNodes := 9
 	threshold := 5
 	malNodes := 2
-	numKeys := 5
+	numKeys := 3
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	done := false

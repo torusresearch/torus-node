@@ -327,6 +327,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	if !ok {
 		return errors.New("Keylog not found for keygen send")
 	}
+	// If C isnt in
 	if keyLog.C == nil {
 		go func() {
 			time.Sleep(retryKEYGENSend * time.Second)

@@ -152,6 +152,7 @@ type KeygenInstance struct {
 
 const retryBroadcastingKEYGENDKGComplete = 1
 const retryEndingKeygen = 1
+const retryKEYGENSend = 1
 const readyPrefix = "mug"
 const SIKeygenCompleted = "keygen_completed"
 
@@ -325,6 +326,16 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][fromNodeIndex.Text(16)]
 	if !ok {
 		return errors.New("Keylog not found for keygen send")
+	}
+	if keyLog.C == nil {
+		go func() {
+			time.Sleep(retryKEYGENSend * time.Second)
+			err := ki.OnKEYGENSend(msg, fromNodeIndex)
+			if err != nil {
+				logging.Debugf(err.Error())
+			}
+		}()
+		return errors.New("havent registered commitment matrix yet")
 	}
 	// we verify keygen, if valid we log it here. Then we send an echo
 	if !pvss.AVSSVerifyPoly(
@@ -823,7 +834,6 @@ func (ki *KeygenInstance) endKeygen() {
 	}
 	// Communicate Keygen Completion
 	completionMsg := SIKeygenCompleted + "|" + ki.StartIndex.Text(10) + "|" + strconv.Itoa(ki.NumOfKeys)
-	logging.Debugf("This runs: %s", completionMsg)
-	logging.Debugf("Nujm of keys %v", ki.NumOfKeys)
+	logging.Debugf("KeygenComplete: %s", completionMsg)
 	ki.ComChannel <- completionMsg
 }

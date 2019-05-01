@@ -131,10 +131,9 @@ type AVSSAuth interface {
 type KeygenInstance struct {
 	idmutex.Mutex
 	NodeIndex            big.Int
-	Threshold            int // in AVSS Paper this is k
-	NumMalNodes          int // in AVSS Paper this is t
-	TotalNodes           int // in AVSS Paper this is n
-	State                string
+	Threshold            int                                // in AVSS Paper this is k
+	NumMalNodes          int                                // in AVSS Paper this is t
+	TotalNodes           int                                // in AVSS Paper this is n
 	NodeLog              map[string]int                     // nodeindex => count of PerfectSubshares
 	UnqualifiedNodes     map[string]int                     // nodeindex => count of PerfectSubshares
 	KeyLog               map[string](map[string]*KEYGENLog) // keyindex => nodeindex => log
@@ -154,52 +153,7 @@ type KeygenInstance struct {
 const retryBroadcastingKEYGENDKGComplete = 1
 const retryEndingKeygen = 1
 const readyPrefix = "mug"
-
-// KEYGEN STATES (SK)
-const (
-	// State - Internal
-	SIWaitingInitiateKeygen   = "waiting_initiate_keygen"
-	SIRunningKeygen           = "running_keygen"
-	SIWaitingToFinishUpKeygen = "waiting_to_finish_up_keygen"
-	SIKeygenCompleted         = "keygen_completed"
-
-	// For State - node log
-	SNStandby                  = "standby"
-	SNKeygening                = "keygening"
-	SNQualifiedNode            = "qualified_node"
-	SNInculdedInKEYGENComplete = "included_in_keygen_complete"
-	SNSyncedShareComplete      = "synced_share_complete"
-	SNUnqualifiedNode          = "unqualified_node"
-
-	// State - KeyLog
-	SKWaitingForSend   = "waiting_for_sends"
-	SKWaitingForEchos  = "waiting_for_echos"
-	SKWaitingForReadys = "waiting_for_readys"
-	SKValidSubshare    = "valid_subshare"
-	SKPerfectSubshare  = "perfect_subshare"
-)
-
-// KEYGEN Events (EK)
-const (
-	// Internal Events
-	EIAllInitiateKeygen       = "all_initiate_keygen"
-	EIAllSubsharesDone        = "all_subshares_done"
-	EIGotAllKeygenDKGComplete = "got_all_keygen_dkg_complete"
-
-	// For node log events
-	ENInitiateKeygen      = "initiate_keygen"
-	ENValidShares         = "valid_shares"
-	ENFailedRoundOne      = "failed_round_one"
-	ENFailedRoundTwo      = "failed_round_two"
-	ENSentKEYGENComplete  = "sent_share_complete"
-	ENSyncKEYGENComplete  = "sync_keygen_complete"
-	ENResetKEYGENComplete = "reset_keygen_complete"
-
-	// Events - KeyLog
-	EKSendEcho           = "send_echo"
-	EKSendReady          = "send_ready"
-	EKAllReachedSubshare = "all_reached_subshare"
-)
+const SIKeygenCompleted = "keygen_completed"
 
 func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, threshold int, numMalNodes int, nodeIndex big.Int, transport AVSSKeygenTransport, store AVSSKeygenStorage, auth AVSSAuth, comChannel chan string) (*KeygenInstance, error) {
 	ki := &KeygenInstance{}
@@ -222,8 +176,6 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 	// Initialize buffer
 	ki.MsgBuffer = KEYGENBuffer{}
 	ki.MsgBuffer.InitializeMsgBuffer(startingIndex, numOfKeys, nodeIndexes)
-	// We start initiate keygen state at waiting_initiate_keygen
-	ki.State = ""
 
 	// Node Log FSM tracks the state of other nodes involved in this Keygen phase
 	for _, nodeIndex := range nodeIndexes {
@@ -552,7 +504,6 @@ func (ki *KeygenInstance) prepareAndSendKEYGENReadyFor(keyIndex big.Int, dealerI
 func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	logging.Debugf("NODE" + ki.NodeIndex.Text(16) + " got keygen ready")
 	if !ki.Auth.Verify(readyPrefix+msg.KeyIndex.Text(16)+msg.Dealer.Text(16), fromNodeIndex, msg.ReadySig) {
 		return errors.New("Ready Signature is not right")
 	}
@@ -834,13 +785,10 @@ func (ki *KeygenInstance) endKeygen() {
 		// form  Si
 		si := big.NewInt(int64(0))
 		siprime := big.NewInt(int64(0))
-		logging.Debugf(fmt.Sprintf("FinalNodeList: %v", ki.FinalNodeSet))
-		logging.Debugf(fmt.Sprintf("Node: %v", ki.NodeIndex))
 		for _, nodeIndex := range ki.FinalNodeSet {
 			// add up subshares for qualified set
 
 			v := ki.KeyLog[keyIndex.Text(16)][nodeIndex]
-			logging.Debugf(fmt.Sprintf("From node %v ReceivedSends: %v", nodeIndex, v.ReceivedSend))
 			si.Add(si, &v.ReceivedSend.AIY.Coeff[0])
 			siprime.Add(siprime, &v.ReceivedSend.AIprimeY.Coeff[0])
 		}

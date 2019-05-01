@@ -336,7 +336,7 @@ func (ki *KeygenInstance) OnKEYGENSend(msg KEYGENSend, fromNodeIndex big.Int) er
 				logging.Debugf(err.Error())
 			}
 		}()
-		return errors.New("havent registered commitment matrix yet")
+		return errors.New("for send havent registered commitment matrix yet")
 	}
 	// we verify keygen, if valid we log it here. Then we send an echo
 	if !pvss.AVSSVerifyPoly(
@@ -401,6 +401,17 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 	if !ok {
 		return errors.New("Keylog not found OnKEYGENEcho")
+	}
+	// If C isnt in
+	if keyLog.C == nil {
+		go func() {
+			time.Sleep(retryKEYGENSend * time.Second)
+			err := ki.OnKEYGENEcho(msg, fromNodeIndex)
+			if err != nil {
+				logging.Debugf(err.Error())
+			}
+		}()
+		return errors.New("for echo havent registered commitment matrix yet")
 	}
 	// verify echo, if correct log echo. If there are more then threshold Echos we send ready
 	if !pvss.AVSSVerifyPoint(
@@ -522,6 +533,17 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 	keyLog, ok := ki.KeyLog[msg.KeyIndex.Text(16)][msg.Dealer.Text(16)]
 	if !ok {
 		return errors.New("Keylog not found OnKEYGENReady")
+	}
+	// If C isnt in
+	if keyLog.C == nil {
+		go func() {
+			time.Sleep(retryKEYGENSend * time.Second)
+			err := ki.OnKEYGENReady(msg, fromNodeIndex)
+			if err != nil {
+				logging.Debugf(err.Error())
+			}
+		}()
+		return errors.New("for ready havent registered commitment matrix yet")
 	}
 	// we verify ready, if right we log and check if we have enough readys to validate shares
 	if !pvss.AVSSVerifyPoint(

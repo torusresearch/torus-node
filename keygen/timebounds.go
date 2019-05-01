@@ -35,10 +35,6 @@ func (ki *KeygenInstance) TriggerRoundOneTimebound() error {
 
 	// sendKEYGENSends keygen with qualified set
 	ki.prepareAndSendKEYGENSend()
-	// err := ki.State.Event(EIAllInitiateKeygen)
-	// if err != nil {
-	// 	logging.Errorf("Error initiating keygen with smaller set: %v", err)
-	// }
 
 	return nil
 }

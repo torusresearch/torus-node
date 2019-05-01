@@ -134,7 +134,7 @@ type KeygenInstance struct {
 	TotalNodes           int // in AVSS Paper this is n
 	State                string
 	NodeLog              map[string]int                     // nodeindex => count of PerfectSubshares
-	UnqualifiedNodes     map[string]string                  // nodeindex => fsm equivilent to unqualified set
+	UnqualifiedNodes     map[string]int                     // nodeindex => count of PerfectSubshares
 	KeyLog               map[string](map[string]*KEYGENLog) // keyindex => nodeindex => log
 	Secrets              map[string]KEYGENSecrets           // keyindex => KEYGENSecrets
 	StartIndex           big.Int
@@ -562,7 +562,7 @@ func NewAVSSKeygen(startingIndex big.Int, numOfKeys int, nodeIndexes []big.Int, 
 	ki.SubsharesComplete = 0
 	ki.ReceivedDKGCompleted = make(map[string]*KEYGENDKGComplete)
 	ki.NodeLog = make(map[string]int)
-	ki.UnqualifiedNodes = make(map[string]string)
+	ki.UnqualifiedNodes = make(map[string]int)
 	ki.Transport = transport
 	ki.Store = store
 	ki.Auth = auth
@@ -673,8 +673,8 @@ func (ki *KeygenInstance) OnInitiateKeygen(msg KEYGENInitiate, nodeIndex big.Int
 
 	// if all of the commitments are in, lets start sending KeygenSends
 	allIn := true
-	for index, dealers := range ki.KeyLog {
-		for nodeIndexStr, subKey := range dealers {
+	for _, dealers := range ki.KeyLog {
+		for _, subKey := range dealers {
 			if subKey.C == nil {
 				allIn = false
 			}

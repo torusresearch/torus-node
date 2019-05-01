@@ -7,25 +7,25 @@ import (
 	"github.com/torusresearch/torus-public/common"
 )
 
-// Check if its is a qualified node in this keygen instance
-func (ki *KeygenInstance) isQualifiedNode(nodeIndex string) (bool, error) {
-	nodeLog, ok := ki.NodeLog[nodeIndex]
-	if !ok {
-		return false, errors.New("Node does not exist in keygen")
-	}
+// // Check if its is a qualified node in this keygen instance
+// func (ki *KeygenInstance) isQualifiedNode(nodeIndex string) (bool, error) {
+// 	nodeLog, ok := ki.NodeLog[nodeIndex]
+// 	if !ok {
+// 		return false, errors.New("Node does not exist in keygen")
+// 	}
 
-	if nodeLog.Is(SNUnqualifiedNode) {
-		return false, errors.New("Node is unqualified")
-	}
-	return true, nil
-}
+// 	if nodeLog.Is(SNUnqualifiedNode) {
+// 		return false, errors.New("Node is unqualified")
+// 	}
+// 	return true, nil
+// }
 
-// For external use - Check if its is a qualified node in this keygen instance
-func (ki *KeygenInstance) IsQualifiedNode(nodeIndex string) (bool, error) {
-	ki.Lock()
-	defer ki.Unlock()
-	return ki.isQualifiedNode(nodeIndex)
-}
+// // For external use - Check if its is a qualified node in this keygen instance
+// func (ki *KeygenInstance) IsQualifiedNode(nodeIndex string) (bool, error) {
+// 	ki.Lock()
+// 	defer ki.Unlock()
+// 	return ki.isQualifiedNode(nodeIndex)
+// }
 
 func (ki *KeygenInstance) removeNodeFromQualifedSet(index string) error {
 	//remove node from qualified set

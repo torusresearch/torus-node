@@ -711,7 +711,7 @@ func (ki *KeygenInstance) prepareAndSendKEYGENDKGComplete() {
 func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
-	logging.Debugf("DKGComplete: verifying in keygen")
+	logging.Debugf("DKGComplete: verifying in keygen from %s", fromNodeIndex.Text(16))
 	if len(msg.Proofs) != ki.NumOfKeys {
 		return errors.New("length of proofs is not correct")
 	}

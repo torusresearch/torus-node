@@ -689,6 +689,7 @@ func (ki *KeygenInstance) prepareAndSendKEYGENDKGComplete() {
 		}
 	}
 
+	logging.Debugf("DKGComplete sent by %s", ki.NodeIndex.Text(16))
 	// broadcast keygen
 	err := ki.Transport.BroadcastKEYGENDKGComplete(KEYGENDKGComplete{NodeSet: nodeSet, Proofs: keygenShareCompletes, ReadySignatures: tempReadySigMap})
 	if err != nil {
@@ -699,7 +700,9 @@ func (ki *KeygenInstance) prepareAndSendKEYGENDKGComplete() {
 		time.Sleep(time.Second * retryBroadcastingKEYGENDKGComplete)
 		ki.Lock()
 		defer ki.Unlock()
+		logging.Debugf("DKGComplete might rerun by %s", ki.NodeIndex.Text(16))
 		if len(ki.ReceivedDKGCompleted) < ki.Threshold {
+			logging.Debugf("DKGComplete re-running %s", ki.NodeIndex.Text(16))
 			ki.prepareAndSendKEYGENDKGComplete()
 		}
 	}()
@@ -708,6 +711,7 @@ func (ki *KeygenInstance) prepareAndSendKEYGENDKGComplete() {
 func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeIndex big.Int) error {
 	ki.Lock()
 	defer ki.Unlock()
+	logging.Debugf("DKGComplete: verifying in keygen")
 	if len(msg.Proofs) != ki.NumOfKeys {
 		return errors.New("length of proofs is not correct")
 	}
@@ -777,11 +781,13 @@ func (ki *KeygenInstance) OnKEYGENDKGComplete(msg KEYGENDKGComplete, fromNodeInd
 			}
 		}
 	}
+	logging.Debugf("DKGComplete passed tests")
 
 	ki.ReceivedDKGCompleted[fromNodeIndex.Text(16)] = &msg
 
 	if len(ki.FinalNodeSet) == 0 {
 		// define set
+
 		ki.FinalNodeSet = msg.NodeSet
 	}
 

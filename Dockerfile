@@ -19,17 +19,21 @@ RUN go build -mod=vendor
 
 
 # final image
-FROM alpine:3.9
+FROM golang:1.12.1-alpine3.9
 
+RUN apk update && apk add bash make git gcc libstdc++ g++ musl-dev
 RUN apk update && apk add ca-certificates --no-cache
 RUN apk add --no-cache \
   --repository http://nl.alpinelinux.org/alpine/edge/community \
   leveldb
 
+# add delve debugger
+RUN go get -u github.com/go-delve/delve/cmd/dlv
+
 RUN mkdir -p /torus
 
 COPY --from=node-build /src/cmd/dkgnode/dkgnode /torus/dkgnode
 
-EXPOSE 443 80 1080 26656 26657
+EXPOSE 443 80 1080 26656 26657 40000
 VOLUME ["/torus", "/root/https"]
-CMD ["/torus/dkgnode"]
+CMD ["dlv", "exec", "/torus/dkgnode", "--listen=:40000", "--headless=true", "--api-version=2", "--log"]

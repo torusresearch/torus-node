@@ -386,10 +386,11 @@ func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) (bool, []tmcmn.KVPair) {
 			logging.Fatal(err.Error())
 			return false, nil
 		}
-		// logging.Debugf("DKGComplete: %s", string(bftMsg.Payload))
+		logging.Debugf("DKGComplete received for node %s : %v", nodeIndex.Text(16), payload.NodeSet)
 
 		err = ki.OnKEYGENDKGComplete(*payload, nodeIndex)
 		if err != nil {
+			logging.Debugf("DKGComplete error")
 			logging.Error(err.Error())
 			return false, nil
 		}

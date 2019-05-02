@@ -261,6 +261,7 @@ func TestTimeboundOne(t *testing.T) {
 	// 	// assert.True(t, instance.State.Current() == SIKeygenCompleted + "|0|"+strconv.Itoa(numKeys), "Keygen not completed in TimeboundOne")
 	// 	instance.Unlock()
 	// }
+	assert.True(t, !done)
 }
 
 func TestEchoReconstruction(t *testing.T) {

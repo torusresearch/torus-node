@@ -122,7 +122,9 @@ func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
 	if err != nil {
 		return nil, err
 	}
-	logging.Debugf("TENDERBFT RESPONSE: %s", response)
+	logging.Debugf("TENDERBFT RESPONSE code %v : %v", response.Code, response)
+	logging.Debugf("TENDERBFT LOG: %s", response.Log)
+
 	if response.Code != 0 {
 		return nil, errors.New("Could not broadcast, ErrorCode: " + string(response.Code))
 	}

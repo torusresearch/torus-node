@@ -19,7 +19,7 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 )
 
-const XXXTestLogging = "debug"
+const XXXTestLogging = "info"
 
 func TestOptimisticKeygen(t *testing.T) {
 
@@ -35,7 +35,7 @@ func TestOptimisticKeygen(t *testing.T) {
 	numOfNodes := 9
 	threshold := 5
 	malNodes := 2
-	numKeys := 3
+	numKeys := 10
 	nodeList := make([]big.Int, numOfNodes)
 	nodeKegenInstances := make(map[string]*KeygenInstance)
 	pubKeys := make(map[string]*common.Point)

@@ -434,51 +434,53 @@ func (ki *KeygenInstance) OnKEYGENEcho(msg KEYGENEcho, fromNodeIndex big.Int) er
 	ratio := int(math.Ceil((float64(ki.TotalNodes) + float64(ki.NumMalNodes) + 1.0) / 2.0)) // this is just greater equal than (differs from AVSS Paper equals) because we fsm to only send ready at most once
 	if ki.Threshold <= len(keyLog.ReceivedEchoes) && ratio <= len(keyLog.ReceivedEchoes) && !keyLog.SentReady {
 		// since threshoold and above
-
-		// First we interpolate valid keygenEchos to keygenSend
-		// prepare for derivation of polynomial
 		index := &msg.KeyIndex
 		nodeIndex := msg.Dealer
-		aiyPoints := make([]common.Point, ki.Threshold)
-		aiprimeyPoints := make([]common.Point, ki.Threshold)
-		bixPoints := make([]common.Point, ki.Threshold)
-		biprimexPoints := make([]common.Point, ki.Threshold)
-		count := 0
 
-		for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedEchoes {
-			if count < ki.Threshold {
-				fromNodeInt := big.Int{}
-				fromNodeInt.SetString(k, 16)
-				aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
-				aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
-				bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
-				biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
+		if keyLog.ReceivedSend == nil {
+			// First we interpolate valid keygenEchos to keygenSend
+			// prepare for derivation of polynomial
+			aiyPoints := make([]common.Point, ki.Threshold)
+			aiprimeyPoints := make([]common.Point, ki.Threshold)
+			bixPoints := make([]common.Point, ki.Threshold)
+			biprimexPoints := make([]common.Point, ki.Threshold)
+			count := 0
+	
+			for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedEchoes {
+				if count < ki.Threshold {
+					fromNodeInt := big.Int{}
+					fromNodeInt.SetString(k, 16)
+					aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
+					aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
+					bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
+					biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
+				}
+				count++
 			}
-			count++
-		}
-
-		aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
-		aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
-		bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
-		biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
-		ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
-			KeyIndex: *index,
-			AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
-			AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
-			BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
-			BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
-		}
-
-		correctPoly := pvss.AVSSVerifyPoly(
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
-			ki.NodeIndex,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
-		)
-		if !correctPoly {
-			logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
+	
+			aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
+			aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
+			bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
+			biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
+			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
+				KeyIndex: *index,
+				AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
+				AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
+				BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
+				BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
+			}
+	
+			// correctPoly := pvss.AVSSVerifyPoly(
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
+			// 	ki.NodeIndex,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
+			// )
+			// if !correctPoly {
+			// 	logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
+			// }
 		}
 
 		err := ki.prepareAndSendKEYGENReadyFor(*index, nodeIndex)
@@ -564,50 +566,54 @@ func (ki *KeygenInstance) OnKEYGENReady(msg KEYGENReady, fromNodeIndex big.Int) 
 
 	// if we've reached the required number of readys
 	if ki.Threshold == len(keyLog.ReceivedReadys) && !keyLog.SentReady {
-		// First we interpolate valid keygenEchos to keygenSend
-		// prepare for derivation of polynomial
+
 		index := &msg.KeyIndex
 		nodeIndex := msg.Dealer
-		aiyPoints := make([]common.Point, ki.Threshold)
-		aiprimeyPoints := make([]common.Point, ki.Threshold)
-		bixPoints := make([]common.Point, ki.Threshold)
-		biprimexPoints := make([]common.Point, ki.Threshold)
-		count := 0
+		if keyLog.ReceivedSend == nil {
 
-		for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedReadys {
-			if count < ki.Threshold {
-				fromNodeInt := big.Int{}
-				fromNodeInt.SetString(k, 16)
-				aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
-				aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
-				bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
-				biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
+			// First we interpolate valid keygenEchos to keygenSend
+			// prepare for derivation of polynomial
+			aiyPoints := make([]common.Point, ki.Threshold)
+			aiprimeyPoints := make([]common.Point, ki.Threshold)
+			bixPoints := make([]common.Point, ki.Threshold)
+			biprimexPoints := make([]common.Point, ki.Threshold)
+			count := 0
+	
+			for k, v := range ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedReadys {
+				if count < ki.Threshold {
+					fromNodeInt := big.Int{}
+					fromNodeInt.SetString(k, 16)
+					aiyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aij}
+					aiprimeyPoints[count] = common.Point{X: fromNodeInt, Y: v.Aprimeij}
+					bixPoints[count] = common.Point{X: fromNodeInt, Y: v.Bij}
+					biprimexPoints[count] = common.Point{X: fromNodeInt, Y: v.Bprimeij}
+				}
+				count++
 			}
-			count++
-		}
-
-		aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
-		aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
-		bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
-		biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
-		ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
-			KeyIndex: *index,
-			AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
-			AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
-			BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
-			BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
-		}
-
-		correctPoly := pvss.AVSSVerifyPoly(
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
-			ki.NodeIndex,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
-			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
-		)
-		if !correctPoly {
-			logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
+	
+			aiy := pvss.LagrangeInterpolatePolynomial(bixPoints)
+			aiprimey := pvss.LagrangeInterpolatePolynomial(biprimexPoints)
+			bix := pvss.LagrangeInterpolatePolynomial(aiyPoints)
+			biprimex := pvss.LagrangeInterpolatePolynomial(aiprimeyPoints)
+			ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend = &KEYGENSend{
+				KeyIndex: *index,
+				AIY:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiy},
+				AIprimeY: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: aiprimey},
+				BIX:      common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: bix},
+				BIprimeX: common.PrimaryPolynomial{Threshold: ki.Threshold, Coeff: biprimex},
+			}
+	
+			// correctPoly := pvss.AVSSVerifyPoly(
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].C,
+			// 	ki.NodeIndex,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIY,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.AIprimeY,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIX,
+			// 	ki.KeyLog[index.Text(16)][nodeIndex.Text(16)].ReceivedSend.BIprimeX,
+			// )
+			// if !correctPoly {
+			// 	logging.Errorf("Correct poly is not right for subshare index %s from node %s", index.Text(16), nodeIndex.Text(16))
+			// }
 		}
 
 		err := ki.prepareAndSendKEYGENReadyFor(*index, nodeIndex)

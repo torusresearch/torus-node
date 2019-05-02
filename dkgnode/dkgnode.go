@@ -187,7 +187,13 @@ func New() {
 	go func() {
 		if suite.Config.ServeUsingTLS {
 			if suite.Config.UseAutoCert {
-				logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
+				// NOTE: If AutoCert errors would occur, they
+				// would do so during setup
+				err := server.ListenAndServeTLS("", "")
+				if err != nil {
+					logging.Fatal(err.Error())
+				}
+
 			}
 
 			if suite.Config.ServerCert != "" {

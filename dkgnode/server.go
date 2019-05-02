@@ -19,6 +19,7 @@ import (
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 func setUpServer(suite *Suite, port string) *http.Server {
@@ -28,10 +29,14 @@ func setUpServer(suite *Suite, port string) *http.Server {
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
+	notProtected := router.PathPrefix("/healthz").Subrouter()
+	notProtected.Use(loggingMiddleware)
+	notProtected.HandleFunc("/", GETHealthz)
+
+	// tlsNotProtected := router.PathPrefix("/tls").Subrouter()
 
 	router.Handle("/jrpc", mr)
 	router.HandleFunc("/jrpc/debug", mr.ServeDebug)
-	router.HandleFunc("/healthz", GETHealthz)
 
 	router.Use(augmentRequestMiddleware)
 	router.Use(loggingMiddleware)
@@ -43,6 +48,25 @@ func setUpServer(suite *Suite, port string) *http.Server {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
+	}
+
+	if suite.Config.UseAutoCert {
+		// TODO: Actually validate URL
+		if suite.Config.PublicURL == "" {
+			logging.Fatal("since UseAutoCert is set to true, please also set PublicURL")
+		}
+		cacheDir := suite.Config.AutoCertCacheDir
+		if cacheDir == "" {
+			// TODO: Reconsider default secret cache dir
+			cacheDir = "secret-dir"
+		}
+		m := &autocert.Manager{
+			Cache:      autocert.DirCache(cacheDir),
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(suite.Config.PublicURL, fmt.Sprintf("www.%s", suite.Config.PublicURL)),
+		}
+		// m.Listener()
+		server.TLSConfig = m.TLSConfig()
 	}
 
 	return server

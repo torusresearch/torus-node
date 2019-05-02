@@ -150,7 +150,7 @@ type KeygenInstance struct {
 	ComChannel           chan string
 }
 
-const retryBroadcastingKEYGENDKGComplete = 1
+const retryBroadcastingKEYGENDKGComplete = 4
 const retryEndingKeygen = 1
 const retryKEYGENSend = 1
 const readyPrefix = "mug"

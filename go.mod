@@ -30,6 +30,7 @@ require (
 	github.com/jinzhu/copier v0.0.0-20180308034124-7e38e58719c3
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/karalabe/hid v0.0.0-20181128192157-d815e0c1a2e2 // indirect
+	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/libp2p/go-libp2p v0.0.2
 	github.com/libp2p/go-libp2p-crypto v0.0.1
 	github.com/libp2p/go-libp2p-host v0.0.1
@@ -38,7 +39,9 @@ require (
 	github.com/libp2p/go-libp2p-peerstore v0.0.1
 	github.com/libp2p/go-libp2p-protocol v0.0.1
 	github.com/looplab/fsm v0.1.0
+	github.com/mholt/certmagic v0.5.1
 	github.com/micro/go-config v1.1.0
+	github.com/miekg/dns v1.1.9 // indirect
 	github.com/minio/sha256-simd v0.0.0-20190317211740-0d7ea3c244ee // indirect
 	github.com/mr-tron/base58 v1.1.1 // indirect
 	github.com/multiformats/go-multiaddr v0.0.2
@@ -49,6 +52,7 @@ require (
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.6.0
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
+	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/tendermint/btcd v0.1.1
 	github.com/tendermint/go-amino v0.14.1 // indirect
@@ -64,11 +68,14 @@ require (
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	github.com/xlab-si/emmy v0.0.0-20181126075652-2a3c9dd29847
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
-	golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a
-	golang.org/x/net v0.0.0-20190415100556-4a65cf94b679 // indirect
-	golang.org/x/sys v0.0.0-20190415081028-16da32be82c5 // indirect
+	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734 // indirect
+	golang.org/x/net v0.0.0-20190502183928-7f726cade0ab // indirect
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
+	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/h2non/baloo.v3 v3.0.2
 	gopkg.in/h2non/gentleman.v2 v2.0.3 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
+	gopkg.in/square/go-jose.v2 v2.3.1 // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
 )

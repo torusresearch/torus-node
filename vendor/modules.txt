@@ -20,6 +20,8 @@ github.com/bitly/go-simplejson
 github.com/btcsuite/btcd/btcec
 # github.com/caarlos0/env v0.0.0-20190308142353-9a320ffe30f7
 github.com/caarlos0/env
+# github.com/cenkalti/backoff v2.1.1+incompatible
+github.com/cenkalti/backoff
 # github.com/coreos/go-semver v0.2.0
 github.com/coreos/go-semver/semver
 # github.com/davecgh/go-spew v1.1.1
@@ -57,6 +59,23 @@ github.com/fd/go-nat
 github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
+# github.com/go-acme/lego v2.5.0+incompatible
+github.com/go-acme/lego/acme
+github.com/go-acme/lego/certcrypto
+github.com/go-acme/lego/certificate
+github.com/go-acme/lego/challenge
+github.com/go-acme/lego/challenge/http01
+github.com/go-acme/lego/challenge/tlsalpn01
+github.com/go-acme/lego/lego
+github.com/go-acme/lego/registration
+github.com/go-acme/lego/acme/api
+github.com/go-acme/lego/log
+github.com/go-acme/lego/platform/wait
+github.com/go-acme/lego/challenge/resolver
+github.com/go-acme/lego/acme/api/internal/nonces
+github.com/go-acme/lego/acme/api/internal/secure
+github.com/go-acme/lego/acme/api/internal/sender
+github.com/go-acme/lego/challenge/dns01
 # github.com/go-kit/kit v0.8.0
 github.com/go-kit/kit/log
 github.com/go-kit/kit/log/level
@@ -147,6 +166,8 @@ github.com/jbenet/goprocess/ratelimit
 github.com/jinzhu/copier
 # github.com/jmhodges/levigo v1.0.0
 github.com/jmhodges/levigo
+# github.com/klauspost/cpuid v1.2.1
+github.com/klauspost/cpuid
 # github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515
 github.com/kr/logfmt
 # github.com/libp2p/go-addr-util v0.0.1
@@ -238,6 +259,8 @@ github.com/mattn/go-colorable
 github.com/mattn/go-isatty
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mholt/certmagic v0.5.1
+github.com/mholt/certmagic
 # github.com/micro/go-config v1.1.0
 github.com/micro/go-config
 github.com/micro/go-config/source/file
@@ -252,6 +275,8 @@ github.com/micro/go-config/encoder/json
 github.com/micro/go-config/encoder/toml
 github.com/micro/go-config/encoder/xml
 github.com/micro/go-config/encoder/yaml
+# github.com/miekg/dns v1.1.9
+github.com/miekg/dns
 # github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 github.com/minio/blake2b-simd
 # github.com/minio/sha256-simd v0.0.0-20190317211740-0d7ea3c244ee
@@ -308,7 +333,7 @@ github.com/rjeczalik/notify
 github.com/rs/cors
 # github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25
 github.com/streadway/quantile
-# github.com/stretchr/objx v0.1.1
+# github.com/stretchr/objx v0.2.0
 github.com/stretchr/objx
 # github.com/stretchr/testify v1.3.0
 github.com/stretchr/testify/mock
@@ -420,8 +445,9 @@ github.com/xlab-si/emmy/crypto/qr
 github.com/xlab-si/emmy/crypto/schnorr
 # github.com/ybbus/jsonrpc v2.1.2+incompatible
 github.com/ybbus/jsonrpc
-# golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a
+# golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
 golang.org/x/crypto/ed25519
+golang.org/x/crypto/ocsp
 golang.org/x/crypto/ripemd160
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/scrypt
@@ -438,25 +464,30 @@ golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
 golang.org/x/crypto/nacl/secretbox
 golang.org/x/crypto/salsa20/salsa
-# golang.org/x/net v0.0.0-20190415100556-4a65cf94b679
+# golang.org/x/net v0.0.0-20190502183928-7f726cade0ab
 golang.org/x/net/context
 golang.org/x/net/http2
 golang.org/x/net/websocket
+golang.org/x/net/idna
 golang.org/x/net/trace
 golang.org/x/net/netutil
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2/hpack
-golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/publicsuffix
 golang.org/x/net/html/charset
+golang.org/x/net/ipv4
+golang.org/x/net/ipv6
 golang.org/x/net/html
+golang.org/x/net/bpf
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
 golang.org/x/net/html/atom
-# golang.org/x/sys v0.0.0-20190415081028-16da32be82c5
+# golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/cpu
-# golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2
+# golang.org/x/text v0.3.2
 golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
@@ -530,5 +561,9 @@ gopkg.in/h2non/gentleman.v2/plugins/url
 gopkg.in/h2non/gentleman.v2/utils
 # gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 gopkg.in/natefinch/npipe.v2
+# gopkg.in/square/go-jose.v2 v2.3.1
+gopkg.in/square/go-jose.v2
+gopkg.in/square/go-jose.v2/cipher
+gopkg.in/square/go-jose.v2/json
 # gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2

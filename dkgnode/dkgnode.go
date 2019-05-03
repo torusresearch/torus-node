@@ -4,11 +4,11 @@ package dkgnode
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"log"
 	"math/big"
 	"os"
 	"os/signal"
-	"runtime/pprof"
 	"strings"
 	"syscall"
 	"time"
@@ -36,7 +36,7 @@ type Suite struct {
 	DefaultVerifier auth.GeneralVerifier
 	P2PSuite        *P2PSuite
 	DBSuite         *DBSuite
-	LocalStatus     *LocalStatus
+	LocalStatus 		*LocalStatus
 	PSSSuite        *PSSSuite
 }
 
@@ -47,66 +47,56 @@ type googleIdentityVerifier struct {
 
 /* The entry point for our System */
 func New() {
-	// QUESTION(TEAM) - was there a reason for passing in a reference to the suite, and setting the config by mutating suite itself?
-	// for now I just made it like so: cfg := loadConfig()
-	// and then suite.Config = cfg
-	// BUT
-	// Wouldn't it be better to have a "config" package that has an init()
-	// that sets all the config variables and is available globally for read?
-	// it should be immutable after initializing, but if not we can always stick a mutex.
+	logging.Info("starting telemetry")
+	go telemetry.Serve()
 	cfg := loadConfig(DefaultConfigPath)
 	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, tmp2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.TMP2PListenAddress)
 
-	//Main suite of functions used in node
+	// Main suite of functions used in node
 	suite := Suite{}
 	suite.Config = cfg
 
+	// Initialize all necessary channels
 	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
-
-	if cfg.CPUProfileToFile != "" {
-		f, err := os.Create(cfg.CPUProfileToFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.StartCPUProfile(f)
-		go func() {
-			time.Sleep(5 * time.Minute)
-			pprof.StopCPUProfile()
-		}()
-	}
+	fmt.Println(nodeListMonitorTicker)
+	keyGenMonitorTicker := time.NewTicker(5 * time.Second)
+	fmt.Println(keyGenMonitorTicker)
+	whitelistMonitorTicker := time.NewTicker(5 * time.Second)
+	fmt.Println(whitelistMonitorTicker)
+	abciServerMonitorTicker := time.NewTicker(5 * time.Second)
+	fmt.Println(abciServerMonitorTicker)
+	whitelistMonitorMsgs := make(chan WhitelistMonitorUpdates)
+	fmt.Println(whitelistMonitorMsgs)
+	bftWorkerMsgs := make(chan string)
+	fmt.Println(bftWorkerMsgs)
+	tmCoreMsgs := make(chan string)
+	fmt.Println(tmCoreMsgs)
+	nodeListMonitorMsgs := make(chan NodeListUpdates)
+	fmt.Println(nodeListMonitorMsgs)
+	nodeListWorkerMsgs := make(chan string)
+	fmt.Println(nodeListWorkerMsgs)
+	keyGenMonitorMsgs := make(chan KeyGenUpdates)
+	fmt.Println(keyGenMonitorMsgs)
+	pssWorkerMsgs := make(chan PSSWorkerUpdate)
+	fmt.Println(pssWorkerMsgs)
+	idleConnsClosed := make(chan struct{})
+	fmt.Println(idleConnsClosed)
 
 	SetupFSM(&suite)
 	SetupPSS(&suite)
-
-	//TODO: Dont die on failure but retry
-	// set up connection to ethereum blockchain
+	SetupVerifier(&suite)
 	err := SetupDB(&suite)
-	if err != nil {
+	if err != nil { // TODO: retry on error
 		log.Fatal(err)
 	}
-
-	// We can use a flag here to change the default verifier
-	// In the future we should allow a range of verifiers
-	suite.DefaultVerifier = auth.NewGeneralVerifier(googleIdentityVerifier{
-		auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
-		&suite,
-	})
-
-	//TODO: Dont die on failure but retry
-	// set up connection to ethereum blockchain
 	err = SetupEth(&suite)
-	if err != nil {
+	if err != nil { // TODO: retry on error
 		log.Fatal(err)
 	}
-
-	//setup p2p host
 	_, err = SetupP2PHost(&suite)
-	if err != nil {
+	if err != nil { // TODO: retry on error
 		log.Fatal(err)
 	}
-
-	logging.Info("starting telemetry")
-	go telemetry.Serve()
 
 	// run tendermint ABCI server
 	// It seems tendermint handles sigterm on its own..
@@ -167,10 +157,6 @@ func New() {
 	}
 
 	// Initialize all necessary channels
-	tmCoreMsgs := make(chan string)
-	nodeListMonitorMsgs := make(chan NodeListUpdates)
-	keyGenMonitorMsgs := make(chan KeyGenUpdates)
-	pssMonitorMsgs := make(chan PSSWorkerUpdate)
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
 	// Set up standard server
@@ -180,7 +166,6 @@ func New() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
-	idleConnsClosed := make(chan struct{})
 	go func() {
 		<-c
 		logging.Info("Shutting down the node, received signal.")
@@ -268,7 +253,7 @@ func New() {
 	}
 
 	go keyGenWorker(&suite, keyGenMonitorMsgs)
-	go pssWorker(&suite, pssMonitorMsgs)
+	go pssWorker(&suite, pssWorkerMsgs)
 	<-idleConnsClosed
 }
 
@@ -282,7 +267,7 @@ func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
 				//starts keygeneration with starting and ending index
 				logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 
-				suite.LocalStatus.Event(suite.LocalStatus.Constants.Events.StartKeygen, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
+				suite.LocalStatus.Event(LocalStatusConstants.Events.StartKeygen, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 				// go startKeyGeneration(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 				// go suite.P2PSuite.KeygenProto.NewKeygen(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
 			}

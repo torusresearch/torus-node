@@ -155,7 +155,7 @@ type PSSUpdate struct {
 // 	for range tickerChan {
 // 		// logging.Debugf("KEYGEN: in start keygen monitor %s", suite.LocalStatus)
 // 		// if suite.LocalStatus["all_initiate_keygen"] != "" {
-// 		var localStatus = suite.KeygenSuite.LocalStatus.Current()
+// 		var localStatus = suite.LocalStatus.Current()
 // 		if localStatus == "running_keygen" {
 // 			// logging.Debugf("KEYGEN: WAITING FOR ALL INITIATE KEYGEN TO STOP BEING IN PROGRESS %s", suite.LocalStatus.Current())
 // 			continue
@@ -171,7 +171,7 @@ type PSSUpdate struct {
 // 		startingIndex := int(suite.ABCIApp.state.LastCreatedIndex)
 // 		endingIndex := suite.Config.KeysPerEpoch + int(suite.ABCIApp.state.LastCreatedIndex)
 
-// 		logging.Debugf("KEYGEN: we are starting keygen %v", suite.KeygenSuite.LocalStatus)
+// 		logging.Debugf("KEYGEN: we are starting keygen %v", suite.LocalStatus)
 
 // 		//report back to main process
 // 		keyGenMonitorMsgs <- KeyGenUpdates{

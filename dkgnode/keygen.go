@@ -29,6 +29,10 @@ import (
 	"github.com/torusresearch/torus-public/telemetry"
 )
 
+type KeygenSuite struct {
+	LocalStatus *LocalStatus
+}
+
 var keygenConsts = keygenConstants{
 	// pattern: /protocol-name/request-or-response-message/starting-endingindex
 	RequestPrefix:  "/KEYGEN/KEYGENreq/",
@@ -123,7 +127,7 @@ func (kp *KEYGENProtocol) handleMainChannel() {
 			// For now we just increase the telementry number by X amount
 			splits := strings.Split(msg, "|")
 			if splits[0] == keygen.SIKeygenCompleted {
-				kp.suite.LocalStatus.Event(kp.suite.LocalStatus.Constants.Events.KeygenComplete)
+				kp.suite.LocalStatus.Event(LocalStatusConstants.Events.KeygenComplete)
 				for i := 0; i < kp.suite.Config.KeysPerEpoch; i++ {
 					kp.counters["num_shares_verified"].Inc()
 				}

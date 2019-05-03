@@ -8,6 +8,7 @@ import (
 )
 
 type TestVerifier struct {
+	CorrectID string
 }
 
 type TestVerifierParams struct {
@@ -34,9 +35,16 @@ func (v *TestVerifier) VerifyRequestIdentity(jsonToken *bijson.RawMessage) (bool
 
 	p.IDToken = v.CleanToken(p.IDToken)
 
-	if p.IDToken != "blublu" {
+	if p.IDToken != v.CorrectID {
 		return false, "", fmt.Errorf("Token is not blublu")
 	}
 
 	return true, p.ID, nil
+}
+
+// NewTestVerifier - Constructor for the default test verifier
+func NewTestVerifier(correctID string) *TestVerifier {
+	return &TestVerifier{
+		CorrectID: correctID,
+	}
 }

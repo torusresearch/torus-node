@@ -60,6 +60,10 @@ func New() {
 	suite := Suite{}
 	suite.Config = cfg
 
+	if suite.Config.IsDebug {
+		logging.Info("--------------------------------------RUNNING IN DEBUG MODE --------------------------------")
+	}
+
 	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
 
 	if cfg.CPUProfileToFile != "" {
@@ -85,10 +89,21 @@ func New() {
 
 	// We can use a flag here to change the default verifier
 	// In the future we should allow a range of verifiers
-	suite.DefaultVerifier = auth.NewGeneralVerifier(googleIdentityVerifier{
-		auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
-		&suite,
-	})
+	var verfier auth.GeneralVerifier
+	if suite.Config.IsDebug {
+		verfier = auth.NewGeneralVerifier(
+			auth.NewTestVerifier("blublu"),
+			googleIdentityVerifier{
+				auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
+				&suite,
+			})
+	} else {
+		verfier = auth.NewGeneralVerifier(googleIdentityVerifier{
+			auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
+			&suite,
+		})
+	}
+	suite.DefaultVerifier = verfier
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain

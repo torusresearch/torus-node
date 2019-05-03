@@ -11,6 +11,5 @@
   "p2plistenaddress": "/ip4/192.167.10.6/tcp/1080",
   "keysperepoch": 10,
   "ipAddress": "192.167.10.6",
-  "register": true,
-  "initEpoch": "1"
+  "register": true
 }

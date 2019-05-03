@@ -29,7 +29,6 @@ type Config struct {
 	KeysPerEpoch               int    `json:"keysperepoch" env:"KEYS_PER_EPOCH"`
 	KeyBufferTriggerPercentage int    `json:"keybuffertriggerpercetage" env:"KEY_BUFFER_TRIGGER_PERCENTAGE"` //percetage threshold of keys left to trigger buffering 90 - 20
 	BasePath                   string `json:"basepath" env:"BASE_PATH"`
-	InitEpoch                  int    `json:"initEpoch" env:"INIT_EPOCH"`
 
 	ShouldRegister    bool   `json:"register" env:"REGISTER"`
 	CPUProfileToFile  string `json:"cpuProfile" env:"CPU_PROFILE"`

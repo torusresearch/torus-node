@@ -1,9 +1,5 @@
 package dkgnode
 
-type PSSWorkerUpdate struct {
-	Type    string
-	Payload interface{}
-}
 
 func pssWorker(suite *Suite, pssMonitorMsgs <-chan PSSWorkerUpdate) {
 	for pssMonitorMsgs := range pssMonitorMsgs {

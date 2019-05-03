@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"net/http"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -18,7 +18,6 @@ import (
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/torusresearch/torus-public/auth"
 	"github.com/torusresearch/torus-public/logging"
@@ -36,7 +35,7 @@ type Suite struct {
 	DefaultVerifier auth.GeneralVerifier
 	P2PSuite        *P2PSuite
 	DBSuite         *DBSuite
-	LocalStatus 		*LocalStatus
+	LocalStatus     *LocalStatus
 	PSSSuite        *PSSSuite
 }
 
@@ -88,7 +87,6 @@ func New() {
 	fmt.Println(pssWorkerMsgs)
 	idleConnsClosed := make(chan struct{})
 	fmt.Println(idleConnsClosed)
-	
 
 	SetupFSM(&suite)
 	SetupPSS(&suite)
@@ -110,14 +108,6 @@ func New() {
 	SetupBft(&suite)
 	SetupCache(&suite)
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
-
-
-	// we generate nodekey first cause we need it in node list TODO: find a better way
-	tmNodeKey, err := p2p.LoadOrGenNodeKey(cfg.BasePath + "/config/node_key.json")
-	if err != nil {
-		fmt.Println(tmNodeKey)
-		logging.Errorf("Node Key generation issue: %s", err)
-	}
 
 	go whitelistMonitor(&suite, whitelistMonitorTicker.C, whitelistMonitorMsgs)
 	go whitelistWorker(&suite, whitelistMonitorMsgs)

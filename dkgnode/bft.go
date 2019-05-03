@@ -3,14 +3,15 @@ package dkgnode
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 	"github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/logging"
-	"github.com/tendermint/tendermint/p2p"
 )
 
 type BftSuite struct {
@@ -19,7 +20,7 @@ type BftSuite struct {
 	BftNode              *node.Node
 	BftRPCWSQueryHandler *BftRPCWSQueryHandler
 	BftRPCWSStatus       string
-	TMNodeKey p2p.NodeKey
+	TMNodeKey            *p2p.NodeKey
 }
 
 type BftRPCWS struct {
@@ -27,6 +28,13 @@ type BftRPCWS struct {
 }
 
 func SetupBft(suite *Suite) {
+
+	// we generate nodekey first cause we need it in node list TODO: find a better way
+	tmNodeKey, err := p2p.LoadOrGenNodeKey(suite.Config.BasePath + "/config/node_key.json")
+	if err != nil {
+		fmt.Println(tmNodeKey)
+		logging.Errorf("Node Key generation issue: %s", err)
+	}
 
 	bftClient := client.NewHTTP(suite.Config.BftURI, "/websocket")
 
@@ -87,6 +95,7 @@ func SetupBft(suite *Suite) {
 		BftRPCWS:             bftClientWS,
 		BftRPCWSStatus:       "down",
 		BftRPCWSQueryHandler: &BftRPCWSQueryHandler{make(map[string]chan []byte), make(map[string]int)},
+		TMNodeKey:            tmNodeKey,
 	}
 }
 

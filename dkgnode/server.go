@@ -62,6 +62,10 @@ func setUpAndRunHttpServer(suite *Suite) {
 				logging.Fatal("PublicURL is required when UseAutoCert is true")
 			}
 			logging.Info("Starting server with CertMagic...")
+
+			// Force http-01 challenges
+			certmagic.Default.DisableTLSALPNChallenge = true
+
 			err := certmagic.HTTPS([]string{suite.Config.PublicURL, fmt.Sprintf("www.%s", suite.Config.PublicURL)}, router)
 			if err != nil {
 				logging.Fatal(err.Error())

@@ -36,7 +36,7 @@ var lsEvents = localStatusEvents{
 }
 
 type LocalStatus struct {
-	fsm.FSM
+	*fsm.FSM
 }
 
 func SetupFSM(suite *Suite) {
@@ -66,7 +66,7 @@ func SetupFSM(suite *Suite) {
 		},
 	)
 	suite.LocalStatus = &LocalStatus{
-		*tempFsm,
+		tempFsm,
 	}
 }
 

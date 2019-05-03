@@ -98,7 +98,7 @@ type (
 		suite *Suite
 	}
 	KeyAssignParams struct {
-		Verifier   string `json:verifier`
+		Verifier   string `json:"verifier"`
 		VerifierID string `json:"verifier_id"`
 	}
 	KeyAssignItem struct {

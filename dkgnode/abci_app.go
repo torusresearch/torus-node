@@ -20,46 +20,52 @@ import (
 var (
 	stateKey        = []byte("stateKey")
 	kvPairPrefixKey = []byte("kvPairKey:")
-
+	// ProtocolVersion -
 	ProtocolVersion version.Protocol = 0x1
 )
 
+// KeyAssignmentPublic -
 type KeyAssignmentPublic struct {
 	Index     big.Int
 	PublicKey common.Point
 	Threshold int
 	Verifiers map[string][]string // Verifier => VerifierID
 }
+
+// KeyAssignment -
 type KeyAssignment struct {
 	KeyAssignmentPublic
 	Share big.Int // Or Si
 }
 
+// TorusID -
 type TorusID struct {
 	Index      int
 	KeyIndexes []big.Int
 }
 
-// Nothing in state should be a pointer
+// State - nothing in state should be a pointer
 // Remember to initialize mappings in NewABCIApp()
 type State struct {
 	Epoch                    uint                            `json:"epoch"`
 	Height                   int64                           `json:"height"`
 	AppHash                  []byte                          `json:"app_hash"`
-	LastUnassignedTorusIndex uint                            `json:"last_unassigned_index"`
+	LastUnassignedTorusIndex uint                            `json:"last_unassigned_torus_index"`
 	LastUnassignedIndex      uint                            `json:"last_unassigned_index"`
-	LastCreatedIndex         uint                            `json:"last_created_index`
+	LastCreatedIndex         uint                            `json:"last_created_index"`
 	KeyMapping               map[string]KeyAssignmentPublic  `json:"key_mapping"`           // KeyIndex => KeyAssignmentPublic
 	VerifierToKeyIndex       map[string](map[string]TorusID) `json:"verifier_to_key_index"` // Verifier => VerifierID => KeyIndex
 	ValidatorSet             []types.ValidatorUpdate         `json:"-"`                     // `json:"validator_set"`
 	UpdateValidators         bool                            `json:"-"`                     // `json:"update_validators"`
 }
 
+// ABCITransaction -
 type ABCITransaction struct {
 	Type    string      `json:"type"`
 	Payload interface{} `json:"payload"`
 }
 
+// LoadState -
 func (app *ABCIApp) LoadState() State {
 	stateBytes := app.db.Get(stateKey)
 	var state State
@@ -73,6 +79,7 @@ func (app *ABCIApp) LoadState() State {
 	return state
 }
 
+// SaveState -
 func (app *ABCIApp) SaveState() State {
 	stateBytes, err := json.Marshal(app.state)
 	if err != nil {
@@ -90,6 +97,7 @@ func prefixKey(key []byte) []byte {
 
 var _ types.Application = (*ABCIApp)(nil)
 
+// ABCIApp -
 type ABCIApp struct {
 	types.BaseApplication
 	Suite *Suite
@@ -97,6 +105,7 @@ type ABCIApp struct {
 	db    dbm.DB
 }
 
+// NewABCIApp -
 func NewABCIApp(suite *Suite) *ABCIApp {
 	db := dbm.NewMemDB()
 	v := make(map[string](map[string]TorusID))
@@ -125,7 +134,7 @@ func (app *ABCIApp) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
 	}
 }
 
-// tx is either "key=value" or just arbitrary bytes
+// DeliverTx - tx is either "key=value" or just arbitrary bytes
 func (app *ABCIApp) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	//JSON Unmarshal transaction
 	// logging.Debugf("DELIVERINGTX %s", tx)
@@ -154,7 +163,7 @@ func (app *ABCIApp) CheckTx(tx []byte) types.ResponseCheckTx {
 	return types.ResponseCheckTx{Code: code.CodeTypeOK}
 }
 
-// NOTE: Commit happens before DeliverTx
+// Commit happens before DeliverTx
 func (app *ABCIApp) Commit() types.ResponseCommit {
 	// logging.Debugf("COMMITING... HEIGHT: %s", app.state.Height)
 	// retrieve state from memdb
@@ -172,6 +181,7 @@ func (app *ABCIApp) Commit() types.ResponseCommit {
 	return types.ResponseCommit{Data: app.state.AppHash}
 }
 
+// Query -
 func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
 	logging.Debugf("%v", app.state)
 	logging.Debugf("QUERY TO ABCIAPP %s %s", reqQuery.Data, string(reqQuery.Data))
@@ -215,10 +225,10 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 	default:
 		return types.ResponseQuery{Log: fmt.Sprintf("Invalid query path. Expected hash or tx, got %v", reqQuery.Path)}
 	}
-	return types.ResponseQuery{Height: int64(0)}
+	// return types.ResponseQuery{Height: int64(0)}
 }
 
-// Update the validator set
+// EndBlock - update the validator set
 func (app *ABCIApp) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
 	//TODO: add condition so that validator set is not dialed/updated constantly
 	//Here we go through our nodelist in EthSuite, create the validator set and set it in "EndBlock" where we edit the validator set

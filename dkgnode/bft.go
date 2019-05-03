@@ -10,6 +10,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 	"github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/logging"
+	"github.com/tendermint/tendermint/p2p"
 )
 
 type BftSuite struct {
@@ -18,6 +19,7 @@ type BftSuite struct {
 	BftNode              *node.Node
 	BftRPCWSQueryHandler *BftRPCWSQueryHandler
 	BftRPCWSStatus       string
+	TMNodeKey p2p.NodeKey
 }
 
 type BftRPCWS struct {

@@ -124,22 +124,20 @@ type PSSUpdate struct {
 	PSSMessage    pss.PSSMessage
 }
 
-// func whitelistMonitor(suite *Suite, tickerChan <-chan time.Time, whitelistMonitorMsgs chan<- WhitelistMonitorUpdates) {
-// 	for range tickerChan {
-// 		currentEpoch := suite.EthSuite.CurrentEpoch
-// 		fmt.Println("SUITE ETHSUITE CURRENT EPOCH IS WHAT")
-// 		fmt.Println(currentEpoch)
-// 		isWhitelisted, err := suite.EthSuite.NodeListContract.ViewWhitelist(nil, big.NewInt(int64(currentEpoch)), *suite.EthSuite.NodeAddress)
-// 		if err != nil {
-// 			logging.Errorf("Could not check ethereum whitelist: %s", err.Error())
-// 		}
-// 		if isWhitelisted {
-// 			whitelistMonitorMsgs <- WhitelistMonitorUpdates{"node_whitelisted", currentEpoch}
-// 			break
-// 		}
-// 		logging.Warning("Node is not whitelisted")
-// 	}
-// }
+func whitelistMonitor(suite *Suite, tickerChan <-chan time.Time, whitelistMonitorMsgs chan<- WhitelistMonitorUpdates) {
+	for range tickerChan {
+		currentEpoch := suite.EthSuite.CurrentEpoch
+		isWhitelisted, err := suite.EthSuite.NodeListContract.ViewWhitelist(nil, big.NewInt(int64(currentEpoch)), *suite.EthSuite.NodeAddress)
+		if err != nil {
+			logging.Errorf("Could not check ethereum whitelist: %s", err.Error())
+		}
+		if isWhitelisted {
+			whitelistMonitorMsgs <- WhitelistMonitorUpdates{"node_whitelisted", currentEpoch}
+			break
+		}
+		logging.Warning("Node is not whitelisted")
+	}
+}
 
 // func keyGenMonitor(suite *Suite, tmCoreMsgs <-chan string, tickerChan <-chan time.Time, keyGenMonitorMsgs chan<- KeyGenUpdates) {
 // 	logging.Info("Started keygeneration monitor")

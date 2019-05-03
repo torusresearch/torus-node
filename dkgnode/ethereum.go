@@ -28,6 +28,7 @@ type EthSuite struct {
 	secp             elliptic.Curve
 	NodeList         []*NodeReference
 	NodeIndex        *big.Int
+	CurrentEpoch     int
 }
 
 /* Form public key using private key */
@@ -68,7 +69,7 @@ func SetupEth(suite *Suite) error {
 	if err != nil {
 		return err
 	}
-	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, NodeListContract, secp256k1.Curve, []*NodeReference{}, &big.Int{}}
+	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, NodeListContract, secp256k1.Curve, []*NodeReference{}, &big.Int{}, suite.Config.InitEpoch}
 	return nil
 }
 

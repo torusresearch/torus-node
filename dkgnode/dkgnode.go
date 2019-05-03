@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
+	"net/http"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -52,6 +52,13 @@ func New() {
 	cfg := loadConfig(DefaultConfigPath)
 	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, tmp2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.TMP2PListenAddress)
 
+	//build folders for tendermint logs
+	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/config", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/config", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
+
 	// Main suite of functions used in node
 	suite := Suite{}
 	suite.Config = cfg
@@ -81,6 +88,7 @@ func New() {
 	fmt.Println(pssWorkerMsgs)
 	idleConnsClosed := make(chan struct{})
 	fmt.Println(idleConnsClosed)
+	
 
 	SetupFSM(&suite)
 	SetupPSS(&suite)
@@ -98,76 +106,31 @@ func New() {
 		log.Fatal(err)
 	}
 
-	// run tendermint ABCI server
-	// It seems tendermint handles sigterm on its own..
-	go RunABCIServer(&suite)
-
-	// setup connection to tendermint BFT
+	go RunABCIServer(&suite) // tendermint handles sigterm on its own
 	SetupBft(&suite)
-	// setup local caching
 	SetupCache(&suite)
+	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
-	//build folders for tendermint logs
-	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/tendermint/config", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/config", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
 
 	// we generate nodekey first cause we need it in node list TODO: find a better way
 	tmNodeKey, err := p2p.LoadOrGenNodeKey(cfg.BasePath + "/config/node_key.json")
 	if err != nil {
+		fmt.Println(tmNodeKey)
 		logging.Errorf("Node Key generation issue: %s", err)
 	}
 
-	logging.Infof("Node IP Address: %s", suite.Config.MainServerAddress)
-	whitelisted := false
-
-	for !whitelisted {
-		isWhitelisted, err := suite.EthSuite.NodeListContract.ViewWhitelist(nil, big.NewInt(0), *suite.EthSuite.NodeAddress)
-		if err != nil {
-			logging.Errorf("Could not check ethereum whitelist: %s", err.Error())
-		}
-		if isWhitelisted {
-			whitelisted = true
-			break
-		}
-		logging.Warning("Node is not whitelisted")
-		time.Sleep(4 * time.Second) // TODO(LEN): move out into config
-	}
-
-	if cfg.ShouldRegister && whitelisted {
-		// register Node
-		externalAddr := "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.TMP2PListenAddress, ":")[2]
-
-		// var externalAddr string
-		// if cfg.ProvidedIPAddress != "" {
-		// 	//for external deploymets
-		// 	externalAddr = "tcp://" + cfg.ProvidedIPAddress + ":" + strings.Split(suite.Config.P2PListenAddress, ":")[2]
-		// } else {
-		// 	externalAddr = suite.Config.P2PListenAddress
-		// }
-
-		logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(tmNodeKey.ID(), externalAddr))
-		//TODO: Make epoch variable when needeed
-		_, err := suite.EthSuite.registerNode(*big.NewInt(int64(0)), suite.Config.MainServerAddress, p2p.IDAddressString(tmNodeKey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
-		if err != nil {
-			logging.Fatal(err.Error())
-		}
-	}
+	go whitelistMonitor(&suite, whitelistMonitorTicker.C, whitelistMonitorMsgs)
+	go whitelistWorker(&suite, whitelistMonitorMsgs)
 
 	// Initialize all necessary channels
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
-	// Set up standard server
-	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
 	// Stop upon receiving SIGTERM or CTRL-C
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-
+	osSignal := make(chan os.Signal, 1)
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
-		<-c
+		<-osSignal
 		logging.Info("Shutting down the node, received signal.")
 
 		// Shutdown the jRPC server
@@ -183,35 +146,8 @@ func New() {
 		close(idleConnsClosed)
 	}()
 
-	go func() {
-		if suite.Config.ServeUsingTLS {
-			if suite.Config.UseAutoCert {
-				logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
-			}
-
-			if suite.Config.ServerCert != "" {
-				err := server.ListenAndServeTLS(suite.Config.ServerCert,
-					suite.Config.ServerKey)
-				if err != nil {
-					logging.Fatal(err.Error())
-				}
-			} else {
-				logging.Fatal("Certs not supplied, try running with UseAutoCert")
-			}
-
-		} else {
-			err := server.ListenAndServe()
-			if err != nil {
-				logging.Fatal(err.Error())
-			}
-
-		}
-
-	}()
-
-	// TODO(TEAM): This needs to be less verbose, and wrapped in some functions..
-	// It really doesnt need to run forever right?...
-	// So it runs forever
+	// run server
+	go serverWorker(&suite, server)
 
 	// Setup Phase
 	for {
@@ -290,4 +226,30 @@ func RawPointToTMPubKey(X, Y *big.Int) tmsecp.PubKeySecp256k1 {
 	}
 	copy(pubkeyBytes[:], pubkeyObject.SerializeCompressed())
 	return pubkeyBytes
+}
+
+func serverWorker(suite *Suite, server *http.Server) {
+	if suite.Config.ServeUsingTLS {
+		if suite.Config.UseAutoCert {
+			logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
+		}
+
+		if suite.Config.ServerCert != "" {
+			err := server.ListenAndServeTLS(suite.Config.ServerCert,
+				suite.Config.ServerKey)
+			if err != nil {
+				logging.Fatal(err.Error())
+			}
+		} else {
+			logging.Fatal("Certs not supplied, try running with UseAutoCert")
+		}
+
+	} else {
+		err := server.ListenAndServe()
+		if err != nil {
+			logging.Fatal(err.Error())
+		}
+
+	}
+
 }

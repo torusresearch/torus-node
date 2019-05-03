@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -46,21 +47,41 @@ type googleIdentityVerifier struct {
 
 /* The entry point for our System */
 func New() {
-	// QUESTION(TEAM) - was there a reason for passing in a reference to the suite, and setting the config by mutating suite itself?
-	// for now I just made it like so: cfg := loadConfig()
-	// and then suite.Config = cfg
-	// BUT
-	// Wouldn't it be better to have a "config" package that has an init()
-	// that sets all the config variables and is available globally for read?
-	// it should be immutable after initializing, but if not we can always stick a mutex.
+	logging.Info("starting telemetry")
+	go telemetry.Serve()
 	cfg := loadConfig(DefaultConfigPath)
 	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, tmp2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.TMP2PListenAddress)
+	// Start profiling
+	profile(cfg.CPUProfileToFile)
 
-	//Main suite of functions used in node
+	//build folders for tendermint logs
+	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/config", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/config", os.ModePerm)
+	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
+
+	var server *http.Server
+
+	// Main suite of functions used in dkgnode
 	suite := Suite{}
 	suite.Config = cfg
 
+	// Initialize all necessary channels
 	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
+	keyGenMonitorTicker := time.NewTicker(5 * time.Second)
+	whitelistMonitorTicker := time.NewTicker(5 * time.Second)
+	abciServerMonitorTicker := time.NewTicker(5 * time.Second)
+	whitelistMonitorMsgs := make(chan WhitelistMonitorUpdates)
+	bftWorkerMsgs := make(chan string)
+	tmCoreMsgs := make(chan string)
+	nodeListMonitorMsgs := make(chan NodeListUpdates)
+	nodeListWorkerMsgs := make(chan string)
+	keyGenMonitorMsgs := make(chan KeyGenUpdates)
+	pssWorkerMsgs := make(chan PSSWorkerUpdate)
+	idleConnsClosed := make(chan struct{})
+
+	SetupKeygen(&suite)
 
 	if cfg.CPUProfileToFile != "" {
 		f, err := os.Create(cfg.CPUProfileToFile)
@@ -73,8 +94,6 @@ func New() {
 			pprof.StopCPUProfile()
 		}()
 	}
-
-	SetupFSM(&suite)
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
@@ -114,13 +133,6 @@ func New() {
 	SetupBft(&suite)
 	// setup local caching
 	SetupCache(&suite)
-
-	//build folders for tendermint logs
-	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/tendermint/config", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/config", os.ModePerm)
-	os.MkdirAll(cfg.BasePath+"/data", os.ModePerm)
 
 	// we generate nodekey first cause we need it in node list TODO: find a better way
 	tmNodeKey, err := p2p.LoadOrGenNodeKey(cfg.BasePath + "/config/node_key.json")
@@ -163,11 +175,6 @@ func New() {
 			logging.Fatal(err.Error())
 		}
 	}
-
-	// Initialize all necessary channels
-	tmCoreMsgs := make(chan string)
-	nodeListMonitorMsgs := make(chan NodeListUpdates)
-	keyGenMonitorMsgs := make(chan KeyGenUpdates)
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
 	// Set up standard server
@@ -301,4 +308,18 @@ func RawPointToTMPubKey(X, Y *big.Int) tmsecp.PubKeySecp256k1 {
 	}
 	copy(pubkeyBytes[:], pubkeyObject.SerializeCompressed())
 	return pubkeyBytes
+}
+
+func profile(CPUProfileToFile string) {
+	if CPUProfileToFile != "" {
+		f, err := os.Create(CPUProfileToFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		go func() {
+			time.Sleep(5 * time.Minute)
+			pprof.StopCPUProfile()
+		}()
+	}
 }

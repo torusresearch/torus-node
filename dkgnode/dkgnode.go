@@ -37,6 +37,7 @@ type Suite struct {
 	P2PSuite        *P2PSuite
 	DBSuite         *DBSuite
 	LocalStatus     *LocalStatus
+	PSSSuite        *PSSSuite
 }
 
 type googleIdentityVerifier struct {
@@ -75,6 +76,7 @@ func New() {
 	}
 
 	SetupFSM(&suite)
+	SetupPSS(&suite)
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
@@ -168,6 +170,7 @@ func New() {
 	tmCoreMsgs := make(chan string)
 	nodeListMonitorMsgs := make(chan NodeListUpdates)
 	keyGenMonitorMsgs := make(chan KeyGenUpdates)
+	pssMonitorMsgs := make(chan PSSWorkerUpdate)
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
 	// Set up standard server
@@ -265,6 +268,7 @@ func New() {
 	}
 
 	go keyGenWorker(&suite, keyGenMonitorMsgs)
+	go pssWorker(&suite, pssMonitorMsgs)
 	<-idleConnsClosed
 }
 

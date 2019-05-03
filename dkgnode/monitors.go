@@ -127,7 +127,7 @@ type PSSUpdate struct {
 func whitelistMonitor(suite *Suite, tickerChan <-chan time.Time, whitelistMonitorMsgs chan<- WhitelistMonitorUpdates) {
 	for range tickerChan {
 		currentEpoch := suite.EthSuite.CurrentEpoch
-		isWhitelisted, err := suite.EthSuite.NodeListContract.ViewWhitelist(nil, big.NewInt(int64(currentEpoch)), *suite.EthSuite.NodeAddress)
+		isWhitelisted, err := suite.EthSuite.NodeListContract.ViewWhitelist(nil, big.NewInt(int64(0)), *suite.EthSuite.NodeAddress)
 		if err != nil {
 			logging.Errorf("Could not check ethereum whitelist: %s", err.Error())
 		}

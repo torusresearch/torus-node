@@ -2,6 +2,7 @@ package dkgnode
 
 import (
 	// "fmt"
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -61,10 +62,10 @@ type keygenConstants struct {
 type keygenID string // "startingIndex-endingIndex"
 //TODO : Change startingIndex and endingIndex in node to big.Int
 func getKeygenID(shareStartingIndex int, shareEndingIndex int) keygenID {
-	return keygenID(keygenConsts.RequestPrefix + strconv.FormatInt(int64(shareStartingIndex), 16) + "-" + strconv.FormatInt(int64(shareEndingIndex), 16))
+	return keygenID(keygenConsts.RequestPrefix + strconv.FormatInt(int64(shareStartingIndex), 16) + "|" + strconv.FormatInt(int64(shareEndingIndex), 16))
 }
 func getStartEndIndexesFromKeygenID(keygenID keygenID) (int, int, error) {
-	split := strings.Split(string(keygenID)[18:], "-")
+	split := strings.Split(string(keygenID)[18:], "|")
 	startIndex, err := strconv.ParseInt(split[0], 16, 64)
 	if err != nil {
 		return 0, 0, err
@@ -120,12 +121,39 @@ func (kp *KEYGENProtocol) handleMainChannel() {
 		case msg := <-kp.MainChannel:
 			logging.Infof("KEYGEN Finished Msg: %v", msg)
 			// For now we just increase the telementry number by X amount
-			kp.suite.LocalStatus.Event(kp.suite.LocalStatus.Constants.Events.KeygenComplete)
-			for i := 0; i < kp.suite.Config.KeysPerEpoch; i++ {
-				kp.counters["num_shares_verified"].Inc()
+			splits := strings.Split(msg, "|")
+			if splits[0] == keygen.SIKeygenCompleted {
+				kp.suite.LocalStatus.Event(kp.suite.LocalStatus.Constants.Events.KeygenComplete)
+				for i := 0; i < kp.suite.Config.KeysPerEpoch; i++ {
+					kp.counters["num_shares_verified"].Inc()
+				}
+				// Clean up
+				startIndex, err := strconv.Atoi(splits[1])
+				if err != nil {
+					logging.Errorf("could not parse keygen complete : %s", msg)
+				}
+				numGen, err := strconv.Atoi(splits[2])
+				if err != nil {
+					logging.Errorf("could not parse keygen complete : %s", msg)
+				}
+				endIndex := startIndex + numGen
+				kp.CleanUpKeygenInstance(getKeygenID(startIndex, endIndex))
 			}
 		}
 	}
+}
+
+// Cleans up keygen instance, usuallly run after completion of keygen
+// Concurrent safe
+func (kp *KEYGENProtocol) CleanUpKeygenInstance(kID keygenID) error {
+	kp.Lock()
+	defer kp.Unlock()
+	_, ok := kp.KeygenInstances[kID]
+	if !ok {
+		return fmt.Errorf("No KeygenInstance to delete for keygenID: %s", kID)
+	}
+	delete(kp.KeygenInstances, kID)
+	return nil
 }
 
 // NewKeygen instanciates a new keygenInstance that is assigned to keygenProto
@@ -172,8 +200,10 @@ func (kp *KEYGENProtocol) newKeygen(suite *Suite, shareStartingIndex int, shareE
 			ownNodeIndex = *nodeRef.Index
 		}
 	}
+
 	logging.Debugf("With k: %v, t: %v, nodeIndexes: %v", suite.Config.Threshold, suite.Config.NumMalNodes, nodeIndexList)
 	logging.Debugf("and own index: %v", ownNodeIndex)
+
 	keygenTp := KEYGENTransport{
 		Protocol:  kp,
 		ProtoName: protocol.ID(keygenID),

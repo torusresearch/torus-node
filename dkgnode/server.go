@@ -66,7 +66,7 @@ func setUpAndRunHttpServer(suite *Suite) {
 			// Force http-01 challenges
 			certmagic.Default.DisableTLSALPNChallenge = true
 
-			err := certmagic.HTTPS([]string{suite.Config.PublicURL, fmt.Sprintf("www.%s", suite.Config.PublicURL)}, router)
+			err := certmagic.HTTPS([]string{suite.Config.PublicURL}, router)
 			if err != nil {
 				logging.Fatal(err.Error())
 			}
@@ -234,6 +234,7 @@ func listenForShares(suite *Suite, count int) {
 			logging.Errorf("error decoding b64 %s", err)
 			continue
 		}
+
 		// valid messages should start with mug00
 		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
 			logging.Debug("Message not prefixed with mug00")

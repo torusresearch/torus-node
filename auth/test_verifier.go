@@ -17,7 +17,7 @@ type TestVerifierParams struct {
 
 // GetIdentifier - return identifier string for verifier
 func (v *TestVerifier) GetIdentifier() string {
-	return "Test"
+	return "test"
 }
 
 // CleanToken - ensure that incoming token conforms to strict format to prevent replay attacks

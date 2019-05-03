@@ -30,5 +30,5 @@ func PointToEthAddress(point Point) (*common.Address, error) {
 
 func TimeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
-	fmt.Println("%s took %s", name, elapsed)
+	fmt.Printf("%s took %s\n", name, elapsed)
 }

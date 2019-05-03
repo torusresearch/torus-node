@@ -27,7 +27,7 @@ require (
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.7.0
 	github.com/huin/goupnp v1.0.0 // indirect
-	github.com/intel-go/fastjson v0.0.0-20170329170629-f846ae58a1ab // indirect
+	github.com/intel-go/fastjson v0.0.0-20170329170629-f846ae58a1ab
 	github.com/jackpal/gateway v1.0.5 // indirect
 	github.com/jinzhu/copier v0.0.0-20180308034124-7e38e58719c3
 	github.com/jmhodges/levigo v1.0.0 // indirect

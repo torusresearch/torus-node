@@ -70,10 +70,13 @@ func GetCommit(polynomial common.PrimaryPolynomial) []common.Point {
 	return commits
 }
 
-func AddCommitments(commit1 []common.Point, commit2 []common.Point) (sumCommit []common.Point) {
-	for i, pt := range commit1 {
-		pt2 := commit2[i]
-		sumCommit = append(sumCommit, common.BigIntToPoint(secp256k1.Curve.Add(&pt.X, &pt.Y, &pt2.X, &pt2.Y)))
+func AddCommitments(commitments ...[]common.Point) (sumCommit []common.Point) {
+	for i, _ := range commitments[0] {
+		var sumPt common.Point
+		for _, commitment := range commitments {
+			sumPt = common.BigIntToPoint(secp256k1.Curve.Add(&sumPt.X, &sumPt.Y, &commitment[i].X, &commitment[i].Y))
+		}
+		sumCommit = append(sumCommit, sumPt)
 	}
 	return
 }
@@ -478,4 +481,20 @@ func LagrangeCurvePts(indexes []int, points []common.Point) *common.Point {
 	}
 	poly := LagrangePolys(indexes, sm)
 	return &poly[0]
+}
+
+func SumScalars(scalars ...big.Int) big.Int {
+	sumScalar := big.NewInt(int64(0))
+	for _, scalar := range scalars {
+		sumScalar.Add(sumScalar, &scalar)
+	}
+	sumScalar.Mod(sumScalar, secp256k1.GeneratorOrder)
+	return *sumScalar
+}
+
+func SumPoints(pts ...common.Point) (sumPt common.Point) {
+	for _, pt := range pts {
+		sumPt = common.BigIntToPoint(secp256k1.Curve.Add(&sumPt.X, &sumPt.Y, &pt.X, &pt.Y))
+	}
+	return
 }

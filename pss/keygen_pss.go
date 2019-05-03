@@ -33,10 +33,11 @@ func ecThreshold(n, k, t int) (res int) {
 // Each method handler's code path consists of parsing the message -> state checks -> logic -> state updates.
 // Defer state changes until the end of the function call to ensure that the state is consistent in the handler.
 // When sending messages to other nodes, it's important to use a goroutine to ensure that it isnt synchronous
+// We assume that senderDetails have already been validated by the transport and are always correct
 func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSSMessage) error {
-	logging.Debug(string(pssNode.NodeDetails.ToNodeDetailsID())[0:8] + " processing message from " + string(senderDetails.ToNodeDetailsID())[0:8] + " for pssMessage " + pssMessage.Method)
 	pssNode.Lock()
 	defer pssNode.Unlock()
+	logging.Debugf("%v processing message from %v for pssMessage %v", string(pssNode.NodeDetails.ToNodeDetailsID())[0:8], string(senderDetails.ToNodeDetailsID())[0:8], pssMessage.Method)
 	if _, found := pssNode.PSSStore[pssMessage.PSSID]; !found && pssMessage.PSSID != NullPSSID {
 		pssNode.PSSStore[pssMessage.PSSID] = &PSS{
 			PSSID: pssMessage.PSSID,
@@ -44,7 +45,7 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 				States.Phases.Initial,
 				States.Dealer.NotDealer,
 				States.Player.NotPlayer,
-				States.Recover.Initial,
+				// States.Recover.Initial,
 				States.ReceivedSend.False,
 				States.ReceivedEchoMap(),
 				States.ReceivedReadyMap(),
@@ -101,8 +102,8 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 
 		for _, newNode := range pssNode.NewNodes.Nodes {
 			pssID := (&PSSIDDetails{
-				SharingID: sharing.SharingID,
-				Index:     sharing.I,
+				SharingID:   sharing.SharingID,
+				DealerIndex: sharing.I,
 			}).ToPSSID()
 			pssMsgSend := &PSSMsgSend{
 				PSSID:  pssID,
@@ -181,9 +182,32 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		}
 		dCount := recover.DCount[vID]
 		dCount[senderDetails.ToNodeDetailsID()] = true
-		if len(dCount) == pssNode.OldNodes.T+1 {
+		if len(dCount) == pssNode.OldNodes.K {
 			recover.D = &pssMsgRecover.V
-			logging.Debug("Received t+1 recover messages with the same commitment " + fmt.Sprint(pssMsgRecover.V))
+			logging.Debugf("Received k recover messages with the same commitment %v", pssMsgRecover.V)
+			complete := pssNode.CompleteStore[pssMsgRecover.SharingID]
+
+			// received complete message already but was waiting for enough recover messages to continue
+			if complete != nil && complete.CompleteMessageSent {
+				data, err := bijson.Marshal(PSSMsgComplete{
+					PSSID: complete.PSSID,
+					C00:   complete.C00,
+				})
+				if err != nil {
+					return err
+				}
+				nextPSSMessage := PSSMessage{
+					PSSID:  NullPSSID,
+					Method: "complete",
+					Data:   data,
+				}
+				go func(ownNode NodeDetails, ownMsg PSSMessage) {
+					err := pssNode.Transport.Send(ownNode, ownMsg)
+					if err != nil {
+						logging.Error(err.Error())
+					}
+				}(pssNode.NodeDetails, nextPSSMessage)
+			}
 		}
 		return nil
 	} else if pssMessage.Method == "send" {
@@ -213,10 +237,10 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 			return err
 		}
 		senderID := pssNode.OldNodes.Nodes[senderDetails.ToNodeDetailsID()].Index
-		if senderID == pssIDDetails.Index {
+		if senderID == pssIDDetails.DealerIndex {
 			defer func() { pss.State.ReceivedSend = States.ReceivedSend.True }()
 		} else {
-			return errors.New("'Send' message contains index of " + strconv.Itoa(pssIDDetails.Index) + " was not sent by node " + strconv.Itoa(senderID))
+			return errors.New("'Send' message contains index of " + strconv.Itoa(pssIDDetails.DealerIndex) + " was not sent by node " + strconv.Itoa(senderID))
 		}
 		verified := pvss.AVSSVerifyPoly(
 			pssMsgSend.C,
@@ -565,20 +589,21 @@ func (pssNode *PSSNode) ProcessMessage(senderDetails NodeDetails, pssMessage PSS
 		var pssIDDetails PSSIDDetails
 		pssIDDetails.FromPSSID(pssMsgComplete.PSSID)
 		sharingID := pssIDDetails.SharingID
-		if _, found := pssNode.RecoverStore[sharingID]; !found {
-			// no recover messages received
-			return nil
-		}
-		recover := pssNode.RecoverStore[sharingID]
 
-		// check if t+1 identical recover messages on same ID and same V received
-		if recover.D == nil {
-			logging.Info("Not enough recovers received")
+		recover, found := pssNode.RecoverStore[sharingID]
+		// check if k identical recover messages on same ID and same V received
+		if !found || recover.D == nil {
+			logging.Info("Not enough recovers received, waiting for recovers to be received before processing complete message")
+			pssNode.CompleteStore[sharingID] = &Complete{
+				CompleteMessageSent: true, // wait to rerun this message upon receiving enough recovers
+				PSSID:               pssMsgComplete.PSSID,
+				C00:                 pssMsgComplete.C00,
+			}
 			return nil
 		}
 
 		// add to psscompletecount if C00 is valid
-		verified := pvss.VerifyShareCommitment(pssMsgComplete.C00, *recover.D, *big.NewInt(int64(pssIDDetails.Index)))
+		verified := pvss.VerifyShareCommitment(pssMsgComplete.C00, *recover.D, *big.NewInt(int64(pssIDDetails.DealerIndex)))
 		if !verified {
 			return errors.New("Could not verify share commitment in complete message for a threshold-agreed secret commitment")
 		}
@@ -697,11 +722,11 @@ func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
 				return err
 			}
 			abarArray = append(abarArray, common.Point{
-				X: *big.NewInt(int64(pssIDDetails.Index)),
+				X: *big.NewInt(int64(pssIDDetails.DealerIndex)),
 				Y: pss.Si,
 			})
 			abarprimeArray = append(abarprimeArray, common.Point{
-				X: *big.NewInt(int64(pssIDDetails.Index)),
+				X: *big.NewInt(int64(pssIDDetails.DealerIndex)),
 				Y: pss.Siprime,
 			})
 		}
@@ -718,7 +743,7 @@ func (pssNode *PSSNode) ProcessBroadcastMessage(pssMessage PSSMessage) error {
 			if err != nil {
 				return err
 			}
-			vbarInputIndexes = append(vbarInputIndexes, pssIDDetails.Index)
+			vbarInputIndexes = append(vbarInputIndexes, pssIDDetails.DealerIndex)
 			vbarInputPts = append(vbarInputPts, common.GetColumnPoint(pss.Cbar, 0))
 		}
 		recover.Vbar = pvss.LagrangePolys(vbarInputIndexes, vbarInputPts)
@@ -751,37 +776,32 @@ func NewPSSNode(
 	newNodeList []common.Node,
 	newNodesT int,
 	newNodesK int,
-	nodeIndex big.Int,
+	nodeIndex int,
 	transport PSSTransport,
 	isDealer bool,
 	isPlayer bool,
 ) *PSSNode {
-	mapFromNodeList := func(nodeList []common.Node) (res map[NodeDetailsID]NodeDetails) {
-		res = make(map[NodeDetailsID]NodeDetails)
-		for _, node := range nodeList {
-			nodeDetails := NodeDetails(node)
-			res[nodeDetails.ToNodeDetailsID()] = nodeDetails
-		}
-		return
-	}
 	newPssNode := &PSSNode{
 		NodeDetails: NodeDetails(nodeDetails),
 		OldNodes: NodeNetwork{
 			Nodes: mapFromNodeList(oldNodeList),
+			N:     len(oldNodeList),
 			T:     oldNodesT,
 			K:     oldNodesK,
 		},
 		NewNodes: NodeNetwork{
 			Nodes: mapFromNodeList(newNodeList),
+			N:     len(newNodeList),
 			T:     newNodesT,
 			K:     newNodesK,
 		},
-		NodeIndex:    nodeIndex,
-		ShareStore:   make(map[SharingID]*Sharing),
-		RecoverStore: make(map[SharingID]*Recover),
-		PSSStore:     make(map[PSSID]*PSS),
-		IsDealer:     isDealer,
-		IsPlayer:     isPlayer,
+		NodeIndex:     nodeIndex,
+		ShareStore:    make(map[SharingID]*Sharing),
+		RecoverStore:  make(map[SharingID]*Recover),
+		CompleteStore: make(map[SharingID]*Complete),
+		PSSStore:      make(map[PSSID]*PSS),
+		IsDealer:      isDealer,
+		IsPlayer:      isPlayer,
 	}
 	transport.SetPSSNode(newPssNode)
 	newPssNode.Transport = transport

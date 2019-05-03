@@ -3,10 +3,11 @@ package pss
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/torusresearch/torus-public/idmutex"
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/torusresearch/torus-public/idmutex"
 
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/common"
@@ -20,7 +21,8 @@ type playerState bool
 type receivedSendState bool
 type receivedEchoState bool
 type receivedReadyState bool
-type recoverState string
+
+// type recoverState string
 
 type phaseStates struct {
 	Initial   phaseState
@@ -29,14 +31,14 @@ type phaseStates struct {
 	Ended     phaseState
 }
 
-type recoverStates struct {
-	Initial                            recoverState
-	WaitingForRecovers                 recoverState
-	WaitingForThresholdSharing         recoverState
-	WaitingForVBA                      recoverState
-	WaitingForSelectedSharingsComplete recoverState
-	Ended                              recoverState
-}
+// type recoverStates struct {
+// 	Initial                            recoverState
+// 	WaitingForRecovers                 recoverState
+// 	WaitingForThresholdSharing         recoverState
+// 	WaitingForVBA                      recoverState
+// 	WaitingForSelectedSharingsComplete recoverState
+// 	Ended                              recoverState
+// }
 
 type dealerStates struct {
 	IsDealer  dealerState
@@ -64,10 +66,10 @@ type receivedReadyStates struct {
 }
 
 type PSSState struct {
-	Phase         phaseState
-	Dealer        dealerState
-	Player        playerState
-	Recover       recoverState
+	Phase  phaseState
+	Dealer dealerState
+	Player playerState
+	// Recover       recoverState
 	ReceivedSend  receivedSendState
 	ReceivedEcho  map[NodeDetailsID]receivedEchoState
 	ReceivedReady map[NodeDetailsID]receivedReadyState
@@ -82,7 +84,7 @@ var States = struct {
 	ReceivedEchoMap  func() map[NodeDetailsID]receivedEchoState
 	ReceivedReady    receivedReadyStates
 	ReceivedReadyMap func() map[NodeDetailsID]receivedReadyState
-	Recover          recoverStates
+	// Recover          recoverStates
 }{
 	phaseStates{
 		Initial:   phaseState("initial"),
@@ -112,14 +114,14 @@ var States = struct {
 		False: receivedReadyState(false),
 	},
 	CreateReceivedReadyMap,
-	recoverStates{
-		Initial:                            recoverState("initial"),
-		WaitingForRecovers:                 recoverState("waitingforrecovers"),
-		WaitingForThresholdSharing:         recoverState("waitingforthresholdsharing"),
-		WaitingForVBA:                      recoverState("waitingforvba"),
-		WaitingForSelectedSharingsComplete: recoverState("waitingforselectedsharingscomplete"),
-		Ended:                              recoverState("ended"),
-	},
+	// recoverStates{
+	// 	Initial:                            recoverState("initial"),
+	// 	WaitingForRecovers:                 recoverState("waitingforrecovers"),
+	// 	WaitingForThresholdSharing:         recoverState("waitingforthresholdsharing"),
+	// 	WaitingForVBA:                      recoverState("waitingforvba"),
+	// 	WaitingForSelectedSharingsComplete: recoverState("waitingforselectedsharingscomplete"),
+	// 	Ended:                              recoverState("ended"),
+	// },
 }
 
 func CreateReceivedEchoMap() map[NodeDetailsID]receivedEchoState {
@@ -301,12 +303,12 @@ type PSSID string
 const NullPSSID = PSSID("")
 
 type PSSIDDetails struct {
-	SharingID SharingID
-	Index     int
+	SharingID   SharingID
+	DealerIndex int
 }
 
 func (pssIDDetails *PSSIDDetails) ToPSSID() PSSID {
-	return PSSID(string(pssIDDetails.SharingID) + "|" + strconv.Itoa(pssIDDetails.Index))
+	return PSSID(string(pssIDDetails.SharingID) + "|" + strconv.Itoa(pssIDDetails.DealerIndex))
 }
 func (pssIDDetails *PSSIDDetails) FromPSSID(pssID PSSID) error {
 	s := string(pssID)
@@ -319,7 +321,7 @@ func (pssIDDetails *PSSIDDetails) FromPSSID(pssID PSSID) error {
 	if err != nil {
 		return err
 	}
-	pssIDDetails.Index = index
+	pssIDDetails.DealerIndex = index
 	return nil
 }
 
@@ -372,16 +374,32 @@ type NodeNetwork struct {
 	ID    string
 }
 
+type Complete struct {
+	CompleteMessageSent bool
+	PSSID               PSSID
+	C00                 common.Point
+}
+
 type PSSNode struct {
 	idmutex.Mutex
-	NodeDetails  NodeDetails
-	OldNodes     NodeNetwork
-	NewNodes     NodeNetwork
-	NodeIndex    big.Int
-	ShareStore   map[SharingID]*Sharing
-	RecoverStore map[SharingID]*Recover
-	Transport    PSSTransport
-	PSSStore     map[PSSID]*PSS
-	IsDealer     bool
-	IsPlayer     bool
+	NodeDetails   NodeDetails
+	OldNodes      NodeNetwork
+	NewNodes      NodeNetwork
+	NodeIndex     int
+	ShareStore    map[SharingID]*Sharing
+	RecoverStore  map[SharingID]*Recover
+	CompleteStore map[SharingID]*Complete
+	Transport     PSSTransport
+	PSSStore      map[PSSID]*PSS
+	IsDealer      bool
+	IsPlayer      bool
+}
+
+func mapFromNodeList(nodeList []common.Node) (res map[NodeDetailsID]NodeDetails) {
+	res = make(map[NodeDetailsID]NodeDetails)
+	for _, node := range nodeList {
+		nodeDetails := NodeDetails(node)
+		res[nodeDetails.ToNodeDetailsID()] = nodeDetails
+	}
+	return
 }

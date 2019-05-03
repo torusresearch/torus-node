@@ -3,7 +3,6 @@ package pss
 import (
 	"errors"
 	"fmt"
-	"github.com/torusresearch/torus-public/idmutex"
 	"math/big"
 	"math/rand"
 	"runtime"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/torusresearch/torus-public/idmutex"
 
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/logging"
@@ -26,7 +27,7 @@ import (
 func TestPSSOptimistic(test *testing.T) {
 	logging.SetLevelString("error")
 	runtime.GOMAXPROCS(10)
-	keys := 1
+	keys := 3
 	n := 9
 	k := 5
 	t := 2
@@ -39,8 +40,8 @@ func TestPSSOptimistic(test *testing.T) {
 				SharingID: sharingID,
 			}
 			pssID := (&PSSIDDetails{
-				SharingID: sharingID,
-				Index:     node.NodeDetails.Index,
+				SharingID:   sharingID,
+				DealerIndex: node.NodeDetails.Index,
 			}).ToPSSID()
 			data, err := bijson.Marshal(pssMsgShare)
 			if err != nil {
@@ -82,8 +83,8 @@ func TestPSSOptimistic(test *testing.T) {
 			var subshares []common.PrimaryShare
 			for _, noderef := range nodes { // assuming that all nodes are part of the valid set
 				val := node.PSSStore[(&PSSIDDetails{
-					SharingID: sharingID,
-					Index:     noderef.NodeDetails.Index,
+					SharingID:   sharingID,
+					DealerIndex: noderef.NodeDetails.Index,
 				}).ToPSSID()].Si
 				if val.Cmp(big.NewInt(int64(0))) != 0 {
 					subshares = append(subshares, common.PrimaryShare{
@@ -136,8 +137,8 @@ func TestPSSDifferentThresholds(test *testing.T) {
 				SharingID: sharingID,
 			}
 			pssID := (&PSSIDDetails{
-				SharingID: sharingID,
-				Index:     node.NodeDetails.Index,
+				SharingID:   sharingID,
+				DealerIndex: node.NodeDetails.Index,
 			}).ToPSSID()
 			data, err := bijson.Marshal(pssMsgShare)
 			if err != nil {
@@ -179,8 +180,8 @@ func TestPSSDifferentThresholds(test *testing.T) {
 			var subshares []common.PrimaryShare
 			for _, noderef := range oldNodes { // assuming that all nodes are part of the valid set
 				val := node.PSSStore[(&PSSIDDetails{
-					SharingID: sharingID,
-					Index:     noderef.NodeDetails.Index,
+					SharingID:   sharingID,
+					DealerIndex: noderef.NodeDetails.Index,
 				}).ToPSSID()].Si
 				if val.Cmp(big.NewInt(int64(0))) != 0 {
 					subshares = append(subshares, common.PrimaryShare{
@@ -431,8 +432,8 @@ func TestPSSOfflineNodes(test *testing.T) {
 				SharingID: sharingID,
 			}
 			pssID := (&PSSIDDetails{
-				SharingID: sharingID,
-				Index:     node.NodeDetails.Index,
+				SharingID:   sharingID,
+				DealerIndex: node.NodeDetails.Index,
 			}).ToPSSID()
 			data, err := bijson.Marshal(pssMsgShare)
 			if err != nil {
@@ -480,8 +481,8 @@ func TestPSSOfflineNodes(test *testing.T) {
 			var subshares []common.PrimaryShare
 			for _, noderef := range oldNodes[2:] { // assuming that all nodes are part of the valid set
 				val := node.PSSStore[(&PSSIDDetails{
-					SharingID: sharingID,
-					Index:     noderef.NodeDetails.Index,
+					SharingID:   sharingID,
+					DealerIndex: noderef.NodeDetails.Index,
 				}).ToPSSID()].Si
 				if val.Cmp(big.NewInt(int64(0))) != 0 {
 					subshares = append(subshares, common.PrimaryShare{
@@ -939,7 +940,7 @@ func SetupTestNodes(nOld int, kOld int, tOld int, nNew int, kNew int, tNew int, 
 			newNodeL,
 			tN,
 			kN,
-			*big.NewInt(int64(newNodeI[i])),
+			newNodeI[i],
 			&localTransport,
 			true,
 			isP,
@@ -976,7 +977,7 @@ func SetupTestNodes(nOld int, kOld int, tOld int, nNew int, kNew int, tNew int, 
 				newNodeList,
 				tNew,
 				kNew,
-				*big.NewInt(int64(newNodeIndexes[i])),
+				newNodeIndexes[i],
 				&localTransport,
 				false,
 				true,

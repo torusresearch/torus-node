@@ -61,6 +61,7 @@ func setUpAndRunHttpServer(suite *Suite) {
 			if suite.Config.PublicURL == "" {
 				logging.Fatal("PublicURL is required when UseAutoCert is true")
 			}
+			logging.Info("Starting server with CertMagic...")
 			err := certmagic.HTTPS([]string{suite.Config.PublicURL, fmt.Sprintf("www.%s", suite.Config.PublicURL)}, router)
 			if err != nil {
 				logging.Fatal(err.Error())
@@ -69,6 +70,7 @@ func setUpAndRunHttpServer(suite *Suite) {
 		}
 
 		if suite.Config.ServerCert != "" {
+			logging.Info("Starting HTTPS server with preconfigured certs...")
 			err := server.ListenAndServeTLS(suite.Config.ServerCert,
 				suite.Config.ServerKey)
 			if err != nil {
@@ -79,6 +81,7 @@ func setUpAndRunHttpServer(suite *Suite) {
 		}
 
 	} else {
+		logging.Info("Starting HTTP server...")
 		err := server.ListenAndServe()
 		if err != nil {
 			logging.Fatal(err.Error())

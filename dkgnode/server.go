@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/mholt/certmagic"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
@@ -19,57 +20,72 @@ import (
 	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/pvss"
-	"golang.org/x/crypto/acme/autocert"
 )
 
-func setUpServer(suite *Suite, port string) *http.Server {
+func setUpRouter(suite *Suite) http.Handler {
 	mr, err := setUpJRPCHandler(suite)
 	if err != nil {
 		logging.Fatalf("%s", err)
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
-	notProtected := router.PathPrefix("/healthz").Subrouter()
+	notProtected := router.PathPrefix("/").Subrouter()
 	notProtected.Use(loggingMiddleware)
-	notProtected.HandleFunc("/", GETHealthz)
+	notProtected.HandleFunc("/healthz", GETHealthz)
 
 	// tlsNotProtected := router.PathPrefix("/tls").Subrouter()
 
-	router.Handle("/jrpc", mr)
-	router.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	protected := router.PathPrefix("/jrpc").Subrouter()
+	protected.Handle("/", mr)
+	protected.HandleFunc("/debug", mr.ServeDebug)
 
-	router.Use(augmentRequestMiddleware)
-	router.Use(loggingMiddleware)
-	router.Use(telemetryMiddleware)
+	protected.Use(augmentRequestMiddleware)
+	protected.Use(loggingMiddleware)
+	protected.Use(telemetryMiddleware)
 
-	addr := fmt.Sprintf(":%s", port)
 	handler := cors.Default().Handler(router)
+	return handler
+}
+
+func setUpAndRunHttpServer(suite *Suite) {
+	router := setUpRouter(suite)
+	addr := fmt.Sprintf(":%s", suite.Config.HttpServerPort)
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: handler,
+		Handler: router,
 	}
 
-	if suite.Config.UseAutoCert {
-		// TODO: Actually validate URL
-		if suite.Config.PublicURL == "" {
-			logging.Fatal("since UseAutoCert is set to true, please also set PublicURL")
+	if suite.Config.ServeUsingTLS {
+		if suite.Config.UseAutoCert {
+			if suite.Config.PublicURL == "" {
+				logging.Fatal("PublicURL is required when UseAutoCert is true")
+			}
+			err := certmagic.HTTPS([]string{suite.Config.PublicURL, fmt.Sprintf("www.%s", suite.Config.PublicURL)}, router)
+			if err != nil {
+				logging.Fatal(err.Error())
+			}
+
 		}
-		cacheDir := suite.Config.AutoCertCacheDir
-		if cacheDir == "" {
-			// TODO: Reconsider default secret cache dir
-			cacheDir = "secret-dir"
+
+		if suite.Config.ServerCert != "" {
+			err := server.ListenAndServeTLS(suite.Config.ServerCert,
+				suite.Config.ServerKey)
+			if err != nil {
+				logging.Fatal(err.Error())
+			}
+		} else {
+			logging.Fatal("Certs not supplied, try running with UseAutoCert")
 		}
-		m := &autocert.Manager{
-			Cache:      autocert.DirCache(cacheDir),
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(suite.Config.PublicURL, fmt.Sprintf("www.%s", suite.Config.PublicURL)),
+
+	} else {
+		err := server.ListenAndServe()
+		if err != nil {
+			logging.Fatal(err.Error())
 		}
-		// m.Listener()
-		server.TLSConfig = m.TLSConfig()
+
 	}
 
-	return server
 }
 
 func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {

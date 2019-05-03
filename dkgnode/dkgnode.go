@@ -2,7 +2,6 @@ package dkgnode
 
 //TODO: export all "tm" imports to common folder
 import (
-	"context"
 	"crypto/ecdsa"
 	"log"
 	"math/big"
@@ -159,8 +158,9 @@ func New() {
 	keyGenMonitorMsgs := make(chan KeyGenUpdates)
 
 	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
-	// Set up standard server
-	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
+
+	// Set Up Server
+	go setUpAndRunHttpServer(&suite)
 
 	// Stop upon receiving SIGTERM or CTRL-C
 	c := make(chan os.Signal, 1)
@@ -171,12 +171,6 @@ func New() {
 		<-c
 		logging.Info("Shutting down the node, received signal.")
 
-		// Shutdown the jRPC server
-		err := server.Shutdown(context.Background())
-		if err != nil {
-			logging.Errorf("Failed during shutdown: %s", err.Error())
-		}
-
 		// Stop NodeList monitor ticker
 		nodeListMonitorTicker.Stop()
 
@@ -184,37 +178,8 @@ func New() {
 		close(idleConnsClosed)
 	}()
 
-	go func() {
-		if suite.Config.ServeUsingTLS {
-			if suite.Config.UseAutoCert {
-				// NOTE: If AutoCert errors would occur, they
-				// would do so during setup
-				err := server.ListenAndServeTLS("", "")
-				if err != nil {
-					logging.Fatal(err.Error())
-				}
-
-			}
-
-			if suite.Config.ServerCert != "" {
-				err := server.ListenAndServeTLS(suite.Config.ServerCert,
-					suite.Config.ServerKey)
-				if err != nil {
-					logging.Fatal(err.Error())
-				}
-			} else {
-				logging.Fatal("Certs not supplied, try running with UseAutoCert")
-			}
-
-		} else {
-			err := server.ListenAndServe()
-			if err != nil {
-				logging.Fatal(err.Error())
-			}
-
-		}
-
-	}()
+	// Set up standard server
+	// server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
 	// TODO(TEAM): This needs to be less verbose, and wrapped in some functions..
 	// It really doesnt need to run forever right?...

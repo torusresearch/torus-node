@@ -14,7 +14,7 @@ import (
 	"github.com/torusresearch/torus-public/logging"
 )
 
-//Validates transactions. is the master switch for all tx
+//Validates transactions to be delivered to the BFT. is the master switch for all tx
 //TODO: create variables for types here and in bftrpc.go
 func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVPair, error) {
 	var tags []common.KVPair

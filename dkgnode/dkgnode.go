@@ -251,7 +251,7 @@ func New() {
 	}
 
 	logging.Info("Sleeeping...")
-	time.Sleep(35 * time.Second)
+	time.Sleep(20 * time.Second)
 	logging.Info("Waking up...")
 	for {
 		coreMsg := <-tmCoreMsgs

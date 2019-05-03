@@ -3,7 +3,6 @@ package dkgnode
 /* All useful imports */
 import (
 	"crypto/ecdsa"
-	"os"
 	// "encoding/hex"
 	// "encoding/json"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 	// "github.com/Rican7/retry/strategy"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmnode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -73,9 +71,9 @@ func startTendermintCore(suite *Suite, buildPath string, nodeList []*NodeReferen
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
-	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	// logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
 	// logger := NewTMLogger(suite.Config.LogLevel)
-	// logger := NoLogger{}
+	logger := NoLogger{}
 
 	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 

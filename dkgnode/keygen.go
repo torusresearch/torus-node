@@ -413,7 +413,9 @@ func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) (bool, []tmcmn.KVPair) {
 		}
 		ki, err := kp.GetKeygenInstance(keygenID(bftMsg.Protocol))
 		if err != nil {
-			logging.Fatal(err.Error())
+			// TODO: Discuss how we are going to handle BFT Transactions that do depend on offchain state?
+			// This example of KEYGENDKGComplete (KEYGENInitiate is fine)
+			logging.Error(err.Error())
 			return false, nil
 		}
 		logging.Debugf("DKGComplete received for node %s : %v", nodeIndex.Text(16), payload.NodeSet)

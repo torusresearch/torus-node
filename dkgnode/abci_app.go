@@ -47,16 +47,15 @@ type TorusID struct {
 // State - nothing in state should be a pointer
 // Remember to initialize mappings in NewABCIApp()
 type State struct {
-	Epoch                    uint                            `json:"epoch"`
-	Height                   int64                           `json:"height"`
-	AppHash                  []byte                          `json:"app_hash"`
-	LastUnassignedTorusIndex uint                            `json:"last_unassigned_torus_index"`
-	LastUnassignedIndex      uint                            `json:"last_unassigned_index"`
-	LastCreatedIndex         uint                            `json:"last_created_index"`
-	KeyMapping               map[string]KeyAssignmentPublic  `json:"key_mapping"`           // KeyIndex => KeyAssignmentPublic
-	VerifierToKeyIndex       map[string](map[string]TorusID) `json:"verifier_to_key_index"` // Verifier => VerifierID => KeyIndex
-	ValidatorSet             []types.ValidatorUpdate         `json:"-"`                     // `json:"validator_set"`
-	UpdateValidators         bool                            `json:"-"`                     // `json:"update_validators"`
+	Epoch               uint                            `json:"epoch"`
+	Height              int64                           `json:"height"`
+	AppHash             []byte                          `json:"app_hash"`
+	LastUnassignedIndex uint                            `json:"last_unassigned_index"`
+	LastCreatedIndex    uint                            `json:"last_created_index"`
+	KeyMapping          map[string]KeyAssignmentPublic  `json:"key_mapping"`           // KeyIndex => KeyAssignmentPublic
+	VerifierToKeyIndex  map[string](map[string]TorusID) `json:"verifier_to_key_index"` // Verifier => VerifierID => KeyIndex
+	ValidatorSet        []types.ValidatorUpdate         `json:"-"`                     // `json:"validator_set"`
+	UpdateValidators    bool                            `json:"-"`                     // `json:"update_validators"`
 }
 
 // ABCITransaction -

@@ -105,7 +105,7 @@ func New() {
 	}
 
 	go RunABCIServer(&suite) // tendermint handles sigterm on its own
-	SetupBft(&suite)
+	SetupBft(&suite, abciServerMonitorTicker.C, bftWorkerMsgs)
 	SetupCache(&suite)
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 

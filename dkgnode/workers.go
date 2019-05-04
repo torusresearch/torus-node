@@ -29,15 +29,15 @@ func keyGenWorker(suite *Suite, keyGenMonitorMsgs <-chan KeyGenUpdates) {
 	}
 }
 
-func whitelistWorker(suite *Suite, whitelistMonitorMsgs <-chan WhitelistMonitorUpdates) {
+func whitelistWorker(suite *Suite, tmNodeKey *p2p.NodeKey, whitelistMonitorMsgs <-chan WhitelistMonitorUpdates) {
 	for whitelistMonitorMsg := range whitelistMonitorMsgs {
 		if whitelistMonitorMsg.Type == "node_whitelisted" {
 			if !suite.Config.ShouldRegister {
 				continue
 			}
 			externalAddr := "tcp://" + suite.Config.ProvidedIPAddress + ":" + strings.Split(suite.Config.TMP2PListenAddress, ":")[2]
-			logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(suite.BftSuite.TMNodeKey.ID(), externalAddr))
-			_, err := suite.EthSuite.registerNode(*big.NewInt(int64(whitelistMonitorMsg.Payload.(int))), suite.Config.MainServerAddress, p2p.IDAddressString(suite.BftSuite.TMNodeKey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
+			logging.Infof("Registering node with %v %v", suite.Config.MainServerAddress, p2p.IDAddressString(tmNodeKey.ID(), externalAddr))
+			_, err := suite.EthSuite.registerNode(*big.NewInt(int64(whitelistMonitorMsg.Payload.(int))), suite.Config.MainServerAddress, p2p.IDAddressString(tmNodeKey.ID(), externalAddr), suite.P2PSuite.HostAddress.String())
 			if err != nil {
 				logging.Fatal(err.Error())
 			}

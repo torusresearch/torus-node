@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 	"github.com/tidwall/gjson"
@@ -19,7 +18,6 @@ type BftSuite struct {
 	BftNode              *node.Node
 	BftRPCWSQueryHandler *BftRPCWSQueryHandler
 	BftRPCWSStatus       string
-	TMNodeKey            *p2p.NodeKey
 }
 
 type BftRPCWS struct {
@@ -63,16 +61,11 @@ func bftWorker(suite *Suite, bftWorkerMsgs <-chan string) {
 
 func SetupBft(suite *Suite, abciServerMonitorTicker <-chan time.Time, bftWorkerMsgs chan<- string) {
 	// we generate nodekey because we need it for persistent peers later. TODO: find a better way
-	tmNodeKey, err := p2p.LoadOrGenNodeKey(suite.Config.BasePath + "/config/node_key.json")
-	if err != nil {
-		logging.Errorf("Node Key generation issue: %s", err)
-	}
 	suite.BftSuite = &BftSuite{
 		BftRPC:               nil,
 		BftRPCWS:             nil,
 		BftRPCWSStatus:       "down",
 		BftRPCWSQueryHandler: &BftRPCWSQueryHandler{make(map[string]chan []byte), make(map[string]int)},
-		TMNodeKey:            tmNodeKey,
 	}
 	// TODO: waiting for bft to accept websocket connection
 	for range abciServerMonitorTicker {

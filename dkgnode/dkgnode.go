@@ -14,6 +14,7 @@ import (
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/torusresearch/torus-public/auth"
 	"github.com/torusresearch/torus-public/logging"
@@ -72,11 +73,16 @@ func New() {
 	pssWorkerMsgs := make(chan PSSWorkerUpdate)
 	idleConnsClosed := make(chan struct{})
 
+	tmNodeKey, err := p2p.LoadOrGenNodeKey(suite.Config.BasePath + "/config/node_key.json")
+	if err != nil {
+		logging.Errorf("Node Key generation issue: %s", err)
+	}
+
 	SetupFSM(&suite)
 	SetupPSS(&suite)
 	SetupCache(&suite)
 	SetupVerifier(&suite)
-	err := SetupDB(&suite)
+	err = SetupDB(&suite)
 	if err != nil { // TODO: retry on error
 		log.Fatal(err)
 	}
@@ -95,7 +101,7 @@ func New() {
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
 	go whitelistMonitor(&suite, whitelistMonitorTicker.C, whitelistMonitorMsgs)
-	go whitelistWorker(&suite, whitelistMonitorMsgs)
+	go whitelistWorker(&suite, tmNodeKey, whitelistMonitorMsgs)
 
 	// Stop upon receiving SIGTERM or CTRL-C
 	osSignal := make(chan os.Signal, 1)

@@ -37,6 +37,6 @@ module.exports = async function(deployer) {
     const acc = whitelistedAccounts[i];
     // await web3.sendTransaction({ to: acc, value: web3.toWei('1', 'ether') });
     console.log('adding', acc, ' to whitelist');
-    await c.updateWhitelist(0, acc, true);
+    await c.updateWhitelist(1, acc, true);
   }
 };

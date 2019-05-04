@@ -67,22 +67,24 @@ func SetupBft(suite *Suite, abciServerMonitorTicker <-chan time.Time, bftWorkerM
 	if err != nil {
 		logging.Errorf("Node Key generation issue: %s", err)
 	}
-	bftClient := client.NewHTTP(suite.Config.BftURI, "/websocket")
-	// for subscribe and unsubscribe method calls, use this
-	bftClientWS := rpcclient.NewWSClient(suite.Config.BftURI, "/websocket")
 	suite.BftSuite = &BftSuite{
-		BftRPC:               &BftRPC{bftClient},
-		BftRPCWS:             bftClientWS,
+		BftRPC:               nil,
+		BftRPCWS:             nil,
 		BftRPCWSStatus:       "down",
 		BftRPCWSQueryHandler: &BftRPCWSQueryHandler{make(map[string]chan []byte), make(map[string]int)},
 		TMNodeKey:            tmNodeKey,
 	}
 	// TODO: waiting for bft to accept websocket connection
 	for range abciServerMonitorTicker {
+		bftClient := client.NewHTTP(suite.Config.BftURI, "/websocket")
+		// for subscribe and unsubscribe method calls, use this
+		bftClientWS := rpcclient.NewWSClient(suite.Config.BftURI, "/websocket")
 		err := bftClientWS.Start()
 		if err != nil {
 			logging.Errorf("COULDNOT START THE BFTWS %s", err)
 		} else {
+			suite.BftSuite.BftRPC = &BftRPC{bftClient}
+			suite.BftSuite.BftRPCWS = bftClientWS
 			suite.BftSuite.BftRPCWSStatus = "up"
 			bftWorkerMsgs <- "bft_up"
 			break

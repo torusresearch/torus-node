@@ -1,6 +1,7 @@
 package dkgnode
 
 import (
+	"fmt"
 	"math/big"
 	// "strconv"
 	"time"
@@ -216,6 +217,7 @@ func nodeListMonitor(suite *Suite, tickerChan <-chan time.Time, nodeListUpdates 
 		}
 		// if we've connected to all nodes we send back the most recent list
 		if len(connectedNodes) == len(ethList) {
+			fmt.Println("Connected Nodes length is equal to eth list length")
 			nodeRegister := suite.EthSuite.EpochNodeRegister[epoch]
 			(*nodeRegister).NodeList = connectedNodes
 			nodeListUpdates <- NodeListUpdates{"all_connected", connectedNodes}

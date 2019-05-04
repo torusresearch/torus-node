@@ -1,6 +1,7 @@
 package dkgnode
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -47,6 +48,7 @@ func whitelistWorker(suite *Suite, whitelistMonitorMsgs <-chan WhitelistMonitorU
 func nodeListWorker(suite *Suite, nodeListMonitorMsgs <-chan NodeListUpdates, nodeListWorkerMsgs chan<- string) {
 	for nlMonitorMsg := range nodeListMonitorMsgs {
 		if nlMonitorMsg.Type == "all_connected" {
+			fmt.Println("Inside of nodelistworker")
 			nodeList := suite.EthSuite.EpochNodeRegister[suite.EthSuite.CurrentEpoch].NodeList
 			if len(nodeList) != suite.Config.NumberOfNodes {
 				logging.Warning("ethlist not equal in length to nodelist")
@@ -64,10 +66,10 @@ func nodeListWorker(suite *Suite, nodeListMonitorMsgs <-chan NodeListUpdates, no
 	}
 }
 
-// func pssWorker(suite *Suite, pssWorkerMsgs <-chan PSSWorkerUpdate) {
-// 	for pssWorkerMsg := range pssWorkerMsgs {
-// 		if pssWorkerMsg.Type == "all_connected" {
-// 			logging.Info("PSS Msg all connected")
-// 		}
-// 	}
-// }
+func pssWorker(suite *Suite, pssWorkerMsgs <-chan PSSWorkerUpdate) {
+	for pssWorkerMsg := range pssWorkerMsgs {
+		if pssWorkerMsg.Type == "all_connected" {
+			logging.Info("PSS Msg all connected")
+		}
+	}
+}

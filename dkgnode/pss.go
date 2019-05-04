@@ -1,14 +1,13 @@
 package dkgnode
 
+// func pssWorker(suite *Suite, pssMonitorMsgs <-chan PSSWorkerUpdate) {
+// 	for pssMonitorMsgs := range pssMonitorMsgs {
+// 		if pssMonitorMsgs.Type == "all_connected" {
 
-func pssWorker(suite *Suite, pssMonitorMsgs <-chan PSSWorkerUpdate) {
-	for pssMonitorMsgs := range pssMonitorMsgs {
-		if pssMonitorMsgs.Type == "all_connected" {
-
-		}
-	}
-	return
-}
+// 		}
+// 	}
+// 	return
+// }
 
 type PSSSuite struct {
 	// PSSNode *pss.PSSNode

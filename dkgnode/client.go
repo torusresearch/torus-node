@@ -4,6 +4,7 @@ package dkgnode
 import (
 	"crypto/ecdsa"
 	"os"
+
 	// "encoding/hex"
 	// "encoding/json"
 	"fmt"

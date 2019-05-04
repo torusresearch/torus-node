@@ -47,15 +47,16 @@ type TorusID struct {
 // State - nothing in state should be a pointer
 // Remember to initialize mappings in NewABCIApp()
 type State struct {
-	Epoch               uint                            `json:"epoch"`
-	Height              int64                           `json:"height"`
-	AppHash             []byte                          `json:"app_hash"`
-	LastUnassignedIndex uint                            `json:"last_unassigned_index"`
-	LastCreatedIndex    uint                            `json:"last_created_index"`
-	KeyMapping          map[string]KeyAssignmentPublic  `json:"key_mapping"`           // KeyIndex => KeyAssignmentPublic
-	VerifierToKeyIndex  map[string](map[string]TorusID) `json:"verifier_to_key_index"` // Verifier => VerifierID => KeyIndex
-	ValidatorSet        []types.ValidatorUpdate         `json:"-"`                     // `json:"validator_set"`
-	UpdateValidators    bool                            `json:"-"`                     // `json:"update_validators"`
+	Epoch                    uint                            `json:"epoch"`
+	Height                   int64                           `json:"height"`
+	AppHash                  []byte                          `json:"app_hash"`
+	LastUnassignedIndex      uint                            `json:"last_unassigned_index"`
+	LastUnassignedTorusIndex uint                            `json:"last_unassigned_torus_index"`
+	LastCreatedIndex         uint                            `json:"last_created_index"`
+	KeyMapping               map[string]KeyAssignmentPublic  `json:"key_mapping"`           // KeyIndex => KeyAssignmentPublic
+	VerifierToKeyIndex       map[string](map[string]TorusID) `json:"verifier_to_key_index"` // Verifier => VerifierID => KeyIndex
+	ValidatorSet             []types.ValidatorUpdate         `json:"-"`                     // `json:"validator_set"`
+	UpdateValidators         bool                            `json:"-"`                     // `json:"update_validators"`
 }
 
 // ABCITransaction -
@@ -114,12 +115,13 @@ func NewABCIApp(suite *Suite) *ABCIApp {
 	abciApp := ABCIApp{
 		Suite: suite, db: db,
 		state: &State{
-			Epoch:               0,
-			Height:              0,
-			LastUnassignedIndex: 0,
-			LastCreatedIndex:    0,
-			KeyMapping:          make(map[string]KeyAssignmentPublic),
-			VerifierToKeyIndex:  v,
+			Epoch:                    1,
+			Height:                   0,
+			LastUnassignedIndex:      0,
+			LastUnassignedTorusIndex: 0,
+			LastCreatedIndex:         0,
+			KeyMapping:               make(map[string]KeyAssignmentPublic),
+			VerifierToKeyIndex:       v,
 		}}
 	return &abciApp
 }

@@ -91,9 +91,10 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 		torusID, ok := verifier[parsedTx.VerifierID]
 		if !ok {
 			verifier[parsedTx.VerifierID] = TorusID{
-				Index:      int(app.state.LastUnassignedIndex),
+				Index:      int(app.state.LastUnassignedTorusIndex),
 				KeyIndexes: []big.Int{*big.NewInt(int64(app.state.LastUnassignedIndex))},
 			}
+			app.state.LastUnassignedTorusIndex = uint(app.state.LastUnassignedTorusIndex + 1)
 		} else {
 			torusID.KeyIndexes = append(torusID.KeyIndexes, *big.NewInt(int64(app.state.LastUnassignedIndex)))
 		}

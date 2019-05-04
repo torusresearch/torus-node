@@ -2,6 +2,7 @@ package dkgnode
 
 import (
 	"fmt"
+	"os"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/torusresearch/torus-public/logging"
@@ -82,11 +83,11 @@ func (EventForwardingLogger) Error(msg string, keyvals ...interface{}) {
 
 func (EventForwardingLogger) With(keyvals ...interface{}) tmlog.Logger {
 	if keyvals[0].(string) == "module" && keyvals[1].(string) == "events" {
-		return NewTMLogger("debug", "[TM][EVENTS]")
+		return tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)).With("debug", "[TM][EVENTS]")
 	} else if keyvals[0].(string) == "module" && keyvals[1].(string) == "rpc-server" {
-		return NewTMLogger("debug", "[TM][RPC]")
+		return tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)).With("debug", "[TM][RPC]")
 	} else if keyvals[0].(string) == "module" && keyvals[1].(string) == "websocket" {
-		return NewTMLogger("debug", "[TM][WS]")
+		return tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)).With("debug", "[TM][WEBSOCKET]")
 	} else {
 		return EventForwardingLogger{}
 	}

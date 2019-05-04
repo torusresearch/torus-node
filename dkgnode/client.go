@@ -3,6 +3,7 @@ package dkgnode
 /* All useful imports */
 import (
 	"crypto/ecdsa"
+	"os"
 
 	// "encoding/hex"
 	// "encoding/json"
@@ -17,6 +18,7 @@ import (
 	// "github.com/Rican7/retry/strategy"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmnode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -79,9 +81,9 @@ func startTendermintCore(suite *Suite, buildPath string, nodeListWorkerMsgs <-ch
 	//builds default config
 	defaultTmConfig := tmconfig.DefaultConfig()
 	defaultTmConfig.SetRoot(buildPath)
-	// logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
 	// logger := NewTMLogger(suite.Config.LogLevel) // TODO: this doesnt work, crashes tendermint
-	logger := EventForwardingLogger{}
+	// logger := EventForwardingLogger{}
 
 	defaultTmConfig.ProxyApp = suite.Config.ABCIServer
 
@@ -160,7 +162,6 @@ func startTendermintCore(suite *Suite, buildPath string, nodeListWorkerMsgs <-ch
 	logging.Infof("Started tendermint nodeInfo: %s", n.Switch().NodeInfo())
 
 	//send back message saying ready
-	time.Sleep(35 * time.Second)
 	tmCoreMsgs <- "started_tmcore"
 
 	<-idleConnsClosed

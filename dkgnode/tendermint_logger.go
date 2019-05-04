@@ -26,14 +26,17 @@ func (NoLogger) With(keyvals ...interface{}) tmlog.Logger {
 
 type TorusTMLogger struct {
 	tmlog.Logger
-
-	l logging.Logger
+	prefix   string
+	loglevel string
+	logger   logging.Logger
 }
 
-func NewTMLogger(logLevelString string) *TorusTMLogger {
-	l := logging.NewDefault().WithLevelString(logLevelString)
+func NewTMLogger(logLevelString string, prefix string) *TorusTMLogger {
+	logger := logging.NewDefault().WithLevelString(logLevelString)
 	return &TorusTMLogger{
-		l: l,
+		prefix:   prefix,
+		loglevel: logLevelString,
+		logger:   logger,
 	}
 }
 
@@ -62,4 +65,29 @@ func (t TorusTMLogger) Error(msg string, keyvals ...interface{}) {
 
 func (t TorusTMLogger) With(keyvals ...interface{}) tmlog.Logger {
 	return TorusTMLogger{}
+}
+
+type EventForwardingLogger struct {
+	tmlog.Logger
+}
+
+func (EventForwardingLogger) Debug(msg string, keyvals ...interface{}) {
+}
+
+func (EventForwardingLogger) Info(msg string, keyvals ...interface{}) {
+}
+
+func (EventForwardingLogger) Error(msg string, keyvals ...interface{}) {
+}
+
+func (EventForwardingLogger) With(keyvals ...interface{}) tmlog.Logger {
+	if keyvals[0].(string) == "module" && keyvals[1].(string) == "events" {
+		return NewTMLogger("debug", "[TM][EVENTS]")
+	} else if keyvals[0].(string) == "module" && keyvals[1].(string) == "rpc-server" {
+		return NewTMLogger("debug", "[TM][RPC]")
+	} else if keyvals[0].(string) == "module" && keyvals[1].(string) == "websocket" {
+		return NewTMLogger("debug", "[TM][WS]")
+	} else {
+		return EventForwardingLogger{}
+	}
 }

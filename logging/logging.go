@@ -2,10 +2,11 @@ package logging
 
 import (
 	"fmt"
-	"github.com/torusresearch/torus-public/idmutex"
 	"io"
 	"os"
 	"time"
+
+	"github.com/torusresearch/torus-public/idmutex"
 )
 
 // LevelMapping maps LogLevels into expected keys

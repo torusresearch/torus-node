@@ -20,15 +20,38 @@ import (
 )
 
 type EthSuite struct {
-	NodePublicKey    *ecdsa.PublicKey
-	NodeAddress      *common.Address
-	NodePrivateKey   *ecdsa.PrivateKey
-	Client           *ethclient.Client
-	NodeListContract *nodelist.Nodelist
-	secp             elliptic.Curve
-	NodeList         []*NodeReference
-	NodeIndex        *big.Int
-	CurrentEpoch     int
+	NodePublicKey     *ecdsa.PublicKey
+	NodeAddress       *common.Address
+	NodePrivateKey    *ecdsa.PrivateKey
+	Client            *ethclient.Client
+	NodeListContract  *nodelist.Nodelist
+	secp              elliptic.Curve
+	EpochNodeRegister map[int]*NodeRegister
+	NodeIndex         *big.Int
+	CurrentEpoch      int
+}
+
+type NodeRegister struct {
+	AllConnected bool
+	NodeList     []*NodeReference
+}
+
+func (nr *NodeRegister) GetNodeByIndex(index int) *NodeReference {
+	for _, nodeRef := range nr.NodeList {
+		if int(nodeRef.Index.Int64()) == index {
+			return nodeRef
+		}
+	}
+	return nil
+}
+
+func (nr *NodeRegister) GetNodeByAddress(addr common.Address) *NodeReference {
+	for _, nodeRef := range nr.NodeList {
+		if hex.EncodeToString(nodeRef.Address[:]) == hex.EncodeToString(addr[:]) {
+			return nodeRef
+		}
+	}
+	return nil
 }
 
 /* Form public key using private key */
@@ -69,7 +92,17 @@ func SetupEth(suite *Suite) error {
 	if err != nil {
 		return err
 	}
-	suite.EthSuite = &EthSuite{nodePublicKeyEC, &nodeAddress, privateKeyECDSA, client, NodeListContract, secp256k1.Curve, []*NodeReference{}, &big.Int{}, suite.Config.InitEpoch}
+	suite.EthSuite = &EthSuite{
+		nodePublicKeyEC,
+		&nodeAddress,
+		privateKeyECDSA,
+		client,
+		NodeListContract,
+		secp256k1.Curve,
+		make(map[int]*NodeRegister),
+		&big.Int{},
+		suite.Config.InitEpoch,
+	}
 	return nil
 }
 

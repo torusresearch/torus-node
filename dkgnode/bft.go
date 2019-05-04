@@ -9,6 +9,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
+	"github.com/tidwall/gjson"
 	"github.com/torusresearch/torus-public/logging"
 )
 
@@ -23,6 +24,41 @@ type BftSuite struct {
 
 type BftRPCWS struct {
 	*rpcclient.WSClient
+}
+
+func bftWorker(suite *Suite, bftWorkerMsgs <-chan string) {
+	logging.Debug("BFTWS: listening to responsesCh")
+	for bftWorkerMsg := range bftWorkerMsgs {
+		if bftWorkerMsg == "bft_up" {
+			break
+		}
+	}
+	for e := range suite.BftSuite.BftRPCWS.ResponsesCh {
+		queryString := gjson.GetBytes(e.Result, "query").String()
+		logging.Debugf("BFTWS: query %s", queryString)
+		if e.Error != nil {
+			logging.Errorf("BFTWS: websocket subscription received error: %s", e.Error.Error())
+		}
+		if suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString] == nil {
+			logging.Debugf("BFTWS: websocket subscription received message but no listener, querystring: %s", queryString)
+			continue
+		}
+		suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString] <- e.Result
+		if suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] != 0 {
+			suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] = suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] - 1
+			if suite.BftSuite.BftRPCWSQueryHandler.QueryCount[queryString] == 0 {
+				close(suite.BftSuite.BftRPCWSQueryHandler.QueryMap[queryString])
+				delete(suite.BftSuite.BftRPCWSQueryHandler.QueryMap, queryString)
+				ctx := context.Background()
+				err := suite.BftSuite.BftRPCWS.Unsubscribe(ctx, queryString)
+				if err != nil {
+					logging.Errorf("BFTWS: websocket could not unsubscribe, queryString: %s", queryString)
+				}
+				delete(suite.BftSuite.BftRPCWSQueryHandler.QueryCount, queryString)
+			}
+		}
+	}
+
 }
 
 func SetupBft(suite *Suite, abciServerMonitorTicker <-chan time.Time, bftWorkerMsgs chan<- string) {

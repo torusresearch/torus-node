@@ -114,8 +114,8 @@ type (
 
 func (nodeSig *NodeSignature) NodeValidation(suite *Suite) (*NodeReference, error) {
 	var node *NodeReference
-	for i := 0; i < len(suite.EthSuite.NodeList); i++ {
-		currNode := suite.EthSuite.NodeList[i]
+	nodeRegister := suite.EthSuite.EpochNodeRegister[suite.EthSuite.CurrentEpoch]
+	for _, currNode := range nodeRegister.NodeList {
 		if currNode.PublicKey.X.Text(16) == nodeSig.NodePubKeyX &&
 			currNode.PublicKey.Y.Text(16) == nodeSig.NodePubKeyY {
 			node = currNode

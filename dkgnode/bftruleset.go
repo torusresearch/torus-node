@@ -132,13 +132,13 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 				Power: int64(validatorUpdateTx.ValidatorPower[i]),
 			}
 		}
-		logging.Debugf("comparint validator structs %v", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList))
+		logging.Debugf("comparint validator structs %v", validatorUpdateStruct, convertNodeListToValidatorUpdate(app.Suite.EthSuite.EpochNodeRegister[app.Suite.EthSuite.CurrentEpoch].NodeList))
 		logging.Debugf("it was:  %v", cmp.Equal(validatorUpdateStruct,
-			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
+			convertNodeListToValidatorUpdate(app.Suite.EthSuite.EpochNodeRegister[app.Suite.EthSuite.CurrentEpoch].NodeList),
 			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")))
 		//check agasint internal nodelist
 		if cmp.Equal(validatorUpdateStruct,
-			convertNodeListToValidatorUpdate(app.Suite.EthSuite.NodeList),
+			convertNodeListToValidatorUpdate(app.Suite.EthSuite.EpochNodeRegister[app.Suite.EthSuite.CurrentEpoch].NodeList),
 			cmpopts.IgnoreFields(types.ValidatorUpdate{}, "XXX_NoUnkeyedLiteral", "XXX_sizecache", "XXX_unrecognized")) {
 			//update internal app state for next commit
 			app.state.ValidatorSet = validatorUpdateStruct
@@ -184,7 +184,7 @@ func matchNode(suite *Suite, pkx, pky string) (int, error) {
 		return -1, errors.New("Could not parse pubkeyy when matching node")
 	}
 	// TODO: implement epoch-based lookup for nodelist
-	for _, nodeRef := range suite.EthSuite.NodeList {
+	for _, nodeRef := range suite.EthSuite.EpochNodeRegister[suite.EthSuite.CurrentEpoch].NodeList {
 		if nodeRef.PublicKey.X.Cmp(pubKeyX) == 0 && nodeRef.PublicKey.Y.Cmp(pubKeyY) == 0 {
 			nodeRefIndex, err := strconv.Atoi(nodeRef.Index.Text(10))
 			if err != nil {

@@ -40,7 +40,7 @@ type LocalStatus struct {
 }
 
 func SetupFSM(suite *Suite) {
-	constants := localStatusConstants{States: lsStates, Events: lsEvents}
+	constants := LocalStatusConstants
 	tempFsm := fsm.NewFSM(
 		constants.States.Standby,
 		fsm.Events{

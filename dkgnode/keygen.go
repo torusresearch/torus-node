@@ -196,9 +196,9 @@ func (kp *KEYGENProtocol) newKeygen(suite *Suite, shareStartingIndex int, shareE
 	keygenID := getKeygenID(shareStartingIndex, shareEndingIndex)
 
 	// set up our keygen instance
-	nodeIndexList := make([]big.Int, len(suite.EthSuite.NodeList))
+	nodeIndexList := make([]big.Int, len(suite.EthSuite.EpochNodeRegister[suite.EthSuite.CurrentEpoch].NodeList))
 	var ownNodeIndex big.Int
-	for i, nodeRef := range suite.EthSuite.NodeList {
+	for i, nodeRef := range suite.EthSuite.EpochNodeRegister[suite.EthSuite.CurrentEpoch].NodeList {
 		nodeIndexList[i] = *nodeRef.Index
 		if nodeRef.Address.String() == suite.EthSuite.NodeAddress.String() {
 			ownNodeIndex = *nodeRef.Index
@@ -305,7 +305,7 @@ func (kp *KEYGENProtocol) onP2PKeygenMessage(s inet.Stream) {
 		logging.Error("Failed to derive pk")
 		return
 	}
-	for _, nodeRef := range kp.suite.EthSuite.NodeList {
+	for _, nodeRef := range kp.suite.EthSuite.EpochNodeRegister[kp.suite.EthSuite.CurrentEpoch].NodeList {
 		if nodeRef.PeerID.MatchesPublicKey(pk) {
 			nodeIndex = *nodeRef.Index
 			break
@@ -376,7 +376,7 @@ func (kp *KEYGENProtocol) onBFTMsg(bftMsg BFTKeygenMsg) (bool, []tmcmn.KVPair) {
 		logging.Error("Failed to derive pk")
 		return false, nil
 	}
-	for _, nodeRef := range kp.suite.EthSuite.NodeList {
+	for _, nodeRef := range kp.suite.EthSuite.EpochNodeRegister[kp.suite.EthSuite.CurrentEpoch].NodeList {
 		if nodeRef.PeerID.MatchesPublicKey(pk) {
 			nodeIndex = *nodeRef.Index
 			break
@@ -450,7 +450,7 @@ func (kp *KEYGENProtocol) Verify(text string, nodeIndex big.Int, signature []byt
 	// Derive ID From Index
 	// TODO: this should be exported once nodelist becomes more modular
 	var nodePK ecdsa.PublicKey
-	for _, nodeRef := range kp.suite.EthSuite.NodeList {
+	for _, nodeRef := range kp.suite.EthSuite.EpochNodeRegister[kp.suite.EthSuite.CurrentEpoch].NodeList {
 		if nodeRef.Index.Cmp(&nodeIndex) == 0 {
 			nodePK = *nodeRef.PublicKey
 			break
@@ -587,7 +587,7 @@ func (kt *KEYGENTransport) prepAndSendKeygenMsg(pl []byte, msgType string, nodeI
 	// Derive ID From Index
 	// TODO: this should be exported once nodelist becomes more modular
 	var nodeId peer.ID
-	for _, nodeRef := range kt.Protocol.suite.EthSuite.NodeList {
+	for _, nodeRef := range kt.Protocol.suite.EthSuite.EpochNodeRegister[kt.Protocol.suite.EthSuite.CurrentEpoch].NodeList {
 		if nodeRef.Index.Cmp(&nodeIndex) == 0 {
 			nodeId = nodeRef.PeerID
 			break

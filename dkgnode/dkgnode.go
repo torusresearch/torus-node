@@ -3,8 +3,6 @@ package dkgnode
 //TODO: export all "tm" imports to common folder
 import (
 	"context"
-	"crypto/ecdsa"
-	"fmt"
 	"log"
 	"math/big"
 	"net/http"
@@ -13,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	tmbtcec "github.com/tendermint/btcd/btcec"
 	tmsecp "github.com/tendermint/tendermint/crypto/secp256k1"
 	tmnode "github.com/tendermint/tendermint/node"
@@ -51,7 +47,7 @@ func New() {
 	cfg := loadConfig(DefaultConfigPath)
 	logging.Infof("Loaded config, BFTUri: %s, MainServerAddress: %s, tmp2plistenaddress: %s", cfg.BftURI, cfg.MainServerAddress, cfg.TMP2PListenAddress)
 
-	//build folders for tendermint logs
+	// build folders for tendermint logs
 	os.MkdirAll(cfg.BasePath+"/tendermint", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/tendermint/config", os.ModePerm)
 	os.MkdirAll(cfg.BasePath+"/tendermint/data", os.ModePerm)
@@ -64,32 +60,21 @@ func New() {
 
 	// Initialize all necessary channels
 	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
-	fmt.Println(nodeListMonitorTicker)
 	keyGenMonitorTicker := time.NewTicker(5 * time.Second)
-	fmt.Println(keyGenMonitorTicker)
 	whitelistMonitorTicker := time.NewTicker(5 * time.Second)
-	fmt.Println(whitelistMonitorTicker)
 	abciServerMonitorTicker := time.NewTicker(5 * time.Second)
-	fmt.Println(abciServerMonitorTicker)
 	whitelistMonitorMsgs := make(chan WhitelistMonitorUpdates)
-	fmt.Println(whitelistMonitorMsgs)
 	bftWorkerMsgs := make(chan string)
-	fmt.Println(bftWorkerMsgs)
 	tmCoreMsgs := make(chan string)
-	fmt.Println(tmCoreMsgs)
 	nodeListMonitorMsgs := make(chan NodeListUpdates)
-	fmt.Println(nodeListMonitorMsgs)
 	nodeListWorkerMsgs := make(chan string)
-	fmt.Println(nodeListWorkerMsgs)
 	keyGenMonitorMsgs := make(chan KeyGenUpdates)
-	fmt.Println(keyGenMonitorMsgs)
 	pssWorkerMsgs := make(chan PSSWorkerUpdate)
-	fmt.Println(pssWorkerMsgs)
 	idleConnsClosed := make(chan struct{})
-	fmt.Println(idleConnsClosed)
 
 	SetupFSM(&suite)
 	SetupPSS(&suite)
+	SetupCache(&suite)
 	SetupVerifier(&suite)
 	err := SetupDB(&suite)
 	if err != nil { // TODO: retry on error
@@ -105,16 +90,12 @@ func New() {
 	}
 
 	go RunABCIServer(&suite) // tendermint handles sigterm on its own
-	SetupBft(&suite, abciServerMonitorTicker.C, bftWorkerMsgs)
-	SetupCache(&suite)
+	go SetupBft(&suite, abciServerMonitorTicker.C, bftWorkerMsgs)
+	go bftWorker(&suite, bftWorkerMsgs)
 	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
 	go whitelistMonitor(&suite, whitelistMonitorTicker.C, whitelistMonitorMsgs)
 	go whitelistWorker(&suite, whitelistMonitorMsgs)
-
-	// Initialize all necessary channels
-
-	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
 
 	// Stop upon receiving SIGTERM or CTRL-C
 	osSignal := make(chan os.Signal, 1)
@@ -140,65 +121,13 @@ func New() {
 	go serverWorker(&suite, server)
 
 	// Setup Phase
-	for {
-		nlMonitorMsg := <-nodeListMonitorMsgs
-		if nlMonitorMsg.Type == "update" {
-			// Compare existing nodelist to updated node list. Cmp options are there to not compare too deep. If NodeReference is changed this might bug up (need to include new excludes)
-			if !cmp.Equal(nlMonitorMsg.Payload.([]*NodeReference), suite.EthSuite.NodeList,
-				cmpopts.IgnoreTypes(ecdsa.PublicKey{}),
-				cmpopts.IgnoreUnexported(big.Int{}),
-				cmpopts.IgnoreFields(NodeReference{}, "PeerID")) {
-				logging.Infof("Node Monitor updating node list: %v", nlMonitorMsg.Payload)
-				suite.EthSuite.NodeList = nlMonitorMsg.Payload.([]*NodeReference)
-
-				if len(suite.EthSuite.NodeList) == suite.Config.NumberOfNodes {
-					logging.Infof("Starting tendermint core... NodeList: %v", suite.EthSuite.NodeList)
-					//initialize app val set for the first time and update validators to false
-					go startTendermintCore(&suite, cfg.BasePath+"/tendermint", suite.EthSuite.NodeList, tmCoreMsgs, idleConnsClosed)
-
-					break
-				} else {
-					logging.Warning("ethlist not equal in length to nodelist")
-				}
-			}
-		}
-	}
-
-	logging.Info("Sleeeping...")
-	time.Sleep(20 * time.Second)
-	logging.Info("Waking up...")
-	for {
-		coreMsg := <-tmCoreMsgs
-		logging.Debugf("received: %s", coreMsg)
-		if coreMsg == "started_tmcore" {
-			//Start key generation monitor when bft is done setting up
-			logging.Infof("Start Key generation monitor: %v, %v", suite.EthSuite.NodeList, suite.BftSuite.BftRPC)
-			go startKeyGenerationMonitor(&suite, keyGenMonitorMsgs)
-			break
-		}
-	}
-
+	go nodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs, pssWorkerMsgs)
+	go nodeListWorker(&suite, nodeListMonitorMsgs, nodeListWorkerMsgs)
+	go startTendermintCore(&suite, cfg.BasePath+"/tendermint", nodeListWorkerMsgs, tmCoreMsgs, idleConnsClosed)
+	go keyGenMonitor(&suite, tmCoreMsgs, keyGenMonitorTicker.C, keyGenMonitorMsgs)
 	go keyGenWorker(&suite, keyGenMonitorMsgs)
 	go pssWorker(&suite, pssWorkerMsgs)
 	<-idleConnsClosed
-}
-
-func keyGenWorker(suite *Suite, keyGenMonitorMsgs chan KeyGenUpdates) {
-	for {
-		select {
-
-		case keyGenMonitorMsg := <-keyGenMonitorMsgs:
-			logging.Debug("KEYGEN: keygenmonitor received message")
-			if keyGenMonitorMsg.Type == "start_keygen" {
-				//starts keygeneration with starting and ending index
-				logging.Debugf("KEYGEN: starting keygen with indexes: %d %d", keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-
-				suite.LocalStatus.Event(LocalStatusConstants.Events.StartKeygen, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-				// go startKeyGeneration(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-				// go suite.P2PSuite.KeygenProto.NewKeygen(suite, keyGenMonitorMsg.Payload.([]int)[0], keyGenMonitorMsg.Payload.([]int)[1])
-			}
-		}
-	}
 }
 
 func ProvideGenDoc(doc *tmtypes.GenesisDoc) tmnode.GenesisDocProvider {

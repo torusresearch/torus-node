@@ -33,7 +33,7 @@ type Config struct {
 
 	ShouldRegister    bool   `json:"register" env:"REGISTER"`
 	CPUProfileToFile  string `json:"cpuProfile" env:"CPU_PROFILE"`
-	IsProduction      bool   `json:"production" env:"PRODUCTION"`
+	IsDebug           bool   `json:"debug" env:"DEBUG"`
 	ProvidedIPAddress string `json:"ipAddress" env:"IP_ADDRESS"`
 	LogLevel          string `json:"loglevel" env:"LOG_LEVEL"`
 
@@ -53,8 +53,8 @@ func (c *Config) mergeWithFlags(flagConfig *Config) *Config {
 	if isFlagPassed("register") {
 		c.ShouldRegister = flagConfig.ShouldRegister
 	}
-	if isFlagPassed("production") {
-		c.IsProduction = flagConfig.IsProduction
+	if isFlagPassed("debug") {
+		c.IsDebug = flagConfig.IsDebug
 	}
 	if isFlagPassed("ethprivateKey") {
 		c.EthPrivateKey = flagConfig.EthPrivateKey
@@ -82,7 +82,7 @@ func (c *Config) mergeWithFlags(flagConfig *Config) *Config {
 // NOTE: It will note override with defaults
 func (c *Config) createConfigWithFlags() string {
 	register := flag.Bool("register", true, "defaults to true")
-	production := flag.Bool("production", false, "defaults to false")
+	debug := flag.Bool("debug", false, "defaults to false")
 	ethPrivateKey := flag.String("ethprivateKey", "", "provide private key here to run node on")
 	ipAddress := flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
 	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
@@ -95,8 +95,8 @@ func (c *Config) createConfigWithFlags() string {
 	if isFlagPassed("register") {
 		c.ShouldRegister = *register
 	}
-	if isFlagPassed("production") {
-		c.IsProduction = *production
+	if isFlagPassed("debug") {
+		c.IsDebug = *debug
 	}
 	if isFlagPassed("ethprivateKey") {
 		c.EthPrivateKey = *ethPrivateKey
@@ -186,7 +186,7 @@ func loadConfig(configPath string) *Config {
 	logging.SetLevelString(conf.LogLevel)
 
 	// TEAM: If you wantr to use localhost just explicitly pass it as an env / flag...
-	// if !conf.IsProduction {
+	// if !conf.IsDebug {
 	// 	conf.MainServerAddress = "localhost" + ":" + conf.HttpServerPort
 	// }
 	// retrieve map[string]interface{}
@@ -219,7 +219,7 @@ func defaultConfigSettings() Config {
 		KeysPerEpoch:               100,
 		KeyBufferTriggerPercentage: 80,
 		BasePath:                   "/.torus",
-		IsProduction:               false,
+		IsDebug:                    false,
 		LogLevel:                   "debug",
 		ServerCert:                 "/.torus/openssl/server.crt",
 		ServerKey:                  "/.torus/openssl/server.key",

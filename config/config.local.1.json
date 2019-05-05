@@ -12,6 +12,7 @@
   "keysperepoch": 10,
   "ipAddress": "192.167.10.2",
   "register": true,
-  "initEpoch": 1
+  "initEpoch": 1,
+  "debug":true
 }
 

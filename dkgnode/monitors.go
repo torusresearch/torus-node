@@ -3,6 +3,7 @@ package dkgnode
 import (
 	"fmt"
 	"math/big"
+
 	// "strconv"
 	"time"
 
@@ -128,7 +129,7 @@ type PSSUpdate struct {
 func whitelistMonitor(suite *Suite, tickerChan <-chan time.Time, whitelistMonitorMsgs chan<- WhitelistMonitorUpdates) {
 	for range tickerChan {
 		currentEpoch := suite.EthSuite.CurrentEpoch
-		isWhitelisted, err := suite.EthSuite.NodeListContract.ViewWhitelist(nil, big.NewInt(int64(suite.EthSuite.CurrentEpoch)), *suite.EthSuite.NodeAddress)
+		isWhitelisted, err := suite.EthSuite.NodeListContract.IsWhitelisted(nil, big.NewInt(int64(suite.EthSuite.CurrentEpoch)), *suite.EthSuite.NodeAddress)
 		if err != nil {
 			logging.Errorf("Could not check ethereum whitelist: %s", err.Error())
 		}
@@ -189,14 +190,14 @@ func nodeListMonitor(suite *Suite, tickerChan <-chan time.Time, nodeListUpdates 
 			suite.EthSuite.EpochNodeRegister[epoch] = &NodeRegister{}
 		}
 		// Get current nodes
-		ethList, positions, err := suite.EthSuite.NodeListContract.ViewNodes(nil, big.NewInt(int64(epoch)))
+		ethList, err := suite.EthSuite.NodeListContract.GetNodes(nil, big.NewInt(int64(epoch)))
 		// If we can't reach ethereum node, lets try next time
 		if err != nil {
 			logging.Errorf("Could not view Current Nodes on ETH Network %s", err)
 			continue
 		}
 		// Build count of nodes connected to
-		logging.Debugf("Indexes %v %v", positions, ethList)
+		logging.Debugf("ethList %v", ethList)
 		if len(ethList) != suite.Config.NumberOfNodes {
 			logging.Debug("ethList length not equal to total number of nodes in config...")
 			continue

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.8;
 
 /**
  * @title Ownable
@@ -83,66 +83,81 @@ contract NodeList is Ownable {
     string p2pListenAddress;
   }
 
-  mapping (uint256 => mapping (address => bool)) whitelist;
+  struct Epoch {
+    uint256 id;
+    uint256 n;
+    uint256 k;
+    uint256 t;
+    address[] nodeList;
+    uint256 prevEpoch;
+    uint256 nextEpoch;
+  }
 
-  mapping (address => mapping (uint256 => Details)) public addressToNodeDetailsLog; //mapping of address => epoch => nodeDetailsLog
-  mapping (uint256 => address[]) public nodeList; // mapping of epoch => list of nodes in epoch
-  uint256 latestEpoch = 0; //count of number of epochs
+  mapping(uint256 => mapping (address => bool)) whitelist;
+
+  mapping (uint256 => Epoch) public epochInfo;
+
+  mapping (address => Details) public nodeDetails;
 
   constructor() public {
   }
 
-  //views nodes in the epoch, now requires specified epochs
-  function viewNodes(uint256 epoch) external view  returns (address[], uint256[]) {
-    uint256[] memory positions = new uint256[](nodeList[epoch].length);
-    for (uint256 i = 0; i < nodeList[epoch].length; i++) {
-      positions[i] = addressToNodeDetailsLog[nodeList[epoch][i]][epoch].position;
+  function getNodes(uint256 epoch) external view epochValid(epoch) returns (address[] memory) {
+    return epochInfo[epoch].nodeList;
+  }
+
+  function getNodeDetails(address nodeAddress) external view returns (string memory declaredIp, uint256 position, string memory tmP2PListenAddress, string memory p2pListenAddress) {
+    Details memory nodeDetail; 
+    nodeDetail = nodeDetails[nodeAddress];
+    return (nodeDetail.declaredIp, nodeDetail.position, nodeDetail.tmP2PListenAddress, nodeDetail.p2pListenAddress);
+  }
+
+  modifier epochValid(uint256 epoch) {
+    if (epoch == 0) {
+      revert();
     }
-    return (nodeList[epoch], positions);
-  }
-
-  function viewNodeListCount(uint256 epoch) external view returns (uint256) {
-    return nodeList[epoch].length;
-  }
-
-  function viewLatestEpoch() external view returns (uint256) {
-    return latestEpoch;
-  }
-
-  function viewNodeDetails(uint256 epoch, address node) external view  returns (string declaredIp, uint256 position, string tmP2PListenAddress, string p2pListenAddress) {
-    declaredIp = addressToNodeDetailsLog[node][epoch].declaredIp;
-    position = addressToNodeDetailsLog[node][epoch].position;
-    tmP2PListenAddress = addressToNodeDetailsLog[node][epoch].tmP2PListenAddress;
-    p2pListenAddress = addressToNodeDetailsLog[node][epoch].p2pListenAddress;
-  }
-
-  function viewWhitelist(uint256 epoch, address nodeAddress) public view returns (bool) {
-    return whitelist[epoch][nodeAddress];
-  }
-
-  modifier whitelisted(uint256 epoch) {
-    require(whitelist[epoch][msg.sender]);
     _;
   }
 
-  function updateWhitelist(uint256 epoch, address nodeAddress, bool allowed) public onlyOwner {
+  modifier epochCreated(uint256 epoch) {
+    require(epochInfo[epoch].id == epoch);
+    _;
+  }
+
+  modifier whitelisted(uint256 epoch) {
+    require(IsWhitelisted(epoch, msg.sender));
+    _;
+  }
+
+  function IsWhitelisted(uint256 epoch, address nodeAddress) public view returns (bool) {
+    return whitelist[epoch][nodeAddress];
+  }
+
+
+  function updateWhitelist(uint256 epoch, address nodeAddress, bool allowed) public onlyOwner epochValid(epoch) {
     whitelist[epoch][nodeAddress] = allowed;
   }
 
-  function listNode(uint256 epoch, string declaredIp, uint256 pubKx, uint256 pubKy, string tmP2PListenAddress, string p2pListenAddress) external whitelisted(epoch) {
-    nodeList[epoch].push(msg.sender); 
-    addressToNodeDetailsLog[msg.sender][epoch] = Details({
+  function updateEpoch(uint256 epoch, uint256 n, uint256 k, uint256 t, address[] memory nodeList, uint256 prevEpoch, uint256 nextEpoch) public onlyOwner epochValid(epoch) {
+    epochInfo[epoch] = Epoch(epoch, n, k, t, nodeList, prevEpoch, nextEpoch);
+  }
+
+  function getEpochInfo(uint256 epoch) public view epochValid(epoch) returns (uint256 id, uint256 n, uint256 k, uint256 t, address[] memory nodeList, uint256 prevEpoch, uint256 nextEpoch) {
+    Epoch memory epochI = epochInfo[epoch];
+    return (epochI.id, epochI.n, epochI.k, epochI.t, epochI.nodeList, epochI.prevEpoch, epochI.nextEpoch);
+  }
+
+  function listNode(uint256 epoch, string calldata declaredIp, uint256 pubKx, uint256 pubKy, string calldata tmP2PListenAddress, string calldata p2pListenAddress) external whitelisted(epoch) epochValid(epoch) epochCreated(epoch) {
+    Epoch storage epochI = epochInfo[epoch];
+    epochI.nodeList.push(msg.sender); 
+    nodeDetails[msg.sender] = Details({
       declaredIp: declaredIp,
-      position: nodeList[epoch].length, //so that Position (or node index) starts from 1
+      position: epochI.nodeList.length,
       pubKx: pubKx,
       pubKy: pubKy,
       tmP2PListenAddress: tmP2PListenAddress,
       p2pListenAddress: p2pListenAddress
-      });
-    //for now latest epoch is simply the highest epoch registered TODO: only we should be able to call this function
-    if (latestEpoch < epoch) {
-      latestEpoch = epoch;
-    }
-    emit NodeListed(msg.sender, epoch, nodeList[epoch].length);
+    });
+    emit NodeListed(msg.sender, epoch, epochI.nodeList.length);
   }
 }

@@ -39,4 +39,5 @@ module.exports = async function(deployer) {
     console.log('adding', acc, ' to whitelist');
     await c.updateWhitelist(1, acc, true);
   }
+  await c.updateEpoch(1, 5, 3, 1, [], 0, 2)
 };

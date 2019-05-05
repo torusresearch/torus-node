@@ -7,7 +7,7 @@ function timeout(ms) {
 module.exports = async function(deployer) {
   await deployer.deploy(NodeList);
   let nodeList = await NodeList.deployed();
-  let c = web3.eth.contract(nodeList.abi).at(nodeList.address);
+  let c = new web3.eth.Contract(nodeList.abi, nodeList.address);
   //THIS IS NECESSARY BECAUSE TRUFFLE IS STUPID
   web3.eth.defaultAccount = web3.eth.accounts[0];
   var whitelistedAccounts = [
@@ -37,7 +37,7 @@ module.exports = async function(deployer) {
     const acc = whitelistedAccounts[i];
     // await web3.sendTransaction({ to: acc, value: web3.toWei('1', 'ether') });
     console.log('adding', acc, ' to whitelist');
-    await c.updateWhitelist(1, acc, true);
+    await c.methods.updateWhitelist(1, acc, true);
   }
-  await c.updateEpoch(1, 5, 3, 1, [], 0, 2)
+  await c.methods.updateEpoch(1, 5, 3, 1, [], 0, 2)
 };

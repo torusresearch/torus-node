@@ -93,7 +93,7 @@ contract NodeList is Ownable {
     uint256 nextEpoch;
   }
 
-  mapping(uint256 => mapping (address => bool)) whitelist;
+  mapping(uint256 => mapping (address => bool)) public whitelist;
 
   mapping (uint256 => Epoch) public epochInfo;
 

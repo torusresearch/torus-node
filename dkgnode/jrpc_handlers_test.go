@@ -103,13 +103,17 @@ func TestCommitmentRequest(t *testing.T) {
 }
 
 func TestShareRequest(t *testing.T) {
+
 	// First of all, we get responses from commitmentRequest
-	ethSuite := EthSuite{}
+	ethSuite := EthSuite{
+		EpochNodeRegister: make(map[int]*NodeRegister),
+	}
+	ethSuite.EpochNodeRegister[1] = &NodeRegister{} // creating epoch node register to mock
 	var nodeResponses [11]CommitmentRequestResult
 	for i := 0; i < 11; i++ {
 		nodePrivK, _ := ecdsa.GenerateKey(secp256k1.Curve, rand.Reader)
 		nodePubK := nodePrivK.Public().(*ecdsa.PublicKey)
-		ethSuite.NodeList = append(ethSuite.NodeList, &NodeReference{
+		ethSuite.EpochNodeRegister[1].NodeList = append(ethSuite.EpochNodeRegister[1].NodeList, &NodeReference{
 			Index:     big.NewInt(int64(i + 1)),
 			PublicKey: nodePubK,
 		})

@@ -26,7 +26,7 @@ type EthSuite struct {
 	Client            *ethclient.Client
 	NodeListContract  *nodelist.Nodelist
 	secp              elliptic.Curve
-	EpochNodeRegister map[int]*NodeRegister
+	EpochNodeRegister map[int]*NodeRegister // epoch => Node Register => NodeReferences
 	NodeIndex         *big.Int
 	CurrentEpoch      int
 }

@@ -59,14 +59,11 @@ func New() {
 	suite := Suite{}
 	suite.Config = cfg
 
-<<<<<<< HEAD
-	// Initialize all necessary channels
-=======
 	if suite.Config.IsDebug {
 		logging.Info("--------------------------------------RUNNING IN DEBUG MODE --------------------------------")
 	}
+	// Initialize all necessary channels
 
->>>>>>> 0cb20483c2f72ee3f0f6a93ea2174a4916cd2a4d
 	nodeListMonitorTicker := time.NewTicker(5 * time.Second)
 	keyGenMonitorTicker := time.NewTicker(5 * time.Second)
 	whitelistMonitorTicker := time.NewTicker(5 * time.Second)
@@ -93,30 +90,10 @@ func New() {
 	if err != nil { // TODO: retry on error
 		log.Fatal(err)
 	}
-<<<<<<< HEAD
-=======
 
-	// We can use a flag here to change the default verifier
-	// In the future we should allow a range of verifiers
-	var verfier auth.GeneralVerifier
-	if suite.Config.IsDebug {
-		verfier = auth.NewGeneralVerifier(
-			auth.NewTestVerifier("blublu"),
-			googleIdentityVerifier{
-				auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
-				&suite,
-			})
-	} else {
-		verfier = auth.NewGeneralVerifier(googleIdentityVerifier{
-			auth.NewDefaultGoogleVerifier(cfg.GoogleClientID),
-			&suite,
-		})
-	}
-	suite.DefaultVerifier = verfier
 
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
->>>>>>> 0cb20483c2f72ee3f0f6a93ea2174a4916cd2a4d
 	err = SetupEth(&suite)
 	if err != nil { // TODO: retry on error
 		log.Fatal(err)

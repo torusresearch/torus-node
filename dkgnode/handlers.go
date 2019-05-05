@@ -15,8 +15,8 @@ import (
 
 const PingMethod = "Ping"
 const ShareRequestMethod = "ShareRequest"
-const KeyAssignMethod = "KeyAssignMethod"
-const CommitmentRequestMethod = "CommitmentRequestMethod"
+const KeyAssignMethod = "KeyAssign"
+const CommitmentRequestMethod = "CommitmentRequest"
 
 type (
 	PingHandler struct {

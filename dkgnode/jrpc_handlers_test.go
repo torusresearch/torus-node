@@ -106,6 +106,7 @@ func TestShareRequest(t *testing.T) {
 
 	// First of all, we get responses from commitmentRequest
 	ethSuite := EthSuite{
+		CurrentEpoch:      1,
 		EpochNodeRegister: make(map[int]*NodeRegister),
 	}
 	ethSuite.EpochNodeRegister[1] = &NodeRegister{} // creating epoch node register to mock

@@ -13,12 +13,9 @@ var sleep = milliseconds => {
 }
 
 module.exports = async function(deployer) {
-  var isdone = false
   await deployer.deploy(NodeList);
   let nodeList = await NodeList.deployed();
-  let c = new web3.eth.Contract(nodeList.abi, nodeList.address);
   //THIS IS NECESSARY BECAUSE TRUFFLE IS STUPID
-  web3.eth.defaultAccount = web3.eth.accounts[0];
   var whitelistedAccounts = [
     "0x52C476751142Ce2FB4DB4f19B500e78FEEe10B06",
     "0xFF364b6b86eA5a4f59Cc4989dA23b833daC15304",
@@ -42,12 +39,17 @@ module.exports = async function(deployer) {
     "0xD6eca392adA22e18c9EEbdE2828b38E66813af5f"
   ];
   
-  c.methods.updateEpoch(1, 5, 3, 1, [], 0, 2)
+  await nodeList.updateEpoch(1, 5, 3, 1, [], 0, 2)
+  var promiseArr = []
   for (var i = 0; i < whitelistedAccounts.length; i++) {
     const acc = whitelistedAccounts[i];
     // await web3.sendTransaction({ to: acc, value: web3.toWei('1', 'ether') });
     console.log('adding', acc, ' to whitelist');
-    c.methods.updateWhitelist(1, acc, true);
+    promiseArr.push(nodeList.updateWhitelist(1, acc, true))
   }
-  isdone = true
+  await Promise.all(promiseArr)
+  for (var i = 0; i < whitelistedAccounts.length; i++) {
+    var res = await nodeList.IsWhitelisted(1, whitelistedAccounts[i])
+    console.log("should be whitelisted, isWhitelisted: ", true)
+  }
 }

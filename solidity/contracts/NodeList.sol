@@ -113,9 +113,7 @@ contract NodeList is Ownable {
   }
 
   modifier epochValid(uint256 epoch) {
-    if (epoch == 0) {
-      revert();
-    }
+    require(epoch != 0);
     _;
   }
 

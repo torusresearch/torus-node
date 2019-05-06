@@ -323,3 +323,23 @@ func TestPedersons(test *testing.T) {
 	assert.False(test, errorsExist)
 
 }
+
+func TestLagrangeCurvePts(t *testing.T) {
+	k := 5
+	n := 9
+	// generate shares
+	origSecret := RandomBigInt()
+	origPoly := generateRandomZeroPolynomial(*origSecret, k)
+	secretCommitment := common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(origSecret.Bytes()))
+	var shares []big.Int
+	for i := 0; i < n; i++ {
+		shares = append(shares, *polyEval(*origPoly, i+1))
+	}
+
+	var shareCommitments []common.Point
+	for _, share := range shares {
+		shareCommitments = append(shareCommitments, common.BigIntToPoint(secp256k1.Curve.ScalarBaseMult(share.Bytes())))
+	}
+	res := LagrangeCurvePts([]int{1, 2, 3, 4, 5}, shareCommitments[0:k])
+	assert.Equal(t, res.X.Text(16), secretCommitment.X.Text(16))
+}

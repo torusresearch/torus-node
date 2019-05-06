@@ -1,15 +1,15 @@
 package keygen
 
 import (
+	"github.com/torusresearch/torus-public/idmutex"
 	"math/big"
-	"sync"
 
 	"github.com/torusresearch/torus-public/logging"
 )
 
 // Here we store by Key index to allow for faster fetching (less iteration) when accessing the buffer
 type KEYGENBuffer struct {
-	sync.Mutex
+	idmutex.Mutex
 	Buffer               map[string](map[string]*KEYGENMsgLog)   // keyIndex => nodeIndex => buffer
 	ReceivedDKGCompletes map[int](map[string]*KEYGENDKGComplete) // From int (array ) to M big.Int (in hex) to DKGComplete
 }
@@ -66,16 +66,16 @@ func (buf *KEYGENBuffer) StoreKEYGENReady(msg KEYGENReady, from big.Int) error {
 	return nil
 }
 
-func (buf *KEYGENBuffer) StoreKEYGENDKGComplete(msg KEYGENDKGComplete, from big.Int) error {
-	buf.Lock()
-	defer buf.Unlock()
-	_, ok := buf.ReceivedDKGCompletes[msg.Nonce]
-	if !ok {
-		buf.ReceivedDKGCompletes[msg.Nonce] = make(map[string]*KEYGENDKGComplete)
-	}
-	buf.ReceivedDKGCompletes[msg.Nonce][from.Text(16)] = &msg
-	return nil
-}
+// func (buf *KEYGENBuffer) StoreKEYGENDKGComplete(msg KEYGENDKGComplete, from big.Int) error {
+// 	buf.Lock()
+// 	defer buf.Unlock()
+// 	_, ok := buf.ReceivedDKGCompletes[msg.Nonce]
+// 	if !ok {
+// 		buf.ReceivedDKGCompletes[msg.Nonce] = make(map[string]*KEYGENDKGComplete)
+// 	}
+// 	buf.ReceivedDKGCompletes[msg.Nonce][from.Text(16)] = &msg
+// 	return nil
+// }
 
 //TODO: Handle failed message
 // Retrieve from the message buffer and iterate over messages
@@ -89,7 +89,7 @@ func (buf *KEYGENBuffer) RetrieveKEYGENSends(keyIndex big.Int, dealer big.Int) *
 func (buf *KEYGENBuffer) RetrieveKEYGENEchoes(keyIndex big.Int, dealer big.Int) map[string]*KEYGENEcho {
 	buf.Lock()
 	defer buf.Unlock()
-	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes))
+	logging.Debugf("RetrieveKEYGENEchos called with %v msgs", len(buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes))
 	return buf.Buffer[keyIndex.Text(16)][dealer.Text(16)].ReceivedEchoes
 }
 
@@ -103,7 +103,7 @@ func (buf *KEYGENBuffer) RetrieveKEYGENReadys(keyIndex big.Int, dealer big.Int) 
 func (buf *KEYGENBuffer) RetrieveKEYGENDKGComplete(nonce int, dealer big.Int) map[string]*KEYGENDKGComplete {
 	buf.Lock()
 	defer buf.Unlock()
-	logging.Debugf("RetrieveKEYGENReadys called with %v msgs", len(buf.ReceivedDKGCompletes[nonce]))
+	logging.Debugf("RetrieveKEYGENDKGCompletes called with %v msgs", len(buf.ReceivedDKGCompletes[nonce]))
 	return buf.ReceivedDKGCompletes[nonce]
 }
 

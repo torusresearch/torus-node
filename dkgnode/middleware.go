@@ -66,7 +66,7 @@ func telemetryMiddleware(next http.Handler) http.Handler {
 			pingCounter.Inc()
 		case ShareRequestMethod:
 			shareRequestCounter.Inc()
-		case SecretAssignMethod:
+		case KeyAssignMethod:
 			secretAssignCounter.Inc()
 		case CommitmentRequestMethod:
 			commitmentRequestCounter.Inc()

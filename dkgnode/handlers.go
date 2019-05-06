@@ -8,14 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/jsonrpc"
 	"github.com/torusresearch/torus-public/secp256k1"
 )
 
 const PingMethod = "Ping"
 const ShareRequestMethod = "ShareRequest"
-const SecretAssignMethod = "SecretAssignMethod"
-const CommitmentRequestMethod = "CommitmentRequestMethod"
+const KeyAssignMethod = "KeyAssign"
+const CommitmentRequestMethod = "CommitmentRequest"
 
 type (
 	PingHandler struct {
@@ -54,15 +55,17 @@ type (
 		NodePubKeyY string
 	}
 	ShareRequestParams struct {
-		ID                 string          `json:"id"`
+		Item []bijson.RawMessage `json:"item"`
+	}
+	ShareRequestItem struct {
 		Token              string          `json:"token"`
 		NodeSignatures     []NodeSignature `json:"nodesignatures"`
-		VerifierIdentifier string          `json:verifieridentifier`
+		VerifierIdentifier string          `json:"verifieridentifier"`
 	}
 	ShareRequestResult struct {
-		Index    int    `json:"index"`
-		HexShare string `json:"hexshare"`
+		Keys []KeyAssignment
 	}
+
 	CommitmentRequestHandler struct {
 		suite   *Suite
 		TimeNow func() time.Time
@@ -91,24 +94,28 @@ type (
 		NodePubX  string `json:"nodepubx"`
 		NodePubY  string `json:"nodepuby"`
 	}
-	SecretAssignHandler struct {
+	KeyAssignHandler struct {
 		suite *Suite
 	}
-	SecretAssignParams struct {
-		Email string `json:"email"`
+	KeyAssignParams struct {
+		Verifier   string `json:"verifier"`
+		VerifierID string `json:"verifier_id"`
 	}
-	SecretAssignResult struct {
-		ShareIndex int    `json:"id"`
-		PubShareX  string `json:"pubshareX"`
-		PubShareY  string `json:"pubshareY"`
-		Address    string `json:"address"`
+	KeyAssignItem struct {
+		KeyIndex  string `json:"key_index"`
+		PubShareX string `json:"pub_share_X"`
+		PubShareY string `json:"pub_share_Y"`
+		Address   string `json:"address"`
+	}
+	KeyAssignResult struct {
+		Keys []KeyAssignItem `json:"keys"`
 	}
 )
 
 func (nodeSig *NodeSignature) NodeValidation(suite *Suite) (*NodeReference, error) {
 	var node *NodeReference
-	for i := 0; i < len(suite.EthSuite.NodeList); i++ {
-		currNode := suite.EthSuite.NodeList[i]
+	nodeRegister := suite.EthSuite.EpochNodeRegister[suite.EthSuite.CurrentEpoch]
+	for _, currNode := range nodeRegister.NodeList {
 		if currNode.PublicKey.X.Text(16) == nodeSig.NodePubKeyX &&
 			currNode.PublicKey.Y.Text(16) == nodeSig.NodePubKeyY {
 			node = currNode
@@ -207,7 +214,7 @@ func setUpJRPCHandler(suite *Suite) (*jsonrpc.MethodRepository, error) {
 	if err := mr.RegisterMethod(ShareRequestMethod, ShareRequestHandler{suite, time.Now}, ShareRequestParams{}, ShareRequestResult{}); err != nil {
 		return nil, err
 	}
-	if err := mr.RegisterMethod(SecretAssignMethod, SecretAssignHandler{suite}, SecretAssignParams{}, SecretAssignResult{}); err != nil {
+	if err := mr.RegisterMethod(KeyAssignMethod, KeyAssignHandler{suite}, KeyAssignParams{}, KeyAssignResult{}); err != nil {
 		return nil, err
 	}
 	if err := mr.RegisterMethod(CommitmentRequestMethod, CommitmentRequestHandler{suite, time.Now}, CommitmentRequestParams{}, CommitmentRequestResult{}); err != nil {

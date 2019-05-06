@@ -2,7 +2,9 @@ package common
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -24,4 +26,9 @@ func HexToBigInt(s string) *big.Int {
 func PointToEthAddress(point Point) (*common.Address, error) {
 	addr := crypto.PubkeyToAddress(ecdsa.PublicKey{X: &point.X, Y: &point.Y})
 	return &addr, nil
+}
+
+func TimeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	fmt.Printf("%s took %s\n", name, elapsed)
 }

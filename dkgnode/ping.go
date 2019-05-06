@@ -53,7 +53,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 		return
 	}
 
-	valid := p.localHost.authenticateMessage(*data)
+	valid := p.localHost.authenticateMessage(data)
 
 	if !valid {
 		logging.Error("Failed to authenticate message")
@@ -67,7 +67,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 		logging.Error("could not marshal ping")
 		return
 	}
-	resp := p.localHost.NewP2PMessage(data.GetId(), false, pingBytes)
+	resp := p.localHost.NewP2PMessage(data.GetId(), false, pingBytes, "")
 
 	// sign the data
 	signature, err := p.localHost.signP2PMessage(resp)
@@ -105,7 +105,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 		return
 	}
 
-	valid := p.localHost.authenticateMessage(*data)
+	valid := p.localHost.authenticateMessage(data)
 
 	if !valid {
 		logging.Error("Failed to authenticate message")
@@ -142,7 +142,7 @@ func (p *PingProtocol) Ping(peerid peer.ID) error {
 
 	}
 	// create message data
-	req := p.localHost.NewP2PMessage(uuid.New().String(), false, pBytes)
+	req := p.localHost.NewP2PMessage(uuid.New().String(), false, pBytes, "")
 
 	// sign the data
 	signature, err := p.localHost.signP2PMessage(req)

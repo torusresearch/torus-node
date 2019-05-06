@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"encoding/json"
 	"errors"
 
 	"github.com/torusresearch/bijson"
@@ -11,7 +10,7 @@ import (
 type Verifier interface {
 	GetIdentifier() string
 	CleanToken(string) string
-	VerifyRequestIdentity(*bijson.RawMessage) (bool, error)
+	VerifyRequestIdentity(*bijson.RawMessage) (verified bool, verifierID string, err error)
 }
 
 // IdentityVerifier describes a common implementation shared among torus
@@ -24,7 +23,8 @@ type VerifyMessage struct {
 
 // GeneralVerifier accepts an identifier string and returns an IdentityVerifier
 type GeneralVerifier interface {
-	Verify(*bijson.RawMessage) (bool, error)
+	ListVerifiers() []string
+	Verify(*bijson.RawMessage) (verified bool, verifierID string, err error)
 	Lookup(string) (Verifier, error)
 }
 
@@ -33,29 +33,33 @@ type DefaultGeneralVerifier struct {
 	Verifiers map[string]Verifier
 }
 
+// ListVerifiers gets List of Registered Verifiers
+func (tgv *DefaultGeneralVerifier) ListVerifiers() []string {
+	list := make([]string, len(tgv.Verifiers))
+	count := 0
+	for k := range tgv.Verifiers {
+		list[count] = k
+		count++
+	}
+	return list
+}
+
 // Verify reroutes the json request to the appropriate sub-verifier within generalVerifier
-func (tgv *DefaultGeneralVerifier) Verify(rawMessage *bijson.RawMessage) (bool, error) {
+// Returns result, verifierID and error
+func (tgv *DefaultGeneralVerifier) Verify(rawMessage *bijson.RawMessage) (bool, string, error) {
 	var verifyMessage VerifyMessage
 	if err := bijson.Unmarshal(*rawMessage, &verifyMessage); err != nil {
-		return false, err
+		return false, "", err
 	}
 	v, err := tgv.Lookup(verifyMessage.VerifierIdentifier)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	cleanedToken := v.CleanToken(verifyMessage.Token)
-	jsonMap := make(map[string]interface{})
-	err = json.Unmarshal(*rawMessage, &jsonMap)
-	if err != nil {
-		return false, err
+	if cleanedToken != verifyMessage.Token {
+		return false, "", errors.New("Cleaned token is different from original token")
 	}
-	jsonMap["token"] = cleanedToken
-	cleanedRawMessageBytes, err := bijson.Marshal(jsonMap)
-	if err != nil {
-		return false, err
-	}
-	cleanedRawMessage := bijson.RawMessage(cleanedRawMessageBytes)
-	return v.VerifyRequestIdentity(&cleanedRawMessage)
+	return v.VerifyRequestIdentity(rawMessage)
 }
 
 // Lookup returns the appropriate verifier

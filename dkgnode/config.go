@@ -24,14 +24,16 @@ type Config struct {
 	P2PListenAddress           string `json:"p2plistenaddress" env:"P2P_LISTEN_ADDRESS"`
 	NodeListAddress            string `json:"nodelistaddress" env:"NODE_LIST_ADDRESS"`
 	NumberOfNodes              int    `json:"numberofnodes" env:"NUMBER_OF_NODES"`
-	Threshold                  int    `json:"threshold" env:"THRESHOLD"`
+	Threshold                  int    `json:"threshold" env:"THRESHOLD"`     // k
+	NumMalNodes                int    `json:"nummalnodes" env:"NUMMALNODES"` // t
 	KeysPerEpoch               int    `json:"keysperepoch" env:"KEYS_PER_EPOCH"`
 	KeyBufferTriggerPercentage int    `json:"keybuffertriggerpercetage" env:"KEY_BUFFER_TRIGGER_PERCENTAGE"` //percetage threshold of keys left to trigger buffering 90 - 20
 	BasePath                   string `json:"basepath" env:"BASE_PATH"`
+	InitEpoch                  int    `json:"initepoch" env:"INIT_EPOCH"`
 
 	ShouldRegister    bool   `json:"register" env:"REGISTER"`
 	CPUProfileToFile  string `json:"cpuProfile" env:"CPU_PROFILE"`
-	IsProduction      bool   `json:"production" env:"PRODUCTION"`
+	IsDebug           bool   `json:"debug" env:"DEBUG"`
 	ProvidedIPAddress string `json:"ipAddress" env:"IP_ADDRESS"`
 	LogLevel          string `json:"loglevel" env:"LOG_LEVEL"`
 
@@ -53,8 +55,8 @@ func (c *Config) mergeWithFlags(flagConfig *Config) *Config {
 	if isFlagPassed("register") {
 		c.ShouldRegister = flagConfig.ShouldRegister
 	}
-	if isFlagPassed("production") {
-		c.IsProduction = flagConfig.IsProduction
+	if isFlagPassed("debug") {
+		c.IsDebug = flagConfig.IsDebug
 	}
 	if isFlagPassed("ethprivateKey") {
 		c.EthPrivateKey = flagConfig.EthPrivateKey
@@ -82,7 +84,7 @@ func (c *Config) mergeWithFlags(flagConfig *Config) *Config {
 // NOTE: It will note override with defaults
 func (c *Config) createConfigWithFlags() string {
 	register := flag.Bool("register", true, "defaults to true")
-	production := flag.Bool("production", false, "defaults to false")
+	debug := flag.Bool("debug", false, "defaults to false")
 	ethPrivateKey := flag.String("ethprivateKey", "", "provide private key here to run node on")
 	ipAddress := flag.String("ipAddress", "", "specified IPAdress, necessary for running in an internal env e.g. docker")
 	cpuProfile := flag.String("cpuProfile", "", "write cpu profile to file")
@@ -95,8 +97,8 @@ func (c *Config) createConfigWithFlags() string {
 	if isFlagPassed("register") {
 		c.ShouldRegister = *register
 	}
-	if isFlagPassed("production") {
-		c.IsProduction = *production
+	if isFlagPassed("debug") {
+		c.IsDebug = *debug
 	}
 	if isFlagPassed("ethprivateKey") {
 		c.EthPrivateKey = *ethPrivateKey
@@ -186,7 +188,7 @@ func loadConfig(configPath string) *Config {
 	logging.SetLevelString(conf.LogLevel)
 
 	// TEAM: If you wantr to use localhost just explicitly pass it as an env / flag...
-	// if !conf.IsProduction {
+	// if !conf.IsDebug {
 	// 	conf.MainServerAddress = "localhost" + ":" + conf.HttpServerPort
 	// }
 	// retrieve map[string]interface{}
@@ -215,11 +217,12 @@ func defaultConfigSettings() Config {
 		NodeListAddress:            "0x4e8fce1336c534e0452410c2cb8cd628949dcc85",
 		NumberOfNodes:              5,
 		Threshold:                  3,
+		NumMalNodes:                1,
 		KeysPerEpoch:               100,
 		KeyBufferTriggerPercentage: 80,
 		BasePath:                   "/.torus",
-		IsProduction:               false,
-		LogLevel:                   "info",
+		IsDebug:                    false,
+		LogLevel:                   "debug",
 		ServerCert:                 "/.torus/openssl/server.crt",
 		ServerKey:                  "/.torus/openssl/server.key",
 	}

@@ -29,19 +29,21 @@ type P2PMessage interface {
 	GetNodeId() string
 	GetNodePubKey() []byte
 	GetSign() []byte
+	SetSign(sig []byte)
 	GetMsgType() string
 }
 
 type P2PBasicMsg struct {
 	// shared between all requests
-	Timestamp  int64  `json:"timestamp,omitempty"`
-	Id         string `json:"id,omitempty"`
-	Gossip     bool   `json:"gossip,omitempty"`
-	NodeId     string `json:"nodeId,omitempty"`
-	NodePubKey []byte `json:"nodePubKey,omitempty"`
-	Sign       []byte `json:"sign,omitempty"`
-	MsgType    string `json:"msgtype,omitempty"`
-	Payload    []byte `json:"payload"`
+	Timestamp  int64  `json:"timestamp,omitempty"`  // unix time
+	Id         string `json:"id,omitempty"`         // allows requesters to use request data when processing a response
+	Gossip     bool   `json:"gossip,omitempty"`     // true to have receiver peer gossip the message to neighbors
+	NodeId     string `json:"nodeId,omitempty"`     // id of node that created the message (not the peer that may have sent it). =base58(multihash(nodePubKey))
+	NodePubKey []byte `json:"nodePubKey,omitempty"` // Authoring node Secp256k1 public key (32bytes)
+	Sign       []byte `json:"sign,omitempty"`       // signature of message data + method specific data by message authoring node.
+
+	MsgType string `json:"msgtype,omitempty"` // identifyng message type
+	Payload []byte `json:"payload"`           // payload data to be unmarshalled
 }
 
 type NodeReference struct {
@@ -54,14 +56,16 @@ type NodeReference struct {
 }
 type P2PSuite struct {
 	host.Host
-	HostAddress            ma.Multiaddr
-	JSONUnmarshalReference map[string]P2PJSON
-	PingProto              *PingProtocol
+	HostAddress ma.Multiaddr
+	// JSONUnmarshalReference map[string]P2PJSON
+	PingProto   *PingProtocol
+	KeygenProto *KEYGENProtocol
 }
-type P2PJSON interface {
-	GetStructType() string
-	UnmarshalToStruct()
-}
+
+// type P2PJSON interface {
+// 	GetStructType() string
+// 	UnmarshalToStruct()
+// }
 
 func (msg *P2PBasicMsg) GetTimestamp() int64 {
 	return msg.Timestamp
@@ -83,6 +87,9 @@ func (msg *P2PBasicMsg) GetSign() []byte {
 }
 func (msg *P2PBasicMsg) GetMsgType() string {
 	return msg.MsgType
+}
+func (msg *P2PBasicMsg) SetSign(sig []byte) {
+	msg.Sign = sig
 }
 
 // SetupP2PHost creates a LibP2P host with an ID being the supplied private key and initiates
@@ -120,21 +127,22 @@ func SetupP2PHost(suite *Suite) (host.Host, error) {
 		Host:        h,
 		HostAddress: fullAddr,
 	}
+	logging.Debugf("LocalHostID: %s", suite.P2PSuite.ID().String())
 
 	// Set a stream handlers or protocols
 	suite.P2PSuite.PingProto = NewPingProtocol(suite.P2PSuite)
-
+	suite.P2PSuite.KeygenProto = NewKeygenProtocol(suite, suite.P2PSuite)
 	return h, nil
 }
 
 // Authenticate incoming p2p message
 // message: a protobufs go data object
 // data: common p2p message data
-func (localHost *P2PSuite) authenticateMessage(data P2PBasicMsg) bool {
+func (localHost *P2PSuite) authenticateMessage(data P2PMessage) bool {
 	// store a temp ref to signature and remove it from message data
 	// sign is a string to allow easy reset to zero-value (empty string)
-	sign := data.Sign
-	data.Sign = nil
+	sign := data.GetSign()
+	data.SetSign(nil)
 
 	// marshall data without the signature to bytes format
 	bin, err := bijson.Marshal(data)
@@ -144,10 +152,10 @@ func (localHost *P2PSuite) authenticateMessage(data P2PBasicMsg) bool {
 	}
 
 	// restore sig in message data (for possible future use)
-	data.Sign = sign
+	data.SetSign(sign)
 
 	// restore peer id binary format from base58 encoded node id data
-	peerId, err := peer.IDB58Decode(data.NodeId)
+	peerId, err := peer.IDB58Decode(data.GetNodeId())
 	if err != nil {
 		logging.Errorf("Failed to decode node id from base58", err)
 		return false
@@ -155,7 +163,7 @@ func (localHost *P2PSuite) authenticateMessage(data P2PBasicMsg) bool {
 
 	// verify the data was authored by the signing peer identified by the public key
 	// and signature included in the message
-	return localHost.verifyData(bin, []byte(sign), peerId, data.NodePubKey)
+	return localHost.verifyData(bin, []byte(sign), peerId, data.GetNodePubKey())
 }
 
 // sign an outgoing p2p message payload
@@ -211,7 +219,7 @@ func (localHost *P2PSuite) verifyData(data []byte, signature []byte, peerId peer
 
 // helper method - generate message data shared between all node's p2p protocols
 // messageId: unique for requests, copied from request for responses
-func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload []byte) *P2PBasicMsg {
+func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload []byte, msgType string) *P2PBasicMsg {
 	// Add protobufs bin data for message author public key
 	// this is useful for authenticating  messages forwarded by a node authored by another node
 	nodePubKey, err := localHost.Peerstore().PubKey(localHost.ID()).Bytes()
@@ -227,6 +235,7 @@ func (localHost *P2PSuite) NewP2PMessage(messageId string, gossip bool, payload 
 		Id:         messageId,
 		Gossip:     gossip,
 		Payload:    payload,
+		MsgType:    msgType,
 	}
 }
 
@@ -303,6 +312,11 @@ func connectToP2PNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address
 		}
 	}
 
+	// set node index
+	if peerid == suite.P2PSuite.ID() {
+		suite.EthSuite.NodeIndex = details.Position
+	}
+
 	return &NodeReference{
 		Address:         &nodeAddress,
 		PeerID:          peerid,
@@ -312,3 +326,17 @@ func connectToP2PNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address
 		P2PConnection:   details.P2pListenAddress,
 	}, nil
 }
+
+// func getNodeIndexFromPubKey(pubKey []byte) big.Int {
+// 	pk, err := crypto.UnmarshalPublicKey(pubKey)
+// 	if err != nil {
+// 		logging.Error("Failed to derive id")
+// 		return
+// 	}
+// 	// extract node id from the provided public key
+// 	idFromKey, err := peer.IDFromPublicKey(key)
+// 	for _, nodeRef := range p.suite.EthSuite.NodeList {
+// 		nodeRef.PeerID
+// 	}
+// 	return
+// }

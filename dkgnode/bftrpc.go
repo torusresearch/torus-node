@@ -4,9 +4,10 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tendermint/rpc/client"
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/keygen"
 	"github.com/torusresearch/torus-public/logging"
 )
 
@@ -44,8 +45,8 @@ type DefaultBFTTxWrapper struct {
 }
 
 type AssignmentBFTTx struct {
-	Email string
-	Epoch uint //implemented to allow retries for assignments on the bft
+	Verifier   string
+	VerifierID string //implemented to allow retries for assignments on the bft
 }
 
 type StatusBFTTx struct {
@@ -65,11 +66,13 @@ type ValidatorUpdateBFTTx struct {
 
 // mapping of name of struct to id
 var bftTxs = map[string]byte{
-	getType(PubPolyBFTTx{}):         byte(1),
-	getType(KeyGenShareBFTTx{}):     byte(3),
-	getType(AssignmentBFTTx{}):      byte(4),
-	getType(StatusBFTTx{}):          byte(5),
-	getType(ValidatorUpdateBFTTx{}): byte(6),
+	getType(PubPolyBFTTx{}):             byte(1),
+	getType(KeyGenShareBFTTx{}):         byte(3),
+	getType(AssignmentBFTTx{}):          byte(4),
+	getType(StatusBFTTx{}):              byte(5),
+	getType(ValidatorUpdateBFTTx{}):     byte(6),
+	getType(BFTKeygenMsg{}):             byte(7),
+	getType(keygen.KEYGENDKGComplete{}): byte(8),
 }
 
 func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
@@ -77,7 +80,7 @@ func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
 	txType := make([]byte, 1)
 	tx := wrapper.BFTTx
 	txType[0] = bftTxs[getType(tx)]
-	data, err := rlp.EncodeToBytes(tx)
+	data, err := bijson.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +89,7 @@ func (wrapper DefaultBFTTxWrapper) PrepareBFTTx() ([]byte, error) {
 }
 
 func (wrapper *DefaultBFTTxWrapper) DecodeBFTTx(data []byte) error {
-	err := rlp.DecodeBytes(data[1:], wrapper.BFTTx)
+	err := bijson.Unmarshal(data[1:], &wrapper.BFTTx)
 	if err != nil {
 		return err
 	}
@@ -119,7 +122,9 @@ func (bftrpc BftRPC) Broadcast(tx DefaultBFTTxWrapper) (*common.Hash, error) {
 	if err != nil {
 		return nil, err
 	}
-	logging.Debugf("TENDERBFT RESPONSE: %s", response)
+	logging.Debugf("TENDERBFT RESPONSE code %v : %v", response.Code, response)
+	logging.Debugf("TENDERBFT LOG: %s", response.Log)
+
 	if response.Code != 0 {
 		return nil, errors.New("Could not broadcast, ErrorCode: " + string(response.Code))
 	}

@@ -140,6 +140,23 @@ func ECDSAVerify(ecdsaPubKey ecdsa.PublicKey, ecdsaSignature ECDSASignature) boo
 	)
 }
 
+func ECDSAVerifyFromRaw(msg string, ecdsaPubKey ecdsa.PublicKey, signature []byte) bool {
+	r := new(big.Int)
+	s := new(big.Int)
+	tempR := bytes32(signature[:32])
+	tempS := bytes32(signature[32:64])
+	r.SetBytes(tempR[:])
+	s.SetBytes(tempS[:])
+	bytesHash := bytes32(secp256k1.Keccak256([]byte(msg)))
+
+	return ecdsa.Verify(
+		&ecdsaPubKey,
+		bytesHash[:],
+		r,
+		s,
+	)
+}
+
 // [X1, Y1, X2, Y2, X3, Y3 ... ]
 func PointsArrayToBytesArray(pointsArray *[]common.Point) []byte {
 	arrBytes := []byte{}
@@ -184,4 +201,10 @@ func BytesArrayToPointsArray(byteArray []byte) (pointsArray []*common.Point) {
 		}
 	}
 	return
+}
+
+// Hashes to a hex string (only the first 6 chars)
+func HashToString(bytes []byte) string {
+	hash := secp256k1.Keccak256(bytes)
+	return hex.EncodeToString(hash)[0:6]
 }

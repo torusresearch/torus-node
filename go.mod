@@ -8,7 +8,6 @@ replace (
 )
 
 require (
-	github.com/Rican7/retry v0.1.0
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
 	github.com/alecthomas/jsonschema v0.0.0-20190122210438-a6952de1bbe6 // indirect
 	github.com/allegro/bigcache v1.2.0 // indirect
@@ -20,7 +19,6 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.8.20
 	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a // indirect
-	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/context v1.1.1
@@ -39,6 +37,7 @@ require (
 	github.com/libp2p/go-libp2p-peerstore v0.0.1
 	github.com/libp2p/go-libp2p-protocol v0.0.1
 	github.com/looplab/fsm v0.1.0
+	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/mholt/certmagic v0.5.1
 	github.com/micro/go-config v1.1.0
 	github.com/miekg/dns v1.1.9 // indirect
@@ -54,6 +53,7 @@ require (
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
+	github.com/syndtr/goleveldb v1.0.0
 	github.com/tendermint/btcd v0.1.1
 	github.com/tendermint/go-amino v0.14.1 // indirect
 	github.com/tendermint/tendermint v0.29.1
@@ -68,11 +68,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	github.com/xlab-si/emmy v0.0.0-20181126075652-2a3c9dd29847
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
-	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734 // indirect
-	golang.org/x/net v0.0.0-20190502183928-7f726cade0ab // indirect
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
-	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
-	golang.org/x/text v0.3.2 // indirect
+	golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a
 	gopkg.in/h2non/baloo.v3 v3.0.2
 	gopkg.in/h2non/gentleman.v2 v2.0.3 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect

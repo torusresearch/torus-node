@@ -1,27 +1,49 @@
 package dkgnode
 
 import (
-	"time"
-
+	"errors"
 	"github.com/patrickmn/go-cache"
+	"github.com/torusresearch/torus-public/common"
+	"github.com/torusresearch/torus-public/db"
+	"github.com/torusresearch/torus-public/keygen"
+	"math/big"
+	// "github.com/torusresearch/torus-public/logging"
+	"time"
 )
 
 // TorusDB represents a set of methods necessary for the operation of torus node
 // NOTE: work in progress
 type TorusDB interface {
-	StoreLog(address string, log *ShareLog) error
-	GetLog(address string) (*ShareLog, error)
+	// StoreLog(address string, log *ShareLog) error
+	// GetLog(address string) (*ShareLog, error)
 	// AppendLog ?
 
-	StoreAddressMapping(address string) error
-	GetAddressMapping(address string) error
+	// StoreAddressMapping(address string) error
+	// GetAddressMapping(address string) error
 	// Modify mapping by index??
 
-	StoreShareIndexMapping() error
-	GetShareIndexMapping() error
+	// StoreShareIndexMapping() error
+	// GetShareIndexMapping() error
 
-	StoreSecretMapping() error
-	GetSecretMapping() error
+	// StoreSecretMapping() error
+	// GetSecretMapping() error
+
+	RetrieveCompletedShare(keyIndex big.Int) (Si *big.Int, Siprime *big.Int, PublicKey *common.Point, err error)
+
+	keygen.AVSSKeygenStorage
+}
+
+type DBSuite struct {
+	Instance TorusDB
+}
+
+func SetupDB(suite *Suite) error {
+	torusLdb, err := db.NewTorusLDB(suite.Config.BasePath)
+	if err != nil {
+		return errors.New("Was not able to start leveldb: " + err.Error())
+	}
+	suite.DBSuite = &DBSuite{Instance: torusLdb}
+	return nil
 }
 
 // CacheSuite - handles caching

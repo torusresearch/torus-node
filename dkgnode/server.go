@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/mholt/certmagic"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
 	"github.com/torusresearch/jsonrpc"
@@ -18,13 +19,26 @@ import (
 	"github.com/torusresearch/torus-public/pvss"
 )
 
-func setUpServer(suite *Suite, port string) *http.Server {
+func setUpRouter(suite *Suite) http.Handler {
 	mr, err := setUpJRPCHandler(suite)
 	if err != nil {
 		logging.Fatalf("%s", err)
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
+	// notProtected := router.PathPrefix("/healthz").Subrouter()
+	// notProtected.Use(loggingMiddleware)
+	// notProtected.HandleFunc("/", GETHealthz)
+
+	// // tlsNotProtected := router.PathPrefix("/tls").Subrouter()
+
+	// protected := router.PathPrefix("/jrpc").Subrouter()
+	// protected.Handle("/", mr)
+	// protected.HandleFunc("/debug", mr.ServeDebug)
+
+	// protected.Use(augmentRequestMiddleware)
+	// protected.Use(loggingMiddleware)
+	// protected.Use(telemetryMiddleware)
 
 	router.Handle("/jrpc", mr)
 	router.HandleFunc("/jrpc/debug", mr.ServeDebug)
@@ -34,15 +48,56 @@ func setUpServer(suite *Suite, port string) *http.Server {
 	router.Use(loggingMiddleware)
 	router.Use(telemetryMiddleware)
 
-	addr := fmt.Sprintf(":%s", port)
 	handler := cors.Default().Handler(router)
+	return handler
+}
+
+func setUpAndRunHttpServer(suite *Suite) {
+	router := setUpRouter(suite)
+	addr := fmt.Sprintf(":%s", suite.Config.HttpServerPort)
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: handler,
+		Handler: router,
 	}
 
-	return server
+	if suite.Config.ServeUsingTLS {
+		if suite.Config.UseAutoCert {
+			if suite.Config.PublicURL == "" {
+				logging.Fatal("PublicURL is required when UseAutoCert is true")
+			}
+			logging.Info("Starting server with CertMagic...")
+
+			// Force http-01 challenges
+			certmagic.Default.DisableTLSALPNChallenge = true
+
+			err := certmagic.HTTPS([]string{suite.Config.PublicURL}, router)
+			if err != nil {
+				logging.Fatal(err.Error())
+			}
+
+		}
+
+		if suite.Config.ServerCert != "" {
+			logging.Info("Starting HTTPS server with preconfigured certs...")
+			err := server.ListenAndServeTLS(suite.Config.ServerCert,
+				suite.Config.ServerKey)
+			if err != nil {
+				logging.Fatal(err.Error())
+			}
+		} else {
+			logging.Fatal("Certs not supplied, try running with UseAutoCert")
+		}
+
+	} else {
+		logging.Info("Starting HTTP server...")
+		err := server.ListenAndServe()
+		if err != nil {
+			logging.Fatal(err.Error())
+		}
+
+	}
+
 }
 
 func HandleSigncryptedShare(suite *Suite, tx KeyGenShareBFTTx) error {
@@ -165,47 +220,3 @@ func retrieveUserPubKey(suite *Suite, keyIndex big.Int) (*common.Point, error) {
 
 	return &finalUserPubKey, nil
 }
-
-// func listenForShares(suite *Suite, count int) {
-// 	logging.Debugf("KEYGEN: listening for shares %d", count)
-// 	query := tmquery.MustParse("keygeneration.sharecollection='1'")
-// 	logging.Debugf("QUERY IS: %s", query)
-// 	// note: we also get back the initial "{}"
-// 	// data comes back in bytes of utf-8 which correspond
-// 	// to a base64 encoding of the original data
-// 	responseCh, err := suite.BftSuite.RegisterQuery(query.String(), count)
-// 	if err != nil {
-// 		logging.Errorf("BFTWS: failure to registerquery %s", query.String())
-// 		return
-// 	}
-// 	for e := range responseCh {
-// 		logging.Debugf("KEYGEN: got a share %s", e)
-// 		// if gjson.GetBytes(e, "query").String() != "keygeneration.sharecollection='1'" {
-// 		// 	continue
-// 		// }
-// 		logging.Debugf("sub got %s", string(e[:]))
-// 		res, err := b64.StdEncoding.DecodeString(gjson.GetBytes(e, "data.value.TxResult.tx").String())
-// 		if err != nil {
-// 			logging.Errorf("error decoding b64 %s", err)
-// 			continue
-// 		}
-// 		// valid messages should start with mug00
-// 		if len(res) < 5 || string(res[:len([]byte("mug00"))]) != "mug00" {
-// 			logging.Debug("Message not prefixed with mug00")
-// 			continue
-// 		}
-// 		keyGenShareBFTTx := DefaultBFTTxWrapper{&KeyGenShareBFTTx{}}
-// 		err = keyGenShareBFTTx.DecodeBFTTx(res[len([]byte("mug00")):])
-// 		if err != nil {
-// 			logging.Debugf("error decoding bfttx %s", err)
-// 			continue
-// 		}
-// 		keyGenShareTx := keyGenShareBFTTx.BFTTx.(*KeyGenShareBFTTx)
-// 		logging.Debugf("KEYGEN: handling signcryption for share %s", keyGenShareTx)
-// 		err = HandleSigncryptedShare(suite, *keyGenShareTx)
-// 		if err != nil {
-// 			logging.Errorf("failed to handle signcrypted share %s", err)
-// 			continue
-// 		}
-// 	}
-// }

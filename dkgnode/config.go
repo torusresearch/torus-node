@@ -37,10 +37,12 @@ type Config struct {
 	ProvidedIPAddress string `json:"ipAddress" env:"IP_ADDRESS"`
 	LogLevel          string `json:"loglevel" env:"LOG_LEVEL"`
 
-	ServeUsingTLS bool   `json:"USE_TLS" env:"USE_TLS"`
-	UseAutoCert   bool   `json:"useAutoCert" env:"USE_AUTO_CERT"`
-	ServerCert    string `json:"serverCert" env:"SERVER_CERT"`
-	ServerKey     string `json:"serverKey" env:"SERVER_KEY"`
+	ServeUsingTLS    bool   `json:"USE_TLS" env:"USE_TLS"`
+	UseAutoCert      bool   `json:"useAutoCert" env:"USE_AUTO_CERT"`
+	AutoCertCacheDir string `json:"autoCertCacheDir" env:"AUTO_CERT_CACHE_DIR"`
+	PublicURL        string `json:"publicURL" env:"PUBLIC_URL"`
+	ServerCert       string `json:"serverCert" env:"SERVER_CERT"`
+	ServerKey        string `json:"serverKey" env:"SERVER_KEY"`
 
 	// GoogleClientID is used for oauth verification.
 	GoogleClientID string `json:"googleClientID" env:"GOOGLE_CLIENT_ID"`

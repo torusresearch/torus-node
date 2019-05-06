@@ -2,12 +2,12 @@ package dkgnode
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/context"
+	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-public/logging"
 	"github.com/torusresearch/torus-public/telemetry"
 )
@@ -44,9 +44,9 @@ func getJRPCMethod(r *http.Request) string {
 	// on in the middleware / request chain
 	body, err := ioutil.ReadAll(r.Body)
 	r.Body = ioutil.NopCloser(bytes.NewReader(body))
-	err = json.Unmarshal(body, &j)
+	err = bijson.Unmarshal(body, &j)
 	if err != nil {
-		logging.Error("could not unmarshal body inside getJRPCMethod")
+		logging.Errorf("could not unmarshal body inside getJRPCMethod %s", err)
 		return ""
 	}
 

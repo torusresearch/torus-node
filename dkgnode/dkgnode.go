@@ -2,10 +2,8 @@ package dkgnode
 
 //TODO: export all "tm" imports to common folder
 import (
-	"context"
 	"log"
 	"math/big"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -91,7 +89,6 @@ func New() {
 		log.Fatal(err)
 	}
 
-
 	//TODO: Dont die on failure but retry
 	// set up connection to ethereum blockchain
 	err = SetupEth(&suite)
@@ -103,10 +100,11 @@ func New() {
 		log.Fatal(err)
 	}
 
+	// Set Up Server
+	go setUpAndRunHttpServer(&suite)
 	go RunABCIServer(&suite) // tendermint handles sigterm on its own
 	go SetupBft(&suite, abciServerMonitorTicker.C, bftWorkerMsgs)
 	go bftWorker(&suite, bftWorkerMsgs)
-	server := setUpServer(&suite, string(suite.Config.HttpServerPort))
 
 	go whitelistMonitor(&suite, whitelistMonitorTicker.C, whitelistMonitorMsgs)
 	go whitelistWorker(&suite, tmNodeKey, whitelistMonitorMsgs)
@@ -118,12 +116,6 @@ func New() {
 		<-osSignal
 		logging.Info("Shutting down the node, received signal.")
 
-		// Shutdown the jRPC server
-		err := server.Shutdown(context.Background())
-		if err != nil {
-			logging.Errorf("Failed during shutdown: %s", err.Error())
-		}
-
 		// Stop NodeList monitor ticker
 		nodeListMonitorTicker.Stop()
 
@@ -131,8 +123,12 @@ func New() {
 		close(idleConnsClosed)
 	}()
 
-	// run server
-	go serverWorker(&suite, server)
+	// Set up standard server
+	// server := setUpServer(&suite, string(suite.Config.HttpServerPort))
+
+	// TODO(TEAM): This needs to be less verbose, and wrapped in some functions..
+	// It really doesnt need to run forever right?...
+	// So it runs forever
 
 	// Setup Phase
 	go nodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs, pssWorkerMsgs)
@@ -159,30 +155,4 @@ func RawPointToTMPubKey(X, Y *big.Int) tmsecp.PubKeySecp256k1 {
 	}
 	copy(pubkeyBytes[:], pubkeyObject.SerializeCompressed())
 	return pubkeyBytes
-}
-
-func serverWorker(suite *Suite, server *http.Server) {
-	if suite.Config.ServeUsingTLS {
-		if suite.Config.UseAutoCert {
-			logging.Fatal("AUTO CERT NOT YET IMPLEMENTED")
-		}
-
-		if suite.Config.ServerCert != "" {
-			err := server.ListenAndServeTLS(suite.Config.ServerCert,
-				suite.Config.ServerKey)
-			if err != nil {
-				logging.Fatal(err.Error())
-			}
-		} else {
-			logging.Fatal("Certs not supplied, try running with UseAutoCert")
-		}
-
-	} else {
-		err := server.ListenAndServe()
-		if err != nil {
-			logging.Fatal(err.Error())
-		}
-
-	}
-
 }

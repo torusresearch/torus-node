@@ -278,7 +278,7 @@ func (h KeyAssignHandler) ServeJSONRPC(c context.Context, params *bijson.RawMess
 
 	//if all indexes have been assigned, bounce request. threshold at 20% TODO: Make  percentage variable
 	// TODO: Change this to be not parameter dependent
-	if h.suite.ABCIApp.state.LastCreatedIndex < h.suite.ABCIApp.state.LastUnassignedIndex+20 {
+	if h.suite.ABCIApp.state.LastCreatedIndex < h.suite.ABCIApp.state.LastUnassignedIndex+2 {
 		return nil, &jsonrpc.Error{Code: 32604, Message: "System is under heavy load for assignments, please try again later"}
 	}
 

@@ -55,7 +55,7 @@ type (
 		NodePubKeyY string
 	}
 	ShareRequestParams struct {
-		Item []bijson.RawMessage
+		Item []bijson.RawMessage `json:"item"`
 	}
 	ShareRequestItem struct {
 		Token              string          `json:"token"`

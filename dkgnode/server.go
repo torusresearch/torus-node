@@ -26,19 +26,27 @@ func setUpRouter(suite *Suite) http.Handler {
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
-	notProtected := router.PathPrefix("/").Subrouter()
-	notProtected.Use(loggingMiddleware)
-	notProtected.HandleFunc("/healthz", GETHealthz)
+	// notProtected := router.PathPrefix("/healthz").Subrouter()
+	// notProtected.Use(loggingMiddleware)
+	// notProtected.HandleFunc("/", GETHealthz)
 
-	// tlsNotProtected := router.PathPrefix("/tls").Subrouter()
+	// // tlsNotProtected := router.PathPrefix("/tls").Subrouter()
 
-	protected := router.PathPrefix("/jrpc").Subrouter()
-	protected.Handle("/", mr)
-	protected.HandleFunc("/debug", mr.ServeDebug)
+	// protected := router.PathPrefix("/jrpc").Subrouter()
+	// protected.Handle("/", mr)
+	// protected.HandleFunc("/debug", mr.ServeDebug)
 
-	protected.Use(augmentRequestMiddleware)
-	protected.Use(loggingMiddleware)
-	protected.Use(telemetryMiddleware)
+	// protected.Use(augmentRequestMiddleware)
+	// protected.Use(loggingMiddleware)
+	// protected.Use(telemetryMiddleware)
+
+	router.Handle("/jrpc", mr)
+	router.HandleFunc("/jrpc/debug", mr.ServeDebug)
+	router.HandleFunc("/healthz", GETHealthz)
+
+	router.Use(augmentRequestMiddleware)
+	router.Use(loggingMiddleware)
+	router.Use(telemetryMiddleware)
 
 	handler := cors.Default().Handler(router)
 	return handler

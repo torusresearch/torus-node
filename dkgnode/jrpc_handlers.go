@@ -3,6 +3,7 @@ package dkgnode
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"strconv"
@@ -109,7 +110,10 @@ func (h ShareRequestHandler) ServeJSONRPC(c context.Context, params *bijson.RawM
 
 		// verify token validity against verifier, do not pass along nodesignatures
 		jsonMap := make(map[string]interface{})
-		bijson.Unmarshal(rawItem, &jsonMap)
+		err = bijson.Unmarshal(rawItem, &jsonMap)
+		if err != nil {
+			return nil, &jsonrpc.Error{Code: 32602, Message: "Internal error", Data: "Error occurred while parsing jsonmap"}
+		}
 		delete(jsonMap, "nodesignatures")
 		redactedRawItem, err := bijson.Marshal(jsonMap)
 		if err != nil {
@@ -314,13 +318,16 @@ func (h KeyAssignHandler) ServeJSONRPC(c context.Context, params *bijson.RawMess
 		if err != nil {
 			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to check if email exists after assignment: " + err.Error()}
 		}
-		if string(res.Response.Value) == "" {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned"}
+		if res.Response.Code == 10 {
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned: " + res.Response.Info}
 		}
+		// if string(res.Response.Value) == "" {
+		// 	return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "Failed to find email after it has been assigned"}
+		// }
 
-		err = bijson.Unmarshal(res.Response.Value, keyIndexes)
+		err = bijson.Unmarshal(res.Response.Value, &keyIndexes)
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: "could not parse keyindex list"}
+			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error", Data: fmt.Sprintf("could not parse keyindex list keyAssign for %s error: %v", string(res.Response.Value), err)}
 		}
 		logging.Debugf("EXITING RESPONSES LISTENER %d", randomInt)
 		break
@@ -332,14 +339,14 @@ func (h KeyAssignHandler) ServeJSONRPC(c context.Context, params *bijson.RawMess
 	for _, index := range keyIndexes {
 		_, _, pk, err := h.suite.DBSuite.Instance.RetrieveCompletedShare(index)
 		if err != nil {
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Could not find address to key index"}
+			return nil, &jsonrpc.Error{Code: 32603, Message: fmt.Sprintf("Could not find address to key index error: %v", err)}
 		}
 		publicKeys = append(publicKeys, *pk)
 		//form address eth
 		addr, err := common.PointToEthAddress(*pk)
 		if err != nil {
 			logging.Debug("derived user pub key has issues with address")
-			return nil, &jsonrpc.Error{Code: 32603, Message: "Internal error"}
+			return nil, &jsonrpc.Error{Code: 32603, Message: fmt.Sprintf("Internal error: %v", err)}
 		}
 		addresses = append(addresses, *addr)
 		result.Keys = append(result.Keys, KeyAssignItem{

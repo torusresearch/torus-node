@@ -82,6 +82,8 @@ func (c *completedShare) UnmarshalBinary(data []byte) error {
 
 func (t *TorusLDB) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big.Int, publicKey common.Point) error {
 	keyIndexBytes := keyIndex.Bytes()
+	completedShareKey := append(keyIndexBytes, completedShareKeyBytes)
+
 	marshalledShare, err := completedShare{
 		Si:        si,
 		SiPrime:   siprime,
@@ -91,7 +93,7 @@ func (t *TorusLDB) StoreCompletedShare(keyIndex big.Int, si big.Int, siprime big
 		return err
 	}
 
-	t.db.Set(keyIndexBytes, marshalledShare)
+	t.db.Set(completedShareKey, marshalledShare)
 	return nil
 }
 

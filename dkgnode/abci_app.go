@@ -196,7 +196,7 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 			logging.Debugf("%v", reqQuery)
 			logging.Debugf("%v", reqQuery.Data)
 			logging.Debug(string(reqQuery.Data))
-			return types.ResponseQuery{Value: []byte("")}
+			return types.ResponseQuery{Code: 10, Info: "verifier not found for query"}
 		}
 		verifierIDRef, found := verifierRef[string(reqQuery.Data)]
 		if !found {
@@ -204,7 +204,7 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 			logging.Debugf("%v", reqQuery)
 			logging.Debugf("%v", reqQuery.Data)
 			logging.Debug(string(reqQuery.Data))
-			return types.ResponseQuery{Value: []byte("")}
+			return types.ResponseQuery{Code: 10, Info: "val not found for query"}
 		}
 		b, err := bijson.Marshal(verifierIDRef.KeyIndexes)
 		if err != nil {
@@ -214,7 +214,7 @@ func (app *ABCIApp) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQ
 		logging.Debug("val found for query")
 		// uint -> string -> bytes, when receiving do bytes -> string -> uint
 		logging.Debug(string(b))
-		return types.ResponseQuery{Value: []byte(b)}
+		return types.ResponseQuery{Code: 0, Value: []byte(b)}
 
 	// case "GetKeyGenComplete":
 	// 	logging.Debug("GOT A QUERY FOR GETKEYGENCOMPLETE")

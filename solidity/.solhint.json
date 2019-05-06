@@ -1,0 +1,12 @@
+{
+  "extends": "solhint:default",
+  "rules": {
+    "compiler-fixed": false,
+    "indent": ["error", 2],
+    "quotes": ["error", "double"],
+    "max-line-length": ["warn", 150],
+    "contract-name-camelcase": ["warn"],
+    "not-rely-on-time": false,
+    "no-empty-blocks": false
+  }
+}

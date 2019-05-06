@@ -1,0 +1,33 @@
+{
+  "extends": ["standard", "prettier", "prettier/standard"],
+  "plugins": ["prettier", "standard", "mocha"],
+  "parserOptions": {
+    "sourceType": "module"
+  },
+  "env": {
+    "es6": true,
+    "node": true,
+    "mocha": true
+  },
+  "globals": {
+    "artifacts": true,
+    "contract": true,
+    "assert": true,
+    "web3": true
+  },
+  "rules": {
+    "quotes": [2, "single"],
+    "max-len": [2, { "code": 150, "ignoreComments": true }],
+    "flowtype/require-valid-file-annotation": "off",
+    "import/named": "off",
+    "import/no-extraneous-dependencies": [2, { "devDependencies": ["**/*.js"] }],
+    "prettier/prettier": [
+      "error",
+      {
+        "singleQuote": true,
+        "printWidth": 150,
+        "semi": false
+      }
+    ]
+  }
+}

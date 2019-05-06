@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/torusresearch/torus-public/common"
 	"github.com/torusresearch/torus-public/keygen"
 )
 
@@ -103,4 +104,41 @@ func BenchmarkStores(b *testing.B) {
 		db.StoreKEYGENSecret(*idx, *secret)
 
 	}
+}
+
+func TestCompletedShareStoreAndRetrieve(t *testing.T) {
+	tmpDir, _ := ioutil.TempDir("", "testdb")
+	defer os.Remove(tmpDir)
+
+	db, err := NewTorusLDB(tmpDir)
+	if err != nil {
+		t.Fatal(err.Error())
+		return
+	}
+
+	keyIndex := randBigInt()
+	si := randBigInt()
+	siPrime := randBigInt()
+	pk := common.Point{X: *randBigInt(), Y: *randBigInt()}
+	err = db.StoreCompletedShare(*keyIndex, *si, *siPrime, pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rSi, rSiprime, rPk, err := db.RetrieveCompletedShare(*keyIndex)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if si.Cmp(rSi) != 0 {
+		t.Fatalf("received different si values! expected %v, got rSi: %v", si, rSi)
+	}
+
+	if siPrime.Cmp(rSiprime) != 0 {
+		t.Fatalf("received different siPrime values! expected %v, got rSiprime: %v", siPrime, rSiprime)
+	}
+	if pk.X.Cmp(&rPk.X) != 0 {
+		t.Fatalf("received different pk values! expected %v, got rPk: %v", pk, rPk)
+	}
+
 }

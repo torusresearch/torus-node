@@ -293,3 +293,14 @@ func (TestMockVerifier) VerifyRequestIdentity(*bijson.RawMessage) (bool, string,
 
 type TestMockClient interface {
 }
+
+func TestIndexParse(t *testing.T) {
+	var keyIndex []big.Int
+	b := []byte(`["2"]`)
+	bijson.Unmarshal(b, &keyIndex)
+	t.Log(string(b))
+	t.Log(keyIndex)
+	if keyIndex[0].Text(16) != "2" {
+		t.Fatalf("keyindex should be 2 but is %v", keyIndex)
+	}
+}

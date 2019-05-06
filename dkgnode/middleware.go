@@ -46,7 +46,6 @@ func getJRPCMethod(r *http.Request) string {
 	r.Body = ioutil.NopCloser(bytes.NewReader(body))
 	err = bijson.Unmarshal(body, &j)
 	if err != nil {
-		fmt.Println(string(body))
 		logging.Errorf("could not unmarshal body inside getJRPCMethod %s", err)
 		return ""
 	}

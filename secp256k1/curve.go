@@ -4,8 +4,8 @@ import (
 	"math/big"
 
 	secp256k1 "github.com/btcsuite/btcd/btcec"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/torusresearch/torus-public/common"
+	"golang.org/x/crypto/sha3"
 )
 
 type KoblitzCurve struct {
@@ -44,7 +44,7 @@ func HashToPoint(data []byte) *common.Point {
 }
 
 func Keccak256(data ...[]byte) []byte {
-	d := sha3.NewKeccak256()
+	d := sha3.NewLegacyKeccak256()
 	for _, b := range data {
 		d.Write(b)
 	}

@@ -60,7 +60,7 @@ func (app *ABCIApp) ValidateAndUpdateAndTagBFTTx(tx []byte) (bool, *[]common.KVP
 			logging.Errorf("assignmentbfttx failed with error %s", err)
 			return false, &tags, err
 		}
-		parsedTx := AssignmentTx.BFTTx.(AssignmentBFTTx)
+		parsedTx := AssignmentTx.BFTTx.(*AssignmentBFTTx)
 
 		// User can be Assigned more then one key
 		// if _, ok := app.state.[assignmentTx.Email]; ok { //check if user has been assigned before

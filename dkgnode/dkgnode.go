@@ -100,13 +100,6 @@ func New() {
 		log.Fatal(err)
 	}
 
-	// Initialize all necessary channels
-	tmCoreMsgs := make(chan string)
-	nodeListMonitorMsgs := make(chan NodeListUpdates)
-	keyGenMonitorMsgs := make(chan KeyGenUpdates)
-
-	go startNodeListMonitor(&suite, nodeListMonitorTicker.C, nodeListMonitorMsgs)
-
 	// Set Up Server
 	go setUpAndRunHttpServer(&suite)
 	go RunABCIServer(&suite) // tendermint handles sigterm on its own

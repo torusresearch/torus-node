@@ -267,7 +267,7 @@ func (localHost *P2PSuite) sendP2PMessage(id peer.ID, p protocol.ID, msg P2PMess
 }
 
 func connectToP2PNode(suite *Suite, epoch big.Int, nodeAddress ethCommon.Address) (*NodeReference, error) {
-	details, err := suite.EthSuite.NodeListContract.AddressToNodeDetailsLog(nil, nodeAddress, &epoch)
+	details, err := suite.EthSuite.NodeListContract.NodeDetails(nil, nodeAddress)
 	if err != nil {
 		return nil, err
 	}

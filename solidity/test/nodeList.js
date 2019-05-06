@@ -1,13 +1,18 @@
-var NodeList = artifacts.require("NodeList.sol");
+var NodeList = artifacts.require('./NodeList.sol')
 
-contract('Node List', async (accounts) => {
-  beforeEach(async () => {
-    nodeList = await NodeList.new();
-  })
+contract('Node List', function(accounts) {
+  let NodeListInstance
+  // console.log('testing')
+  // beforeEach(async () => {
+  //   console.log('deployed')
+  // })
 
-  it("should  list()", async () => {
-    var result = await nodeList.listNode("yoyo", 1000, 1000);
-    console.log(result.logs[0].args)
-    assert(result.logs[0].event === "NodeListed", "should emit event nodelist");
+  it('should  list()', async () => {
+    //   console.log('deploying')
+    NodeListInstance = await NodeList.deployed()
+    await NodeListInstance.updateWhitelist(1, accounts[0], true)
+    const result = await NodeListInstance.IsWhitelisted(1, accounts[0])
+    assert(result === true)
+    // console.log('testing')
   })
 })

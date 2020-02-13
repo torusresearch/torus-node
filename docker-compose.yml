@@ -1,0 +1,96 @@
+version: '3'
+
+services:
+  ganache:
+    image: trufflesuite/ganache-cli:v6.4.3
+    ports:
+      - "8545:8545"
+    command: -s=something -a=100
+    networks:
+      toruslocalnet:
+
+  node_one:
+    image: torus:latest
+    ports:
+      - "1080"
+      - "26657-26658:26656-26657"
+      - "7001:8080"
+      - "8000:8000"
+      - "6061:6060"
+      - "18081:18080"
+    volumes:
+      - ./config/config.local.1.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
+    networks:
+      toruslocalnet:
+        ipv4_address: 192.167.10.11
+  node_two:
+    image: torus:latest
+    ports:
+      - "1080"
+      - "26659-26660:26656-26657"
+      - "7002:8080"
+      - "8001:8001"
+      - "6062:6060"
+      - "18082:18080"
+    volumes:
+      - ./config/config.local.2.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
+    networks:
+      toruslocalnet:
+        ipv4_address: 192.167.10.12
+
+  node_three:
+    image: torus:latest
+    ports:
+      - "1080"
+      - "26661-26662:26656-26657"
+      - "7003:8080"
+      - "8002:8002"
+      - "6063:6060"
+      - "18083:18080"
+    volumes:
+      - ./tests/openssl:/.torus/openssl
+      - ./config/config.local.3.json:/.torus/config.json
+    networks:
+      toruslocalnet:
+        ipv4_address: 192.167.10.13
+  node_four:
+    image: torus:latest
+    ports:
+      - "1080"
+      - "26663-26664:26656-26657"
+      - "7004:8080"
+      - "8003:8003"
+      - "6064:6060"
+      - "18084:18080"
+    volumes:
+      - ./config/config.local.4.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
+    networks:
+      toruslocalnet:
+        ipv4_address: 192.167.10.14
+  node_five:
+    image: torus:latest
+    ports:
+      - "1080"
+      - "26665-26666:26656-26657"
+      - "7005:8080"
+      - "8004:8004"
+      - "6065:6060"
+      - "18085:18080"
+    volumes:
+      - ./config/config.local.5.json:/.torus/config.json
+      - ./tests/openssl:/.torus/openssl
+    networks:
+      toruslocalnet:
+        ipv4_address: 192.167.10.15
+
+networks:
+  toruslocalnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      -
+        subnet: 192.167.10.0/24

@@ -1,0 +1,16 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "compiler-fixed": "off",
+    "indent": ["error", 4],
+    "quotes": ["error", "double"],
+    "max-line-length": ["warn", 150],
+    "contract-name-camelcase": ["warn"],
+    "not-rely-on-time": "off",
+    "no-empty-blocks": "off",
+    "compiler-version": ["error", "^0.5.0"],
+    "func-order": ["error"],
+    "reason-string": ["error"],
+    "mark-callable-contracts": "off"
+  }
+}

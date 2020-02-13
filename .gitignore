@@ -1,0 +1,17 @@
+/solidity/build/
+/solidity/node_modules/
+/scripts/js/node_modules/
+/private.json
+/.vscode
+package-lock.json
+.DS_Store
+cache.json
+bft.db
+log*.txt
+/temporary
+.build
+TODOs.org
+/keygen/profile*
+*.profile
+.idea
+torus-tester_*

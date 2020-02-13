@@ -1,0 +1,12 @@
+{
+  "solidity.validationDelay": 1500,
+  "solidity.solhintRules": {
+    "compiler-fixed": "off",
+    "indent": ["error", 4],
+    "quotes": ["error", "double"],
+    "max-line-length": ["warn", 120],
+    "contract-name-camelcase": ["warn"],
+    "not-rely-on-time": "off",
+    "no-empty-blocks": "off"
+  }
+}

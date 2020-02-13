@@ -1,0 +1,74 @@
+{
+  "name": "torus-contract",
+  "version": "1.0.0",
+  "description": "Node List contract set",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start:blockchain:client": ". ./scripts/start-blockchain.sh",
+    "stop:blockchain:client": ". ./scripts/stop-blockchain.sh",
+    "compile": "truffle compile --all",
+    "migrate": "truffle migrate --reset --compile-all",
+    "pretest": "npm run start:blockchain:client",
+    "test": "truffle migrate --reset --compile-all && truffle test --network development",
+    "posttest": "npm run stop:blockchain:client",
+    "precommit": "lint-staged",
+    "coverage": "truffle run coverage",
+    "prettier": "prettier --write \"**/*.{js,json,css,md}\"",
+    "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
+    "lint:sol": "prettier --write contracts/**/*.sol && solhint \"contracts/*.sol\"",
+    "lint:js": "eslint --fix test/**/*.js"
+  },
+  "lint-staged": {
+    "*.js": [
+      "npm run lint:js --",
+      "prettier --write **/*.js",
+      "git add"
+    ],
+    "*.sol": [
+      "npm run lint:sol --",
+      "git add"
+    ],
+    "*.{json,css}": [
+      "prettier --write **/*.json",
+      "git add"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "files": [
+    "contracts",
+    "test"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "web3-eth-abi": "^1.2.4"
+  },
+  "devDependencies": {
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-config-standard": "^14.1.0",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-mocha": "^6.2.2",
+    "eslint-plugin-node": "^11.0.0",
+    "eslint-plugin-prettier": "^3.1.2",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
+    "ganache-cli": "^6.7.0",
+    "lint-staged": "^9.5.0",
+    "husky": "^3.1.0",
+    "prettier": "^1.19.1",
+    "prettier-plugin-solidity": "^1.0.0-alpha.35",
+    "solhint": "^2.3.0",
+    "solhint-plugin-prettier": "0.0.3",
+    "solidity-coverage": "^0.7.0",
+    "truffle": "^5.1.6",
+    "@truffle/hdwallet-provider": "^1.0.28"
+  }
+}

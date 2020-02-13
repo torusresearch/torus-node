@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"time"
 
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
@@ -24,10 +24,10 @@ import (
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/crypto"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/tcontext"
-	"github.com/torusresearch/torus-public/version"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/tcontext"
+	"github.com/torusresearch/torus-node/version"
 )
 
 var p2pServiceLibrary ServiceLibrary

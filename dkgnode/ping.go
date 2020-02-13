@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	uuid "github.com/google/uuid"
 	inet "github.com/libp2p/go-libp2p-core/network"

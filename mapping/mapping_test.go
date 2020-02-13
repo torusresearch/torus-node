@@ -8,9 +8,9 @@ import (
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/idmutex"
-	"github.com/torusresearch/torus-public/pvss"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/idmutex"
+	"github.com/torusresearch/torus-node/pvss"
 )
 
 type hexstring string

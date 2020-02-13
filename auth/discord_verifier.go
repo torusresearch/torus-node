@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/torusresearch/bijson"
-	"github.com/torusresearch/torus-public/config"
+	"github.com/torusresearch/torus-node/config"
 )
 
 type DiscordAuthResponse struct {

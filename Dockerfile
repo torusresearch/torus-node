@@ -6,7 +6,7 @@ WORKDIR /src
 ADD . ./
 
 WORKDIR /src/cmd/dkgnode
-RUN go build -mod=vendor -ldflags "-X github.com/torusresearch/torus-public/version.GitCommit=`git rev-list -1 HEAD`" 
+RUN go build -mod=vendor -ldflags "-X github.com/torusresearch/torus-node/version.GitCommit=`git rev-list -1 HEAD`" 
 
 
 # final image

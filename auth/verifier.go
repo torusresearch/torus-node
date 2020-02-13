@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/torusresearch/bijson"
-	pcmn "github.com/torusresearch/torus-public/common"
+	pcmn "github.com/torusresearch/torus-node/common"
 )
 
 type VerifierDetailsID string

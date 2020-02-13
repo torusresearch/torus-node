@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	pcmn "github.com/torusresearch/torus-public/common"
+	pcmn "github.com/torusresearch/torus-node/common"
 )
 
 func TestGenerateBivarPoly(t *testing.T) {

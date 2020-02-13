@@ -8,7 +8,7 @@ import (
 
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	pcmn "github.com/torusresearch/torus-public/common"
+	pcmn "github.com/torusresearch/torus-node/common"
 )
 
 // GenerateRandomBivariatePolynomial -

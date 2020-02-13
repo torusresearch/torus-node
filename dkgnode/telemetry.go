@@ -4,8 +4,8 @@ import (
 	"context"
 
 	logging "github.com/sirupsen/logrus"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 var Events = struct {

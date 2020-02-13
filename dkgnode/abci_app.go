@@ -18,12 +18,12 @@ import (
 	dbm "github.com/torusresearch/tm-db"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/auth"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/keygennofsm"
-	"github.com/torusresearch/torus-public/mapping"
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/auth"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/keygennofsm"
+	"github.com/torusresearch/torus-node/mapping"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 // KeyAssignmentPublic - holds key fields safe to be shown to non-keyholders

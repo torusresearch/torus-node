@@ -10,7 +10,7 @@ import (
 
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
-	pcmn "github.com/torusresearch/torus-public/common"
+	pcmn "github.com/torusresearch/torus-node/common"
 )
 
 func TestBytes(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/pkcs7"
+	"github.com/torusresearch/torus-node/pkcs7"
 )
 
 func pad(b []byte) []byte {

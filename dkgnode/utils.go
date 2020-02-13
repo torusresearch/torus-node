@@ -18,7 +18,7 @@ import (
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/idmutex"
+	"github.com/torusresearch/torus-node/idmutex"
 )
 
 func init() {

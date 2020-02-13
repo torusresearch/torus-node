@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/torusresearch/torus-common/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
-	pcmn "github.com/torusresearch/torus-public/common"
+	pcmn "github.com/torusresearch/torus-node/common"
 )
 
 // ProcessMessage is called when the transport for the node receives a message via direct send.

@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/pvss"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/pvss"
 )
 
 // max(roundUp((n+t+1)/2), k)

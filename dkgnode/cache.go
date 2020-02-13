@@ -8,9 +8,9 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"github.com/torusresearch/torus-common/common"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 type CacheSuiteSyncMap struct {

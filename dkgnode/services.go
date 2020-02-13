@@ -11,7 +11,7 @@ import (
 
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/eventbus"
+	"github.com/torusresearch/torus-node/eventbus"
 )
 
 type ServiceRegistry struct {

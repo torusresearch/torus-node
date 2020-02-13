@@ -544,7 +544,11 @@ github.com/torusresearch/tm-db v1.0.1-0.20191216040944-afe378ffb7a5/go.mod h1:o+
 github.com/torusresearch/torus-common v0.0.0-20191123084416-e5561dcd6b3b h1:nb2LDvN4Nq2BC5E2wF9dmyuVq72Ybn5j2cvY3hWzOK0=
 github.com/torusresearch/torus-common v0.0.0-20191123084416-e5561dcd6b3b/go.mod h1:oREcQByt7iCMLwWy6ADvb7PvIBBxluDKL3JGMY6J7Ys=
 github.com/torusresearch/torus-common v0.0.0-20191206040953-b2a2397c4c1c h1:Xn6sLPooqID57LoSNRsoQbcLMv8TzalnODg+h34hTa0=
+github.com/torusresearch/torus-node v0.8.0/go.mod h1:VMqYqonR6iE4sUov92D+uibtC1nY0iNrOwGbEy4B9ME=
+github.com/torusresearch/torus-public v0.8.0 h1:7uWCTb9Bq+uFn5RFVHn+z6U9lAb1xwNhuf9DhsnvtHc=
 github.com/torusresearch/torus-public v0.8.0/go.mod h1:VMqYqonR6iE4sUov92D+uibtC1nY0iNrOwGbEy4B9ME=
+github.com/torusresearch/torus-public v0.10.4 h1:h5V+99oO7hmJ8b6XhFnENwbRBW2nV5zz3spmvBrJyyc=
+github.com/torusresearch/torus-public v0.10.4/go.mod h1:PpOE2lchxxsXfNL4mRTvvr9ilnX6KimlcvpMzL3xWA0=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/vmihailenco/msgpack/v4 v4.2.1/go.mod h1:Mu3B7ZwLd5nNOLVOKt9DecVl7IVg0xkDiEjk6CwMrww=

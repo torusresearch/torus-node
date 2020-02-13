@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/torusresearch/torus-public/idmutex"
+	"github.com/torusresearch/torus-node/idmutex"
 )
 
 // BusSubscriber defines subscription-related bus behavior

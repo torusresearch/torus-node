@@ -7,7 +7,7 @@ import (
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/jsonrpc"
-	"github.com/torusresearch/torus-public/config"
+	"github.com/torusresearch/torus-node/config"
 )
 
 type Trigger interface {

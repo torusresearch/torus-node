@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"time"
 
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/eventbus"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/eventbus"
 
 	"github.com/gorilla/context"
 	logging "github.com/sirupsen/logrus"
@@ -21,9 +21,9 @@ import (
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/crypto"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/config"
+	"github.com/torusresearch/torus-node/config"
 
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 const signatureHeaderKey = "torus-signature"

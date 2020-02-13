@@ -2,7 +2,7 @@ package common
 
 import (
 	"github.com/torusresearch/torus-common/common"
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/telemetry"
 	"math/rand"
 	"time"
 )

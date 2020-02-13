@@ -13,13 +13,13 @@ import (
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/crypto"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/idmutex"
-	"github.com/torusresearch/torus-public/keygennofsm"
-	"github.com/torusresearch/torus-public/pvss"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/idmutex"
+	"github.com/torusresearch/torus-node/keygennofsm"
+	"github.com/torusresearch/torus-node/pvss"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 type KeygenProtocolPrefix string

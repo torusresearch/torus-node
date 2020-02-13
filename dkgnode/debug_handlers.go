@@ -5,7 +5,7 @@ import (
 
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/jsonrpc"
-	"github.com/torusresearch/torus-public/eventbus"
+	"github.com/torusresearch/torus-node/eventbus"
 )
 
 type (

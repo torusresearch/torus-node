@@ -2,8 +2,8 @@ package main
 
 import (
 	logging "github.com/sirupsen/logrus"
-	"github.com/torusresearch/torus-public/dkgnode"
-	"github.com/torusresearch/torus-public/version"
+	"github.com/torusresearch/torus-node/dkgnode"
+	"github.com/torusresearch/torus-node/version"
 )
 
 func main() {

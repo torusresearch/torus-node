@@ -3,7 +3,7 @@ package dkgnode
 import (
 	"context"
 	"fmt"
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/telemetry"
 	"math/big"
 
 	logging "github.com/sirupsen/logrus"
@@ -11,11 +11,11 @@ import (
 	"github.com/torusresearch/tendermint/abci/server"
 	tmcmn "github.com/torusresearch/tendermint/libs/common"
 	"github.com/torusresearch/tendermint/libs/log"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/pvss"
-	"github.com/torusresearch/torus-public/tmlog"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/pvss"
+	"github.com/torusresearch/torus-node/tmlog"
 )
 
 var abciServiceLibrary ServiceLibrary

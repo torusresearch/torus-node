@@ -4,7 +4,7 @@ import (
 
 	// "strconv"
 
-	"github.com/torusresearch/torus-public/pss"
+	"github.com/torusresearch/torus-node/pss"
 )
 
 type NodeListUpdates struct {

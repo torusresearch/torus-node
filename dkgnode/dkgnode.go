@@ -13,11 +13,11 @@ import (
 
 	logging "github.com/sirupsen/logrus"
 	"github.com/stackimpact/stackimpact-go"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/tcontext"
-	"github.com/torusresearch/torus-public/telemetry"
-	"github.com/torusresearch/torus-public/version"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/tcontext"
+	"github.com/torusresearch/torus-node/telemetry"
+	"github.com/torusresearch/torus-node/version"
 )
 
 const defaultConfigPath = "/.torus/config.json"

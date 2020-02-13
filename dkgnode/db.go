@@ -7,14 +7,14 @@ import (
 	"math/big"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	"github.com/torusresearch/torus-common/common"
 
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/db"
-	"github.com/torusresearch/torus-public/eventbus"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/db"
+	"github.com/torusresearch/torus-node/eventbus"
 )
 
 func NewDatabaseService(ctx context.Context, eb eventbus.Bus) *BaseService {

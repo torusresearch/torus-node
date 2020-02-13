@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/dealer"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/dealer"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	tronCrypto "github.com/TRON-US/go-eccrypto"
 	logging "github.com/sirupsen/logrus"
@@ -24,8 +24,8 @@ import (
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/crypto"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
 )
 
 const requestTimer = 10

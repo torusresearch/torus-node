@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	"github.com/avast/retry-go"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -28,13 +28,13 @@ import (
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/crypto"
 	"github.com/torusresearch/torus-common/secp256k1"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/idmutex"
-	"github.com/torusresearch/torus-public/mapping"
-	"github.com/torusresearch/torus-public/pss"
-	nodelist "github.com/torusresearch/torus-public/solidity/goContracts"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/idmutex"
+	"github.com/torusresearch/torus-node/mapping"
+	"github.com/torusresearch/torus-node/pss"
+	nodelist "github.com/torusresearch/torus-node/solidity/goContracts"
 )
 
 type epochInfo struct {

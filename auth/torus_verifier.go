@@ -10,7 +10,7 @@ import (
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/crypto"
-	"github.com/torusresearch/torus-public/config"
+	"github.com/torusresearch/torus-node/config"
 )
 
 type TorusRequest struct {

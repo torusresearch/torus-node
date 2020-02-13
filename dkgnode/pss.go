@@ -9,11 +9,11 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	"github.com/libp2p/go-libp2p-core/protocol"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/eventbus"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/eventbus"
 
 	// tmquery "github.com/torusresearch/tendermint/libs/pubsub/query"
 	// "github.com/tidwall/gjson"
@@ -21,13 +21,13 @@ import (
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/crypto"
-	"github.com/torusresearch/torus-public/config"
+	"github.com/torusresearch/torus-node/config"
 
 	"github.com/torusresearch/torus-common/common"
 
-	"github.com/torusresearch/torus-public/idmutex"
-	"github.com/torusresearch/torus-public/pss"
-	"github.com/torusresearch/torus-public/pvss"
+	"github.com/torusresearch/torus-node/idmutex"
+	"github.com/torusresearch/torus-node/pss"
+	"github.com/torusresearch/torus-node/pvss"
 )
 
 type PSSProtocolPrefix string

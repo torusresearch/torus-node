@@ -12,14 +12,14 @@ import (
 	tmtypes "github.com/torusresearch/tendermint/rpc/core/types"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/dealer"
-	"github.com/torusresearch/torus-public/keygennofsm"
-	"github.com/torusresearch/torus-public/mapping"
-	"github.com/torusresearch/torus-public/msgqueue"
-	"github.com/torusresearch/torus-public/pss"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/dealer"
+	"github.com/torusresearch/torus-node/keygennofsm"
+	"github.com/torusresearch/torus-node/mapping"
+	"github.com/torusresearch/torus-node/msgqueue"
+	"github.com/torusresearch/torus-node/pss"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 type BFTRPC struct {

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/pvss"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/pvss"
 
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
@@ -19,7 +19,7 @@ import (
 	"github.com/torusresearch/torus-common/common"
 	torusCrypto "github.com/torusresearch/torus-common/crypto"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/eventbus"
+	"github.com/torusresearch/torus-node/eventbus"
 )
 
 // Method Constants

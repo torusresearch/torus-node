@@ -19,12 +19,12 @@ import (
 	"github.com/rs/cors"
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/mrpc"
-	"github.com/torusresearch/torus-public/pvss"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/mrpc"
+	"github.com/torusresearch/torus-node/pvss"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 const contentType = "application/json; charset=utf-8"

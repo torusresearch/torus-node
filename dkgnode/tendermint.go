@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/torusresearch/torus-public/telemetry"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	"math/big"
 	"strings"
@@ -31,12 +31,12 @@ import (
 	rpcclient "github.com/torusresearch/tendermint/rpc/lib/client"
 	rpctypes "github.com/torusresearch/tendermint/rpc/lib/types"
 	tmtypes "github.com/torusresearch/tendermint/types"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
-	"github.com/torusresearch/torus-public/idmutex"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
+	"github.com/torusresearch/torus-node/idmutex"
 
-	"github.com/torusresearch/torus-public/tmlog"
+	"github.com/torusresearch/torus-node/tmlog"
 )
 
 func NewTendermintService(ctx context.Context, eventBus eventbus.Bus) *BaseService {

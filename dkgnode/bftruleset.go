@@ -13,14 +13,14 @@ import (
 	tmcommon "github.com/torusresearch/tendermint/libs/common"
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/crypto"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/dealer"
-	"github.com/torusresearch/torus-public/keygennofsm"
-	"github.com/torusresearch/torus-public/mapping"
-	"github.com/torusresearch/torus-public/pss"
-	"github.com/torusresearch/torus-public/pvss"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/dealer"
+	"github.com/torusresearch/torus-node/keygennofsm"
+	"github.com/torusresearch/torus-node/mapping"
+	"github.com/torusresearch/torus-node/pss"
+	"github.com/torusresearch/torus-node/pvss"
+	"github.com/torusresearch/torus-node/telemetry"
 )
 
 const MaxFailedPubKeyAssigns = 100

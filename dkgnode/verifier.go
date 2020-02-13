@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/telemetry"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/telemetry"
 
 	"github.com/torusresearch/bijson"
-	"github.com/torusresearch/torus-public/auth"
-	"github.com/torusresearch/torus-public/config"
-	"github.com/torusresearch/torus-public/eventbus"
+	"github.com/torusresearch/torus-node/auth"
+	"github.com/torusresearch/torus-node/config"
+	"github.com/torusresearch/torus-node/eventbus"
 )
 
 func NewVerifierService(ctx context.Context, eventBus eventbus.Bus) *BaseService {

@@ -11,12 +11,12 @@ import (
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
 
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/idmutex"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/idmutex"
 
 	"github.com/torusresearch/torus-common/common"
 	"github.com/torusresearch/torus-common/secp256k1"
-	"github.com/torusresearch/torus-public/version"
+	"github.com/torusresearch/torus-node/version"
 )
 
 type NodeDetailsID string

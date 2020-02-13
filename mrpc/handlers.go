@@ -2,7 +2,7 @@ package mrpc
 
 import (
 	"github.com/torusresearch/jsonrpc"
-	"github.com/torusresearch/torus-public/dealer"
+	"github.com/torusresearch/torus-node/dealer"
 )
 
 type (

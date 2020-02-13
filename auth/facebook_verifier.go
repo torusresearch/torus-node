@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/torusresearch/bijson"
-	"github.com/torusresearch/torus-public/config"
+	"github.com/torusresearch/torus-node/config"
 )
 
 type FacebookAuthResponse struct {

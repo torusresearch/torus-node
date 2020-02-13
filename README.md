@@ -1,5 +1,5 @@
 # Torus Node
-[![CircleCI](https://circleci.com/gh/torusresearch/torus-public/tree/develop.svg?style=svg&circle-token=273d50cae2f878cddcd99f8f8632da6ebb1ebcf2)](https://circleci.com/gh/torusresearch/torus-public/tree/develop)
+[![CircleCI](https://circleci.com/gh/torusresearch/torus-node/tree/develop.svg?style=svg&circle-token=273d50cae2f878cddcd99f8f8632da6ebb1ebcf2)](https://circleci.com/gh/torusresearch/torus-node/tree/develop)
 
 This repository implements a Torus node. 
 

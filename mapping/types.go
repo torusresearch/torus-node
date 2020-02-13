@@ -10,9 +10,9 @@ import (
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/bijson"
 	"github.com/torusresearch/torus-common/common"
-	pcmn "github.com/torusresearch/torus-public/common"
-	"github.com/torusresearch/torus-public/idmutex"
-	"github.com/torusresearch/torus-public/version"
+	pcmn "github.com/torusresearch/torus-node/common"
+	"github.com/torusresearch/torus-node/idmutex"
+	"github.com/torusresearch/torus-node/version"
 )
 
 type MappingNode struct {

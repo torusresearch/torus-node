@@ -6,8 +6,8 @@ import (
 
 	logging "github.com/sirupsen/logrus"
 	"github.com/torusresearch/tendermint/libs/log"
-	"github.com/torusresearch/torus-public/idmutex"
-	//"github.com/torusresearch/torus-public/idmutex"
+	"github.com/torusresearch/torus-node/idmutex"
+	//"github.com/torusresearch/torus-node/idmutex"
 )
 
 type tmLoggerLogrus struct {

@@ -8,6 +8,6 @@ import (
 
 func main() {
 	/* Parse the provided parameters on command line */
-	logging.WithField("version", version.NodeVersion).WithField().Info("TORUS NODE STARTING...")
+	logging.WithField("version", version.NodeVersion).Info("TORUS NODE STARTING...")
 	dkgnode.New()
 }

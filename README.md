@@ -39,7 +39,7 @@ A smart contract is used for node discovery. Nodes are selected, operate for a f
 
 When a user arrives at a DApp, the javascript client is loaded. From there, a user logs in, they provide proof that they are logged in, and the proof is verified by each node individually. This proof is integrated with the modern OAuth 2.0 Token Authentication flow. For new users, nodes will assign a new key share from the pre-generated set of key shares, and store this assignment in an internal mapping. For returning users, nodes will look up their internal mapping and return that user's corresponding key share.‌
 
-The javascript client then assembles these shares and reconstructs the users key in the front-end. This key is kept for the session and is not persisted in storage.
+The javascript client then assembles these shares and reconstructs the users key in the front-end. This key is kept for the session and is not persisted in localstorage.
 
 ### Torus Nodes <a id="a-node-and-its-trust-assumptions"></a>
 
@@ -116,7 +116,7 @@ In order to prevent a rogue node, or the Torus servers, from front-running you b
 
 The general approach is as follows: we ensure that the front-end gets access to the token first, creates a commitment to the token and a temporary public-private keypair, and reveals the token only if a threshold number of nodes accept this commitment. The nodes will then use this keypair to encrypt the shares before sending it to the user.
 
-This is done by generating a temporary public-private keypair in the front-end. The front-end calls the first API and receives an authentication token. This token is hashed, and the front-end sends the token hash and the temporary public key to each node, and each node returns a signature on this message, if this is the first time they have seen this token commitment. A bundle of these signatures is the proof, and submitting the proof together with the plain \(unhashed token to each node results in the node responding with a key share that is encrypted with the temporary public key.
+This is done by generating a temporary public-private keypair in the front-end. The front-end calls the first API and receives an authentication token. This token is hashed, and the front-end sends the token hash and the temporary public key to each node, and each node returns a signature on this message, if this is the first time they have seen this token commitment. A bundle of these signatures is the proof, and submitting the proof together with the plain \(unhashed token\) to each node results in the node responding with a key share that is encrypted with the temporary public key.
 
 **Attack 1: Front-runner intercepts the original commitment request and sends a modified public key**
 
